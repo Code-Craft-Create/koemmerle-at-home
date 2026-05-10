@@ -34,7 +34,7 @@ export function matchesCategory(categories: string | undefined, filter: string):
   `],
   template: `
     @for (opts of levels; track $index; let i = $index) {
-      <select [ngModel]="selections[i] ?? ''" (ngModelChange)="onSelect(i, $event)">
+      <select [ngModel]="selections[i]" (ngModelChange)="onSelect(i, $event)">
         <option value="">{{ i === 0 ? 'Alle Kategorien' : 'Alle' }}</option>
         @for (cat of opts; track cat) {
           <option [value]="cat">{{ cat }}</option>

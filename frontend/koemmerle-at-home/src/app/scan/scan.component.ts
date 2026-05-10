@@ -66,7 +66,7 @@ export class ScanComponent implements OnInit, OnDestroy {
   }
 
   @HostListener('document:keydown.enter', ['$event'])
-  onEnter(event: KeyboardEvent) {
+  onEnter(event: Event) {
     if (this.state !== 'confirming' && this.state !== 'done') return;
     event.preventDefault();
     if (this.state === 'confirming') this.confirmNow();

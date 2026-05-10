@@ -224,7 +224,10 @@ export interface CartStatus {
 
 @Injectable({ providedIn: 'root' })
 export class ScanApiService {
-  private readonly base = 'http://localhost:5050/api';
+  private readonly serverOrigin = window.location.port === '4200'
+    ? 'http://localhost:5050'
+    : window.location.origin;
+  private readonly base = `${this.serverOrigin}/api`;
   private hub: signalR.HubConnection;
   private scanResult$ = new Subject<ScanResult>();
   private orderSyncProgress$ = new Subject<OrderProductSyncProgress>();
@@ -232,7 +235,7 @@ export class ScanApiService {
 
   constructor(private http: HttpClient, private zone: NgZone) {
     this.hub = new signalR.HubConnectionBuilder()
-      .withUrl('http://localhost:5050/hubs/scan')
+      .withUrl(`${this.serverOrigin}/hubs/scan`)
       .withAutomaticReconnect()
       .build();
 

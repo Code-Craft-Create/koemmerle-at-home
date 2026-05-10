@@ -1,7 +1,16 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
 using KoemmerleAtHome.Api.Data;
 using KoemmerleAtHome.Api.Hubs;
 using KoemmerleAtHome.Api.Services;
+
+RepairPlaywrightExecutablePermissions();
+
+if (args.Contains("--install-playwright", StringComparer.OrdinalIgnoreCase))
+{
+    Microsoft.Playwright.Program.Main(["install", "chromium"]);
+    return;
+}
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -198,6 +207,24 @@ using (var scope = app.Services.CreateScope())
 if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 
+var executableDirectory = Path.GetDirectoryName(Environment.ProcessPath);
+var publishedWebRoot = Directory.Exists(Path.Combine(executableDirectory ?? "", "wwwroot"))
+    ? Path.Combine(executableDirectory!, "wwwroot")
+    : Path.Combine(AppContext.BaseDirectory, "wwwroot");
+if (Directory.Exists(publishedWebRoot))
+{
+    var fileProvider = new PhysicalFileProvider(publishedWebRoot);
+    app.UseDefaultFiles(new DefaultFilesOptions { FileProvider = fileProvider });
+    app.UseStaticFiles(new StaticFileOptions { FileProvider = fileProvider });
+    app.MapFallbackToFile("index.html", new StaticFileOptions { FileProvider = fileProvider });
+}
+else
+{
+    app.UseDefaultFiles();
+    app.UseStaticFiles();
+    app.MapFallbackToFile("index.html");
+}
+
 app.UseRouting();
 app.UseCors();
 app.UseAuthorization();
@@ -206,3 +233,28 @@ app.MapHub<ScanHub>("/hubs/scan");
 
 
 app.Run();
+
+static void RepairPlaywrightExecutablePermissions()
+{
+    if (!OperatingSystem.IsMacOS() && !OperatingSystem.IsLinux())
+        return;
+
+    var playwrightNodeRoot = Path.Combine(AppContext.BaseDirectory, ".playwright", "node");
+    if (!Directory.Exists(playwrightNodeRoot))
+        return;
+
+    foreach (var nodeExecutable in Directory.EnumerateFiles(playwrightNodeRoot, "node", SearchOption.AllDirectories))
+    {
+        try
+        {
+            File.SetUnixFileMode(nodeExecutable,
+                UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
+                UnixFileMode.GroupRead | UnixFileMode.GroupExecute |
+                UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Could not set execute permission on Playwright helper '{nodeExecutable}': {ex.Message}");
+        }
+    }
+}

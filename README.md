@@ -46,7 +46,7 @@ docs/migros-api-payloads/        Captured Migros API payload examples used
 ## Tech Stack
 
 - Backend: ASP.NET Core, .NET 10, Entity Framework Core, SQLite, SignalR
-- Frontend: Angular, Angular Material/CDK, RxJS, SignalR client
+- Frontend: Angular 21, Angular Material/CDK, RxJS, SignalR client
 - Migros session: Playwright persistent Chromium profile for login/token capture
 - Charts and exports: Chart.js, jsPDF, JsBarcode
 
@@ -55,7 +55,7 @@ docs/migros-api-payloads/        Captured Migros API payload examples used
 ### Prerequisites
 
 - .NET 10 SDK
-- Node.js and npm
+- Node.js 24 and npm
 - PowerShell (`pwsh`) for the Playwright browser install step
 - Playwright's Chromium browser installed for the backend project
 - A Migros account
@@ -90,8 +90,42 @@ npm start
 ```
 
 The Angular dev server runs on `http://localhost:4200` and talks to the backend
-at `http://localhost:5050`. That backend URL is currently hardcoded in
-`frontend/koemmerle-at-home/src/app/services/scan-api.service.ts`.
+at `http://localhost:5050`. The production frontend uses the same origin as the
+server that hosts it.
+
+## Ready-to-Run macOS Releases
+
+The backend can serve the production Angular build directly, so release users
+only need to start the ASP.NET Core executable and open its URL in a browser.
+
+Build both macOS variants from the repository root:
+
+```bash
+./scripts/publish-macos.sh
+```
+
+The release build requires Node.js 20, 22, or 24 for the Angular 21 production
+build, plus the .NET 10 SDK for publishing.
+
+The script creates self-contained single-file publishes for:
+
+- Intel Macs: `release/osx-x64/KoemmerleAtHome.Api`
+- Apple silicon Macs: `release/osx-arm64/KoemmerleAtHome.Api`
+
+Run the executable and open the printed backend URL, usually
+`http://localhost:5000` unless `ASPNETCORE_URLS` is set. For example:
+
+```bash
+ASPNETCORE_URLS=http://localhost:5050 ./release/osx-arm64/KoemmerleAtHome.Api
+```
+
+Playwright's Chromium browser is still required for the Migros login window. If
+the release machine does not already have it, the published executable can
+install it:
+
+```bash
+./release/osx-arm64/KoemmerleAtHome.Api --install-playwright
+```
 
 ## Useful Endpoints
 

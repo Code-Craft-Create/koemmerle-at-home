@@ -6,6 +6,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Authors>David Sommerhalder</Authors>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <SpaRoot>..\..\frontend\koemmerle-at-home\</SpaRoot>
+    <SpaDist>$(SpaRoot)dist\koemmerle-at-home\browser\</SpaDist>
   </PropertyGroup>
 
   <ItemGroup>
@@ -16,5 +18,23 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.*" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.*" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Content Remove="playwright-session\**;koemmerleathome.db*" />
+    <None Remove="playwright-session\**;koemmerleathome.db*" />
+  </ItemGroup>
+
+  <Target Name="BuildFrontend" BeforeTargets="ComputeFilesToPublish" Condition="'$(BuildFrontend)' != 'false'">
+    <Message Importance="high" Text="Building Angular frontend for publish..." />
+    <Exec WorkingDirectory="$(SpaRoot)" Command="npm ci --legacy-peer-deps" />
+    <Exec WorkingDirectory="$(SpaRoot)" Command="npm run build -- --configuration production" />
+    <ItemGroup>
+      <DistFiles Include="$(SpaDist)**\*" />
+      <ResolvedFileToPublish Include="@(DistFiles->'%(FullPath)')" Exclude="@(ResolvedFileToPublish)">
+        <RelativePath>wwwroot\%(RecursiveDir)%(Filename)%(Extension)</RelativePath>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      </ResolvedFileToPublish>
+    </ItemGroup>
+  </Target>
 
 </Project>
