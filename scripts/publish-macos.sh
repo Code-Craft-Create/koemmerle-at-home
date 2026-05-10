@@ -17,6 +17,7 @@ esac
 publish_runtime() {
   local runtime="$1"
   local output="$OUTPUT_ROOT/$runtime"
+  local url="http://localhost:5050"
 
   dotnet publish "$PROJECT" \
     --configuration Release \
@@ -26,15 +27,33 @@ publish_runtime() {
     -p:PublishSingleFile=true \
     -p:DebugType=none \
     -p:DebugSymbols=false \
+    -p:EnableCompressionInSingleFile=true \
     -p:IncludeNativeLibrariesForSelfExtract=true \
     -p:IncludeAllContentForSelfExtract=true
 
   chmod +x "$output/KoemmerleAtHome.Api"
+
+  cat > "$output/start.command" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+
+cd "\$(dirname "\$0")"
+
+if [ ! -d "\$HOME/Library/Caches/ms-playwright" ]; then
+  echo "Installing Playwright Chromium for the Migros login window..."
+  ./KoemmerleAtHome.Api --install-playwright
+fi
+
+echo "Starting Kömmerle At Home..."
+echo "Open $url in your browser."
+ASPNETCORE_URLS=$url ./KoemmerleAtHome.Api
+EOF
+  chmod +x "$output/start.command"
 }
 
 publish_runtime osx-x64
 publish_runtime osx-arm64
 
 echo "macOS release builds written to:"
-echo "  $OUTPUT_ROOT/osx-x64/KoemmerleAtHome.Api"
-echo "  $OUTPUT_ROOT/osx-arm64/KoemmerleAtHome.Api"
+echo "  $OUTPUT_ROOT/osx-x64/start.command"
+echo "  $OUTPUT_ROOT/osx-arm64/start.command"

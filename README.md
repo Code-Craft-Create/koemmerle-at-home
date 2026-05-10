@@ -109,22 +109,23 @@ build, plus the .NET 10 SDK for publishing.
 
 The script creates self-contained single-file publishes for:
 
-- Intel Macs: `release/osx-x64/KoemmerleAtHome.Api`
-- Apple silicon Macs: `release/osx-arm64/KoemmerleAtHome.Api`
+- Intel Macs: `release/osx-x64/start.command`
+- Apple silicon Macs: `release/osx-arm64/start.command`
 
-Run the executable and open the printed backend URL, usually
-`http://localhost:5000` unless `ASPNETCORE_URLS` is set. For example:
+Run the matching `start.command` file. It starts the backend on
+`http://localhost:5050` and installs Playwright's Chromium browser on first run
+if it is missing:
+
+```bash
+./release/osx-arm64/start.command
+```
+
+Then open `http://localhost:5050` in a browser.
+
+You can also run the executable directly:
 
 ```bash
 ASPNETCORE_URLS=http://localhost:5050 ./release/osx-arm64/KoemmerleAtHome.Api
-```
-
-Playwright's Chromium browser is still required for the Migros login window. If
-the release machine does not already have it, the published executable can
-install it:
-
-```bash
-./release/osx-arm64/KoemmerleAtHome.Api --install-playwright
 ```
 
 ## Useful Endpoints
