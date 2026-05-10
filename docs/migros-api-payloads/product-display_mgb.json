@@ -1,0 +1,279 @@
+POST /product-display/public/v1/products/mgb/105295100000
+
+Request: {
+    "storeType": "ONLINE",
+    "warehouseId": 1,
+    "region": "gmaa",
+    "ongoingOfferDate": "2026-05-08T00:00:00",
+    "cumulusCoupons": "<deleted>"
+}
+
+Response: {
+    "uid": 100199475,
+    "migrosId": "105295100000",
+    "migrosOnlineId": "15124580",
+    "name": "Bananen",
+    "brand": "Alnatura",
+    "versioning": "Chips",
+    "title": "Alnatura · Bananen · Bio, Chips",
+    "description": "Alnatura · Bananen · Bio, Chips",
+    "productRange": "STANDARD",
+    "productAvailability": "ONLINE_AND_INSTORE",
+    "productInformation": {
+        "mainInformation": {
+            "brand": {
+                "name": "Alnatura",
+                "slug": "alnatura",
+                "imagePath": "https://www-leshop-ch-cld-res.cloudinary.com/image/upload/{stack}/v1638170826/brands/Alnatura_Alnatura_Produktions_Logo"
+            },
+            "nutritionalCharacteristicsV2": [
+                {
+                    "name": "Bio"
+                }
+            ],
+            "ingredients": "Bananen* 68 %, Kokosöl*, Rohrohrzucker* *aus biologischer Landwirtschaft Kann Spuren von Gluten, Erdnuss, Mandel, Nüssen und Sesam enthalten.",
+            "allergenIndication": "Kann enthalten: Hartschalenobst (Nüsse), Erdnüsse, Sesamsamen, Glutenhaltiges Getreide, Mandeln",
+            "origin": "Philippinen",
+            "rating": {
+                "nbReviews": 7,
+                "nbStars": 5.0
+            },
+            "migipediaUrl": "https://migipedia.migros.ch/de/products/105295100000"
+        },
+        "nutrientsInformation": {
+            "nutrientsTable": {
+                "headers": [
+                    "100 g"
+                ],
+                "rows": [
+                    {
+                        "label": "Energie",
+                        "values": [
+                            "~ 2230 kJ (~ 533 kcal)",
+                            "",
+                            ""
+                        ]
+                    },
+                    {
+                        "label": "Fett",
+                        "values": [
+                            "~ 27 g",
+                            "",
+                            ""
+                        ],
+                        "fsaLevel": "HIGH"
+                    },
+                    {
+                        "label": "davon gesättigte Fettsäuren",
+                        "values": [
+                            "~ 24 g",
+                            "",
+                            ""
+                        ],
+                        "fsaLevel": "HIGH"
+                    },
+                    {
+                        "label": "Kohlenhydrate",
+                        "values": [
+                            "~ 67 g",
+                            "",
+                            ""
+                        ]
+                    },
+                    {
+                        "label": "davon Zucker",
+                        "values": [
+                            "~ 14 g",
+                            "",
+                            ""
+                        ],
+                        "fsaLevel": "MEDIUM"
+                    },
+                    {
+                        "label": "Ballaststoffe",
+                        "values": [
+                            "~ 7 g",
+                            "",
+                            ""
+                        ]
+                    },
+                    {
+                        "label": "Eiweiss",
+                        "values": [
+                            "~ 2.1 g",
+                            "",
+                            ""
+                        ]
+                    },
+                    {
+                        "label": "Salz",
+                        "values": [
+                            "< 0.01 g",
+                            "",
+                            ""
+                        ],
+                        "fsaLevel": "LOW"
+                    }
+                ]
+            },
+            "nutrientsTableV2": {
+                "headers": [
+                    {
+                        "value": "100 g"
+                    }
+                ],
+                "rows": [
+                    {
+                        "label": "Energie",
+                        "values": [
+                            "~ 2230 kJ (~ 533 kcal)"
+                        ]
+                    },
+                    {
+                        "label": "Fett",
+                        "values": [
+                            "~ 27 g"
+                        ],
+                        "fsaLevel": "HIGH"
+                    },
+                    {
+                        "label": "davon gesättigte Fettsäuren",
+                        "values": [
+                            "~ 24 g"
+                        ],
+                        "fsaLevel": "HIGH"
+                    },
+                    {
+                        "label": "Kohlenhydrate",
+                        "values": [
+                            "~ 67 g"
+                        ]
+                    },
+                    {
+                        "label": "davon Zucker",
+                        "values": [
+                            "~ 14 g"
+                        ],
+                        "fsaLevel": "MEDIUM"
+                    },
+                    {
+                        "label": "Ballaststoffe",
+                        "values": [
+                            "~ 7 g"
+                        ]
+                    },
+                    {
+                        "label": "Eiweiss",
+                        "values": [
+                            "~ 2.1 g"
+                        ]
+                    },
+                    {
+                        "label": "Salz",
+                        "values": [
+                            "< 0.01 g"
+                        ],
+                        "fsaLevel": "LOW"
+                    }
+                ]
+            },
+            "isAnalyticalConstituents": false
+        },
+        "usageInformation": {
+            "additionalInformation": "Frittiert, mit Honig; als Müslizutat, zur Dekoration von Desserts; Tipp: in warme Schokoladensoße tauchen."
+        },
+        "otherInformation": {
+            "articleNumber": "105295100000",
+            "legalDesignation": "Bio Bananenscheiben, gesüßt und frittiert",
+            "distributorName": "Alnatura GmbH",
+            "distributorStreetAndNumber": "Mahatma-Gandhi-Straße 7, DE-64295 Darmstadt",
+            "bioCertification": "DE-ÖKO-003",
+            "remarks": [
+                {
+                    "code": "Warnhinweise / Pflichthinweise",
+                    "value": "Unter Schutzatmosphäre verpackt."
+                },
+                {
+                    "code": "Aufbewahrungshinweise für den Konsumenten",
+                    "value": "Bitte trocken lagern und vor Wärme schützen."
+                }
+            ]
+        }
+    },
+    "gtins": [
+        "4104420262188"
+    ],
+    "images": [
+        {
+            "cdn": "rokka",
+            "url": "https://image.migros.ch/d/{stack}/o-af-1-t.clr-fff/303c5edd7a18e8088fbf5a0c4648456e0a41d005/alnatura-bio-bananen-chips.jpg"
+        }
+    ],
+    "imageTransparent": {
+        "cdn": "rokka",
+        "url": "https://image.migros.ch/d/{stack}/303c5edd7a18e8088fbf5a0c4648456e0a41d005/alnatura-bio-bananen-chips.png"
+    },
+    "breadcrumb": [
+        {
+            "id": "7494736",
+            "name": "Snacks & Süssigkeiten",
+            "slugs": [
+                "snacks-sussigkeiten"
+            ]
+        },
+        {
+            "id": "7494785",
+            "name": "Trockenfrüchte",
+            "slugs": [
+                "snacks-sussigkeiten",
+                "trockenfruchte"
+            ]
+        },
+        {
+            "id": "7495031",
+            "name": "Dörrobst",
+            "slugs": [
+                "snacks-sussigkeiten",
+                "trockenfruchte",
+                "dorrobst"
+            ]
+        }
+    ],
+    "productUrls": "https://www.migros.ch/de/product/105295100000",
+    "isMgbCompatible": true,
+    "isConsignmentProduct": false,
+    "offer": {
+        "price": {
+            "displayUnitPrice": true,
+            "advertisedDisplayValue": "1.60",
+            "effectiveDisplayValue": "1.60",
+            "multiplier": 1,
+            "effectiveValue": 1.60,
+            "advertisedValue": 1.60,
+            "unitPrice": {
+                "value": 1.07,
+                "unit": "100g"
+            }
+        },
+        "quantity": "150 g",
+        "quantityPrice": "1.07/100g",
+        "isVariableWeight": false,
+        "channel": {
+            "offerType": "ONLINE",
+            "warehouseId": 1
+        },
+        "maxOrderableQuantity": 6,
+        "maxOrderableQuantityV2": 6,
+        "pictos": [
+            {
+                "type": "BIO",
+                "imagePath": "https://www-leshop-ch-cld-res.cloudinary.com/image/upload/{stack}/v1679483586/labels/bio",
+                "description": "Bio"
+            }
+        ],
+        "isNewOffer": false,
+        "isNotMorningDeliverable": false,
+        "displayPrice": true,
+        "type": "STANDARD"
+    }
+}

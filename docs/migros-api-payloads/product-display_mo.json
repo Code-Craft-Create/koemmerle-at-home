@@ -1,0 +1,115 @@
+POST /product-display/public/v1/products/mo/96905
+
+Request: {
+    "storeType": "ONLINE",
+    "warehouseId": 1,
+    "region": "gmaa",
+    "ongoingOfferDate": "2026-05-08T00:00:00",
+    "cumulusCoupons": "<deleted>"
+}
+
+Response: {
+    "uid": 100017065,
+    "migrosOnlineId": "96905",
+    "name": "Bananen",
+    "brand": "Migros Fresca",
+    "title": "Migros Fresca · Bananen",
+    "description": "Migros Fresca · Bananen",
+    "productRange": "STANDARD",
+    "productAvailability": "ONLINE_ONLY",
+    "productInformation": {
+        "mainInformation": {
+            "brand": {
+                "name": "Migros Fresca",
+                "slug": "migros-fresca",
+                "imagePath": "https://www-leshop-ch-cld-res.cloudinary.com/image/upload/{stack}/v1640076970/brands/Migros_Fresca_Logo"
+            },
+            "origin": "Kolumbien"
+        },
+        "usageInformation": {
+            "additionalInformation": "Noch grüne Bananen kann man einfach bei Zimmertemperatur etwas liegen lassen, bis sie vollreif sind. Um die Reifung zu beschleunigen kann ein Apfel zu den Bananen gelegt werden."
+        },
+        "otherInformation": {
+            "articleNumber": "96905",
+            "distributorName": "Migros-Genossenschafts-Bund",
+            "distributorStreetAndNumber": "Limmatstrasse 152",
+            "distributorZipCodeAndCity": "8031 Zürich"
+        }
+    },
+    "gtins": [
+        "7617027857239"
+    ],
+    "images": [
+        {
+            "cdn": "cloudinary",
+            "url": "https://www-leshop-ch-cld-res.cloudinary.com/image/upload/{stack}/v1742542676/prod/catalog/product/product-96905"
+        }
+    ],
+    "imageTransparent": {
+        "cdn": "cloudinary",
+        "url": "https://www-leshop-ch-cld-res.cloudinary.com/image/upload/{stack}/v1742542676/prod/catalog/product/product-96905"
+    },
+    "breadcrumb": [
+        {
+            "id": "7494732",
+            "name": "Früchte & Gemüse",
+            "slugs": [
+                "fruchte-gemuse"
+            ]
+        },
+        {
+            "id": "7494756",
+            "name": "Früchte",
+            "slugs": [
+                "fruchte-gemuse",
+                "fruchte"
+            ]
+        },
+        {
+            "id": "7494900",
+            "name": "Bananen",
+            "slugs": [
+                "fruchte-gemuse",
+                "fruchte",
+                "bananen"
+            ]
+        }
+    ],
+    "productUrls": "https://www.migros.ch/de/product/mo/96905",
+    "isMgbCompatible": true,
+    "isConsignmentProduct": false,
+    "offer": {
+        "price": {
+            "displayUnitPrice": true,
+            "advertisedDisplayValue": "2.55",
+            "effectiveDisplayValue": "2.55",
+            "multiplier": 1,
+            "effectiveValue": 2.55,
+            "advertisedValue": 2.55,
+            "unitPrice": {
+                "value": 0.25,
+                "unit": "100g"
+            }
+        },
+        "quantity": "870–1150 g",
+        "quantityPrice": "0.25/100g",
+        "isVariableWeight": true,
+        "channel": {
+            "offerType": "ONLINE",
+            "warehouseId": 1
+        },
+        "maxOrderableQuantity": 96,
+        "maxOrderableQuantityV2": 96,
+        "pictos": [
+            {
+                "type": "VARIABLE_WEIGHT",
+                "imagePath": "https://www-leshop-ch-cld-res.cloudinary.com/image/upload/{stack}/v1679483133/labels/poids-variable",
+                "description": "Variable Weight"
+            }
+        ],
+        "isNewOffer": false,
+        "isNotMorningDeliverable": false,
+        "displayPrice": true,
+        "type": "STANDARD"
+    }
+}

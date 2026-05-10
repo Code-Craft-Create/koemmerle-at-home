@@ -1,0 +1,48 @@
+PUT /shopping-list/public/v3/items
+
+Request: {
+    "shoppingListId": 196691,
+    "items": [
+        {
+            "id": "100017065",
+            "quantity": 1,
+            "type": "PRODUCT"
+        }
+    ]
+}
+
+Response: {
+    "shoppingListId": 196691,
+    "name": "List",
+    "totals": {
+        "instoreTotal": 0,
+        "onlineTotal": {
+            "estimatedTotal": 2.55,
+            "credits": 0,
+            "freeDelivery": true,
+            "firstOrder": false,
+            "deliveryPassActive": true,
+            "minimumOrderValueReached": false,
+            "limitedCategories": []
+        },
+        "frozenBoxProgressBarValue": 0,
+        "showFrozenBox": false
+    },
+    "categories": [
+        {
+            "id": 7494732,
+            "items": [
+                {
+                    "id": "100017065",
+                    "type": "PRODUCT",
+                    "quantity": 1,
+                    "name": "Bananen",
+                    "note": "",
+                    "isEcomPromotionalOfferApplied": false,
+                    "ecomProductAvailability": "AVAILABLE"
+                }
+            ],
+            "showFrozenBox": false
+        }
+    ]
+}

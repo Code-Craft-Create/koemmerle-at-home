@@ -1,0 +1,45 @@
+@if (open) {
+  <div class="qs-overlay">
+    <div class="qs-header">
+      <div>
+        <p class="qs-title">Warteschlange</p>
+        <span class="qs-count">{{ items.length }} ausstehend</span>
+      </div>
+      <button class="qs-close" (click)="closePanel.emit()" aria-label="Schliessen">✕</button>
+    </div>
+
+    <div class="qs-body">
+      @for (item of items; track item.id) {
+        <div class="qs-item" [class]="item.status.toLowerCase()">
+          @if (item.productImageData) {
+            <span class="image-badge-wrap">
+              <img class="qs-img" [src]="item.productImageData" [alt]="item.productName" />
+              @if (item.multiplier > 1) { <span class="multiplier-badge">{{ item.multiplier }}x</span> }
+            </span>
+          } @else if (item.recipeImageData) {
+            <img class="qs-img" [src]="item.recipeImageData" [alt]="item.recipeName" />
+          } @else {
+            <div class="qs-img-ph">🛍️</div>
+          }
+          <div class="qs-info">
+            <div class="qs-name">{{ item.productName }}</div>
+            @if (item.recipeName) {
+              <div class="qs-recipe-name">aus {{ item.recipeName }}</div>
+            }
+            <div class="qs-sub">{{ label(item.status) }}</div>
+          </div>
+          <div class="qs-qty">× {{ item.quantity }}</div>
+        </div>
+      } @empty {
+      }
+    </div>
+
+    <div class="qs-footer">
+      
+      <button class="qs-pause-btn" (click)="togglePause()">
+        {{ status.isPaused ? '▶ Fortsetzen' : '⏸ Pausieren' }}
+      </button>
+      <a class="qs-manage-link" routerLink="/queue" (click)="closePanel.emit()">Verwalten →</a>
+    </div>
+  </div>
+}

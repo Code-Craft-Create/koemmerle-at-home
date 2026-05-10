@@ -1,0 +1,135 @@
+<div class="orders-page">
+  <header>
+    <h1>Bestellungen</h1>
+    <div class="header-actions">
+      @if (syncingAll) {
+        <button class="btn primary" disabled>
+          ⏳
+          @if (syncAllPhase === 'headers') {
+            Bestellungen importieren…
+          } @else {
+            {{ syncAllPhase === 'details' ? 'Details' : 'Produkte' }} {{ syncAllCurrent }}/{{ syncAllTotal }}
+          }
+        </button>
+        <button class="btn danger" (click)="stopSyncAll()">⏹ Stopp</button>
+      } @else {
+        <button class="btn primary" (click)="syncAll()" [disabled]="syncingHeadersInProgress">
+          <img src="assets/icons/Download.png" class="btn-icon" alt="" />Bestellungen importieren
+        </button>
+      }
+    </div>
+  </header>
+
+  @if (message) {
+    <div class="msg-banner">{{ message }}</div>
+  }
+
+  @if (orders.length === 0) {
+    <div class="empty">Noch keine Bestellungen. Klicke auf "Bestellungen importieren".</div>
+  }
+
+  <div class="order-list">
+    @for (o of orders; track o.id) {
+      <div class="order-card">
+        <div class="order-row" (click)="toggleExpand(o.id)">
+          <div class="order-meta">
+            <span class="order-id">{{ o.migrosOrderId }}</span>
+            <span class="order-date" [title]="o.dateText ?? ''">
+              {{ o.orderDate ? (o.orderDate | date:'dd.MM.yyyy') : (o.dateText ?? '–') }}
+            </span>
+            <span class="order-total">{{ o.totalAmount != null ? (o.totalAmount | number:'1.2-2') + ' CHF' : '–' }}</span>
+            <span class="badge {{ statusClass(o.status) }}">{{ statusLabel(o.status) }}</span>
+          </div>
+          <div class="order-actions" (click)="$event.stopPropagation()">
+            @if (o.status === 'HeaderFetched') {
+              <button class="btn-sm" (click)="syncDetail(o)" [disabled]="syncingDetailId === o.id">
+                @if (syncingDetailId === o.id) { ⏳ }
+                @else { <img src="assets/icons/Download.png" class="btn-icon" alt="" />Details }
+              </button>
+            }
+            @if (o.status === 'DetailFetched') {
+              <button class="btn-sm" (click)="syncDetail(o)" [disabled]="syncingDetailId === o.id">
+                {{ syncingDetailId === o.id ? '⏳' : '↻ Details' }}
+              </button>
+              <button class="btn-sm primary" (click)="syncProducts(o)" [disabled]="syncingProductsId === o.id">
+                @if (syncingProductsId === o.id) { ⏳ }
+                @else { <img src="assets/icons/Download.png" class="btn-icon" alt="" />Produkte }
+              </button>
+            }
+            @if (o.status === 'FullySynced') {
+              <button class="btn-sm" (click)="syncProducts(o)" [disabled]="syncingProductsId === o.id">
+                {{ syncingProductsId === o.id ? '⏳' : '↻ Produkte' }}
+              </button>
+            }
+            <span class="expand-icon">{{ expandedId === o.id ? '▲' : '▼' }}</span>
+          </div>
+        </div>
+
+        @if (syncProgress[o.id] && syncProgress[o.id].total > 0) {
+          <div class="sync-progress">
+            <div class="progress-bar-wrap">
+              <div class="progress-bar-fill" [style.width.%]="progressPercent(o.id)"></div>
+            </div>
+            <div class="progress-footer">
+              <span class="progress-label">
+                {{ syncProgress[o.id].done }} / {{ syncProgress[o.id].total }}
+                @if (syncProgress[o.id].currentProduct) {
+                  — {{ syncProgress[o.id].currentProduct }}
+                }
+              </span>
+              <button class="btn-sm danger" (click)="cancelProductSync()">⏹ Stopp</button>
+            </div>
+          </div>
+        }
+
+        @if (expandedId === o.id && o.items.length) {
+          <div class="order-items">
+            <table>
+              <thead>
+                <tr>
+                  <th>Produkt</th>
+                  <th>Menge</th>
+                  <th>Stückpreis</th>
+                  <th>Total</th>
+                  <th>Verknüpft</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (item of o.items; track item.id) {
+                  <tr>
+                    <td>
+                      @if (item.productId) {
+                        <a [routerLink]="['/products', item.productId]">{{ item.productNameAtOrder }}</a>
+                        @if ((item.product?.multiplier ?? 1) > 1) {
+                          <span class="multiplier-badge">{{ item.product!.multiplier }}x</span>
+                        }
+                      } @else if (item.migrosProductUrl) {
+                        <a [href]="item.migrosProductUrl" target="_blank">{{ item.productNameAtOrder }}</a>
+                      } @else {
+                        {{ item.productNameAtOrder }}
+                      }
+                    </td>
+                    <td>{{ item.quantity }}×</td>
+                    <td>{{ item.unitPrice != null ? (item.unitPrice | number:'1.2-2') + ' CHF' : '–' }}</td>
+                    <td>{{ item.totalPrice != null ? (item.totalPrice | number:'1.2-2') + ' CHF' : '–' }}</td>
+                    <td>
+                      @if (item.productId) {
+                        <span class="badge done">✓</span>
+                      } @else {
+                        <span class="badge pending">–</span>
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+
+        @if (expandedId === o.id && o.status !== 'HeaderFetched' && (!o.items || o.items.length === 0)) {
+          <div class="empty-items">Keine Artikel geladen.</div>
+        }
+      </div>
+    }
+  </div>
+</div>

@@ -1,0 +1,72 @@
+<div class="settings-page">
+  <header>
+    <h1>Einstellungen / Admin</h1>
+  </header>
+
+  <!-- Migros session -->
+  <div class="settings-card">
+    <h2>Migros Verbindung</h2>
+    <div class="status-row">
+      <span class="status-dot" [class.online]="sessionStatus?.isLoggedIn"></span>
+      <span>Status: <strong>{{ sessionStatus?.isLoggedIn ? 'Eingeloggt' : 'Nicht eingeloggt' }}</strong></span>
+      @if (sessionStatus?.isLoggedIn && sessionStatus?.expiresInSec) {
+        <span class="expires">(läuft ab in {{ Math.round(sessionStatus!.expiresInSec! / 60) }} min)</span>
+      }
+    </div>
+    
+    <div class="auth-actions">
+      <button class="btn primary" (click)="startLogin()">Playwright Login starten</button>
+      <span class="or">oder manuelles Token:</span>
+      <input class="token-input" [(ngModel)]="tokenInput" placeholder="eyJhbGciOi..." />
+      <button class="btn outline" (click)="saveToken()" [disabled]="!tokenInput.trim()">Speichern</button>
+    </div>
+    @if (tokenMessage) { <div class="msg">{{ tokenMessage }}</div> }
+  </div>
+
+  <!-- Thumbnail Sync -->
+  <div class="settings-card">
+    <h2>Produkt-Thumbnails</h2>
+    <div class="action-row">
+      <div class="action-info">
+        <h3>Thumbnails synchronisieren</h3>
+        <p>Lädt für alle Produkte ohne gespeichertes Bild einen kompakten Thumbnail von Migros herunter und speichert ihn lokal.</p>
+      </div>
+      <button class="btn primary" (click)="syncThumbnails()" [disabled]="thumbnailSyncing">
+        {{ thumbnailSyncing ? 'Läuft…' : 'Thumbnails laden' }}
+      </button>
+    </div>
+    @if (thumbnailResult) {
+      <div class="msg">{{ thumbnailResult }}</div>
+    }
+  </div>
+
+  <!-- Data Management -->
+  <div class="settings-card danger-zone">
+    <h2>Datenverwaltung (Gefahrenzone)</h2>
+    <p class="hint">Achtung: Diese Aktionen löschen Daten unwiderruflich aus der Datenbank!</p>
+    
+    <div class="action-row">
+      <div class="action-info">
+        <h3>Produktdaten leeren</h3>
+        <p>Löscht alle erfassten Produkte. Bestellungen behalten ihre Items, verlieren aber die Verknüpfung zu den Produkten.</p>
+      </div>
+      <button class="btn danger" (click)="deleteAllProducts()">Produkte löschen</button>
+    </div>
+
+    <div class="action-row">
+      <div class="action-info">
+        <h3>Bestelldaten leeren</h3>
+        <p>Löscht alle heruntergeladenen Migros-Bestellungen und deren Einträge.</p>
+      </div>
+      <button class="btn danger" (click)="deleteAllOrders()">Bestellungen löschen</button>
+    </div>
+
+    <div class="action-row">
+      <div class="action-info">
+        <h3>Rezepte / Mappings leeren</h3>
+        <p>Löscht alle angelegten Rezepte und Barcode-Mappings.</p>
+      </div>
+      <button class="btn danger" (click)="deleteAllRecipes()">Rezepte löschen</button>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,64 @@
+POST /product-display/public/v2/products/search
+
+Request: {
+    "query": "migros fresca bananen",
+    "language": "de",
+    "storeType": "ONLINE",
+    "warehouseId": 1,
+    "sortFields": [],
+    "sortOrder": "asc",
+    "from": 0,
+    "limit": 100,
+    "filters": {},
+    "searchAlgorithm": "DEFAULT",
+    "mtid": "8D84697E-564B-48DE-B8A3-C7213DA492A2",
+    "enabledSponsoredProducts": true
+}
+
+
+Response: {
+    "items": [
+        {
+            "id": 100017065,
+            "type": "PRODUCT"
+        }
+    ],
+    "filters": [
+        {
+            "id": "my_products",
+            "label": "Zuvor gekauft",
+            "count": 1,
+            "type": "SINGLE"
+        },
+        {
+            "id": "brand",
+            "label": "Marke",
+            "count": 1,
+            "type": "GROUP_MULTI",
+            "options": [
+                {
+                    "id": "brand",
+                    "label": "Migros Fresca",
+                    "value": "migros-fresca",
+                    "count": 1
+                }
+            ]
+        },
+        {
+            "id": "category",
+            "label": "Kategorien",
+            "count": 1,
+            "type": "GROUP_SINGLE",
+            "options": [
+                {
+                    "id": "category",
+                    "label": "Früchte & Gemüse",
+                    "value": "7494732",
+                    "count": 1
+                }
+            ]
+        }
+    ],
+    "numberOfProducts": 1,
+    "offset": 1
+}

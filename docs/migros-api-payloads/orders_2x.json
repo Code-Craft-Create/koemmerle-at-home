@@ -1,0 +1,82 @@
+GET /ordergateway/public/web/v1/orders/23701192
+
+Response: {
+    "id": 24255004,
+    "orderNumber": "abc-032655520-xyz",
+    "customerId": 1464854,
+    "creationDate": "2026-04-30T22:47:56.037",
+    "deliveryState": "DELIVERED",
+    "cancellable": false,
+    "fulfilled": true,
+    "picked": true,
+    "editableBasedOnContext": false,
+    "deliveryStartDate": "2026-05-02T06:30:00",
+    "deliveryEndDate": "2026-05-02T09:00:00",
+    "languageCode": "GERMAN",
+    "email": "<deleted>",
+    "cumulusNumber": "<deleted>",
+    "estimatedGoodsTotal": {
+        "minimum": 206.18,
+        "maximum": 213.29,
+        "estimated": 209.74
+    },
+    "total": 210.14,
+    "totalShipping": 0.00,
+    "totalDiscount": -19.01,
+    "grandTotal": 210.10,
+    "productsVolume": 141.68551,
+    "weight": 41522,
+    "deliveryCharges": 0.00,
+    "freshBagCharges": 0,
+    "freshBagPenaltyCharges": 0.00,
+    "frozenCharges": 0,
+    "paymentCharges": 0.00,
+    "boxDeposit": 0.00,
+    "carbonCompensation": 0.00,
+    "usedCredit": 0.00,
+    "dispoBoxes": 5,
+    "freshBags": 1,
+    "returnedFreshBags": 1,
+    "destination": "<deleted>",
+    "frozenInformation": {
+        "amount": 2.10
+    },
+    "cumulusProductPoints": 206.49,
+    "cumulusPromotionPoints": 0.00,
+    "roundingDifference": 0.04,
+    "trackingLink": "https://www.post.ch/swisspost-tracking?formattedParcelCodes=996000524565552070,996000524565552040,996000524565552020,996001798665552084,996000524565552010",
+    "trackingLinkStatus": "AVAILABLE",
+    "selfReportedProblemStatus": {
+        "enabled": true,
+        "reported": false
+    },
+    "details": {
+        "positions": [
+            {
+                "versioning": "1.5% Fett, UHT",
+                "itemNumber": 28,
+                "productId": 6754577,
+                "uniqueId": 100032443,
+                "productName": "Halbentrahmte Milch",
+                "brand": "M-Budget",
+                "brandLine": "IP-SUISSE",
+                "requestedQuantity": 2,
+                "deliveredQuantity": 2,
+                "adjustedPrice": 4.50,
+                "weightedQuotedPrice": 2.25,
+                "estimatedSellingOfferPrice": 4.50,
+                "estimatedRegularOfferPrice": 4.50,
+                "modificationNumber": 0,
+                "gifted": false,
+                "categoryName": "Milchprodukte, Eier & frische Fertiggerichte",
+                "categorySortPriority": 3,
+                "productImage": {
+                    "cdn": "cloudinary",
+                    "url": "https://www-leshop-ch-cld-res.cloudinary.com/image/upload/{stack}/v2/prod/catalog/product/product-6754577"
+                }
+            }
+        ],
+        "credits": [],
+        "promotions": "<deleted>",
+    "paymentDetails": "<deleted>"
+}

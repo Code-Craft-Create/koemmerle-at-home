@@ -1,0 +1,86 @@
+GET /ordergateway/public/web/v1/orders/24255004
+
+Response: {
+    "id": 24255004,
+    "orderNumber": "abc-032655520-xyz",
+    "customerId": "<deleted>",
+    "creationDate": "2026-04-30T22:47:56.037",
+    "deliveryState": "DELIVERED",
+    "cancellable": false,
+    "fulfilled": true,
+    "picked": true,
+    "editableBasedOnContext": false,
+    "deliveryStartDate": "2026-05-02T06:30:00",
+    "deliveryEndDate": "2026-05-02T09:00:00",
+    "languageCode": "GERMAN",
+    "email": "<deleted>",
+    "cumulusNumber": "<deleted>",
+    "estimatedGoodsTotal": {
+        "minimum": 206.18,
+        "maximum": 213.29,
+        "estimated": 209.74
+    },
+    "total": 210.14,
+    "totalShipping": 0.00,
+    "totalDiscount": -19.01,
+    "grandTotal": 210.10,
+    "productsVolume": 141.68551,
+    "weight": 41522,
+    "deliveryCharges": 0.00,
+    "freshBagCharges": 0,
+    "freshBagPenaltyCharges": 0.00,
+    "frozenCharges": 0,
+    "paymentCharges": 0.00,
+    "boxDeposit": 0.00,
+    "carbonCompensation": 0.00,
+    "usedCredit": 0.00,
+    "dispoBoxes": 5,
+    "freshBags": 1,
+    "returnedFreshBags": 1,
+    "destination": "<deleted>",
+    "frozenInformation": {
+        "amount": 2.10
+    },
+    "cumulusProductPoints": 206.49,
+    "cumulusPromotionPoints": 0.00,
+    "roundingDifference": 0.04,
+    "trackingLink": "<deleted>",
+    "trackingLinkStatus": "AVAILABLE",
+    "selfReportedProblemStatus": {
+        "enabled": true,
+        "reported": false
+    },
+    "details": {
+        "positions": [
+            {
+                "itemNumber": 21,
+                "productId": 96905,
+                "uniqueId": 100017065,
+                "productName": "Bananen",
+                "brand": "Migros Fresca",
+                "requestedQuantity": 1,
+                "deliveredQuantity": 1,
+                "adjustedPrice": 2.55,
+                "weightedQuotedPrice": 2.55,
+                "estimatedSellingOfferPrice": 2.55,
+                "estimatedRegularOfferPrice": 2.55,
+                "modificationNumber": 0,
+                "gifted": false,
+                "categoryName": "Früchte & Gemüse",
+                "categorySortPriority": 1,
+                "productImage": {
+                    "cdn": "cloudinary",
+                    "url": "https://www-leshop-ch-cld-res.cloudinary.com/image/upload/{stack}/v1742542676/prod/catalog/product/product-96905"
+                }
+            }
+        ],
+        "credits": [],
+        "promotions": "<deleted>",
+        "referralReward": {
+            "referrerReward": 0,
+            "friendGift": 0,
+            "cancelled": false
+        }
+    },
+    "paymentDetails": "<deleted>"
+}

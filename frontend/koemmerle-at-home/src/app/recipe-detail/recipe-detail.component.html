@@ -1,0 +1,166 @@
+<div class="detail-page">
+
+  @if (loading) {
+    <div class="state-msg">Lade…</div>
+  } @else if (notFound) {
+    <div class="state-msg error">Rezept nicht gefunden. <a routerLink="/recipes">← Zurück</a></div>
+  } @else if (recipe) {
+
+    <!-- Back + delete -->
+    <div class="page-header">
+      <a routerLink="/recipes" class="back-link">← Rezepte</a>
+      <button class="btn-sm danger" (click)="deleteRecipe()">Rezept löschen</button>
+    </div>
+
+    @if (message) { <div class="msg-banner">{{ message }}</div> }
+
+    <!-- Recipe identity card -->
+    <div class="recipe-header-card">
+      <div class="recipe-image-col">
+        <img [src]="recipe.imageData || 'assets/icons/DefaultRecipe.png'" class="recipe-img" [alt]="recipe.name" />
+        @if (recipe.imageData) {
+          <button class="btn-sm" (click)="clearImage()">🗑 Bild entfernen</button>
+        } @else {
+          <label class="btn-sm img-upload-label">
+            📷 Bild hochladen
+            <input type="file" accept="image/jpeg,image/png" class="hidden-file" (change)="onImageFile($event)" />
+          </label>
+        }
+      </div>
+
+      <div class="recipe-meta">
+        @if (editMode) {
+          <div class="edit-fields">
+            <label class="field-label">
+              Barcode (Trigger)
+              <input [(ngModel)]="editBarcode" class="edit-input mono" placeholder="Barcode" />
+            </label>
+            <label class="field-label">
+              Name
+              <input [(ngModel)]="editName" class="edit-input" placeholder="Name" />
+            </label>
+          </div>
+          <div class="edit-actions">
+            <button class="btn-sm primary" (click)="saveEdit()">✓ Speichern</button>
+            <button class="btn-sm" (click)="cancelEdit()">Abbrechen</button>
+          </div>
+        } @else {
+          <h1 class="recipe-title">{{ recipe.name }}</h1>
+          <div class="recipe-barcode mono">{{ recipe.barcode }}</div>
+          <button class="btn-sm" (click)="startEdit()">✎ Name / Barcode ändern</button>
+        }
+      </div>
+    </div>
+
+    <!-- Two-column layout: add on left, items list on right -->
+    <div class="columns">
+
+      <!-- Left: add product -->
+      <section class="add-column">
+        <h2>Produkt hinzufügen</h2>
+        <div class="search-wrapper">
+          <input type="text" [(ngModel)]="addSearch" class="product-search"
+                 placeholder="Suchen oder GTIN scannen…"
+                 autocomplete="off"
+                 (input)="onSearchInput()"
+                 (keydown)="onSearchKeydown($event)"
+                 (focus)="onAddSearchFocus()"
+                 (blur)="onAddSearchBlur()" />
+          @if (gtinStatus === 'searching') {
+            <span class="scan-indicator searching">Suche…</span>
+          } @else if (gtinStatus === 'unknown') {
+            <span class="scan-indicator unknown">Unbekannt</span>
+          }
+          @if (showDropdown && gtinStatus !== 'choosing' && searchOptions().length > 0) {
+            <div class="product-dropdown">
+              @for (option of searchOptions(); track option.key) {
+                <div class="product-option" (mousedown)="$event.preventDefault()"
+                     (click)="option.product ? selectAndAdd(option.product) : selectMigrosAndAdd(option.choice!)">
+                  @if (option.imageUrl) {
+                    <span class="image-badge-wrap">
+                      <img [src]="option.imageUrl" class="thumb-xs" [alt]="option.name" />
+                      @if (option.multiplier > 1) { <span class="multiplier-badge">{{ option.multiplier }}x</span> }
+                    </span>
+                  }
+                  <span class="product-option-name">{{ option.name }}</span>
+                  @if (option.source === 'migros') { <span class="usage-badge">Migros</span> }
+                  @if (option.weightText) { <span class="usage-badge">{{ option.weightText }}</span> }
+                  @if (option.relevance > 0) {
+                    <svg width="20" height="20" viewBox="0 0 24 24" style="flex-shrink:0">
+                      <circle cx="12" cy="12" [attr.r]="pieR" fill="none" stroke="#e5e7eb" stroke-width="3"/>
+                      <circle cx="12" cy="12" [attr.r]="pieR" fill="none" [attr.stroke]="relevanceColor(option.relevance)" stroke-width="3"
+                        [attr.stroke-dasharray]="relevanceDash(option.relevance)"
+                        transform="rotate(-90 12 12)"/>
+                    </svg>
+                  }
+                </div>
+              }
+            </div>
+          }
+          @if (gtinStatus === 'choosing' && gtinCandidates.length > 0) {
+            <div class="product-dropdown">
+              <div class="dropdown-header">Welches Produkt?</div>
+              @for (c of gtinCandidates; track c.migrosUid) {
+                <div class="product-option" (mousedown)="$event.preventDefault()" (click)="pickGtinCandidate(c)">
+                  @if (c.imageUrl) {
+                    <span class="image-badge-wrap">
+                      <img [src]="c.imageUrl" class="thumb-xs" [alt]="c.name" />
+                      @if (c.multiplier > 1) { <span class="multiplier-badge">{{ c.multiplier }}x</span> }
+                    </span>
+                  }
+                  <span class="product-option-name">{{ c.name }}</span>
+                  @if (c.weightText) { <span class="usage-badge">{{ c.weightText }}</span> }
+                </div>
+              }
+            </div>
+          }
+        </div>
+        <label class="filter-checkbox" style="margin-top: 0.5rem; display: block;">
+          <input type="checkbox" [(ngModel)]="showUnavailable" />
+          Nicht lieferbare anzeigen
+        </label>
+      </section>
+
+      <!-- Right: items already in the recipe -->
+      <section class="items-column">
+        <h2>Im Rezept <span class="item-count">({{ recipe.items.length }})</span></h2>
+        @if (recipe.items.length > 0) {
+          <table class="items-table">
+            <thead>
+              <tr><th>Bild</th><th>Produkt</th><th>Menge</th><th></th></tr>
+            </thead>
+            <tbody>
+              @for (item of recipe.items; track item.id) {
+                <tr>
+                  <td>
+                    @if (item.imageData || item.imageUrl) {
+                      <span class="image-badge-wrap">
+                        <img [src]="item.imageData || item.imageUrl" [alt]="item.productName" class="thumb" />
+                        @if (item.multiplier > 1) { <span class="multiplier-badge">{{ item.multiplier }}x</span> }
+                      </span>
+                    }
+                  </td>
+                  <td>{{ item.productName }}</td>
+                  <td>
+                    <input type="number"
+                           [value]="item.quantity"
+                           min="1"
+                           class="qty-input"
+                           (change)="updateItemQty(item.id, +($any($event.target).value))" />
+                  </td>
+                  <td>
+                    <button class="btn-sm danger" (click)="removeItem(item.id)">✕</button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        } @else {
+          <p class="empty-hint">Noch keine Produkte im Rezept.</p>
+        }
+      </section>
+
+    </div>
+
+  }
+</div>

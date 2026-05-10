@@ -1,0 +1,61 @@
+<nav class="app-nav">
+  <div class="nav-top">
+    <a routerLink="/" class="app-logo" routerLinkActive="never">
+      <span class="logo-brand">KÖMMERLE</span>
+      <span class="logo-sub">At Home</span>
+    </a>
+    <div class="nav-scan-bar">
+      <div class="nav-scan-wrap">
+        <input
+          #navScanInput
+          class="nav-scan-input"
+          [(ngModel)]="navBarcode"
+          placeholder="Suchen oder Barcode einscannen…"
+          (keydown)="onNavKey($event)"
+          (blur)="onNavBlur($event)"
+          autocomplete="off"
+        />
+        <img src="assets/icons/Barcode.png" class="nav-scan-icon" alt="" aria-hidden="true" />
+      </div>
+    </div>
+    <div class="nav-queue-spacer"></div>
+    <div class="nav-settings" (click)="settingsOpen = !settingsOpen; $event.stopPropagation()">
+      <button class="nav-settings-btn">
+        <img src="assets/icons/Hamburger.svg" alt="Einstellungen" class="nav-settings-icon" />
+      </button>
+      @if (settingsOpen) {
+        <div class="nav-settings-dropdown">
+          <a routerLink="/products" (click)="settingsOpen = false">Meine Produkte</a>
+          <a routerLink="/orders" (click)="settingsOpen = false">Bestellungen</a>
+          <a routerLink="/statistics" (click)="settingsOpen = false">Statistik</a>
+          <a routerLink="/forecast" (click)="settingsOpen = false">Prognose (beta)</a>
+          <a routerLink="/settings" (click)="settingsOpen = false">Einstellungen</a>
+        </div>
+      }
+    </div>
+    <button class="nav-queue-btn" (click)="queueOpen = !queueOpen" [class.active]="queueOpen">
+      <img src="assets/icons/BasketUpload.png" class="nav-queue-icon" alt="Queue" />
+      @if (pendingCount > 0) {
+        <span class="nav-queue-badge">{{ pendingCount }}</span>
+      }
+      @if (failedCount > 0) {
+        <span class="nav-queue-badge nav-queue-badge--failed">{{ failedCount }}</span>
+      }
+    </button>
+  </div>
+  <div class="nav-bottom">
+    <a routerLink="/scan" routerLinkActive="active">Scannen</a>
+    <a routerLink="/basket" routerLinkActive="active">Warenkorb</a>
+    <a routerLink="/recipes" routerLinkActive="active">Rezepte</a>
+    <a routerLink="/stickers" routerLinkActive="active">Sticker</a>
+  </div>
+</nav>
+<div class="nav-spacer"></div>
+
+<router-outlet />
+
+@if (!isScanRoute) {
+  <app-scan [isGlobalOverlay]="true" />
+}
+
+<app-queue-sidebar [open]="queueOpen" (closePanel)="queueOpen = false" />

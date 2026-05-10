@@ -1,0 +1,225 @@
+<div class="basket-page" [style.--card-size]="cardSize" (click)="closePickers()">
+
+  <div class="page-header">
+    <h1 class="page-title">Warenkorb</h1>
+    <div class="header-right">
+      <div class="size-slider">
+        <span class="size-label">Grösse:</span>
+        <input type="range" min="0.5" max="2" step="0.05"
+               [(ngModel)]="cardSize" (ngModelChange)="onSizeChange()"
+               [style.--slider-progress]="((cardSize - 0.5) / 1.5 * 100) + '%'" />
+      </div>
+      <button class="refresh-btn" (click)="refresh($event)" [disabled]="refreshing" title="Warenkorb neu laden">
+        {{ refreshing ? '⏳' : '↻' }}
+      </button>
+      <button class="add-lane-btn" (click)="addLane()">+ Spalte</button>
+    </div>
+  </div>
+
+  <div class="swimlanes">
+
+    @for (lane of swimlanes; track lane.id) {
+      <div class="swimlane">
+
+        <div class="lane-header">
+          @if (editingLabelId === lane.id) {
+            <input
+              class="lane-label-input"
+              [(ngModel)]="lane.label"
+              (blur)="commitLabel()"
+              (keydown.enter)="commitLabel()"
+              (click)="$event.stopPropagation()"
+              autofocus
+            />
+          } @else {
+            <span class="lane-label" (click)="startEditLabel(lane.id, $event)">{{ lane.label }}</span>
+          }
+
+          <span class="lane-count">{{ itemsFor(lane).length }} Artikel</span>
+
+          <div class="picker-wrap" (click)="$event.stopPropagation()">
+            <button class="lane-edit-btn" (click)="togglePicker(lane.id, $event)" [class.active]="openPickerId === lane.id" title="Spalte bearbeiten">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M12.854 0.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708l-3-3zm-1.414 2.56L3.293 10.853a.5.5 0 0 0-.131.258l-.5 2.5a.5.5 0 0 0 .586.586l2.5-.5a.5.5 0 0 0 .257-.13l8.146-8.147-2.707-2.707z"/>
+              </svg>
+            </button>
+            @if (openPickerId === lane.id) {
+              <div class="picker-dropdown">
+                @if (knownCategories.length === 0) {
+                  <p class="picker-empty">Keine Kategorien im Warenkorb</p>
+                }
+                @for (cat of availableCategories(lane); track cat) {
+                  <label class="picker-option">
+                    <input
+                      type="checkbox"
+                      [checked]="lane.categories.includes(cat)"
+                      (change)="toggleCategory(lane, cat)"
+                    />
+                    {{ cat }}
+                  </label>
+                }
+                <div class="picker-separator"></div>
+                <button class="picker-delete-btn" (click)="removeLane(lane.id)">Spalte entfernen</button>
+              </div>
+            }
+          </div>
+        </div>
+
+        <div class="lane-body">
+          @if (itemsFor(lane).length === 0) {
+            <p class="lane-empty">Keine Artikel in dieser Spalte</p>
+          }
+          @for (item of itemsFor(lane); track item.uid) {
+            <div
+              class="item-card"
+              [class.item-card--active]="activeItemUid === item.uid"
+              (click)="toggleItem(item.uid, $event)"
+            >
+              <div
+                class="item-qty-ctrl"
+                [class.item-qty-ctrl--active]="activeItemUid === item.uid"
+                (click)="onQuantityControlClick(item.uid, $event)"
+              >
+                <button class="qty-btn" [disabled]="activeItemUid !== item.uid" (click)="adjustQuantity(item, -1)">−</button>
+                <span class="item-qty">{{ item.quantity }}</span>
+                <button class="qty-btn" [disabled]="activeItemUid !== item.uid" (click)="adjustQuantity(item, 1)">+</button>
+              </div>
+              @if (item.imageUrl) {
+                <span class="image-badge-wrap">
+                  <img [src]="item.imageUrl" class="item-img" alt="" />
+                  @if (item.multiplier > 1) { <span class="multiplier-badge">{{ item.multiplier }}x</span> }
+                  @if (item.migrosProductUrl) {
+                    <a
+                      class="item-product-link"
+                      [class.item-product-link--active]="activeItemUid === item.uid"
+                      [href]="item.migrosProductUrl"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title="Auf migros.ch öffnen"
+                      (click)="$event.stopPropagation()"
+                    >
+                      <svg viewBox="0 0 16 16" aria-hidden="true">
+                        <path d="M9.5 2.75h3.75V6.5" />
+                        <path d="M7.25 8.75l5.75-5.75" />
+                        <path d="M6.5 3.75H4.25a1.5 1.5 0 0 0-1.5 1.5v6.5a1.5 1.5 0 0 0 1.5 1.5h6.5a1.5 1.5 0 0 0 1.5-1.5V9.5" />
+                      </svg>
+                    </a>
+                  }
+                </span>
+              } @else {
+                <div class="item-img-placeholder">
+                  🛍️
+                  @if (item.migrosProductUrl) {
+                    <a
+                      class="item-product-link"
+                      [class.item-product-link--active]="activeItemUid === item.uid"
+                      [href]="item.migrosProductUrl"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title="Auf migros.ch öffnen"
+                      (click)="$event.stopPropagation()"
+                    >
+                      <svg viewBox="0 0 16 16" aria-hidden="true">
+                        <path d="M9.5 2.75h3.75V6.5" />
+                        <path d="M7.25 8.75l5.75-5.75" />
+                        <path d="M6.5 3.75H4.25a1.5 1.5 0 0 0-1.5 1.5v6.5a1.5 1.5 0 0 0 1.5 1.5h6.5a1.5 1.5 0 0 0 1.5-1.5V9.5" />
+                      </svg>
+                    </a>
+                  }
+                </div>
+              }
+              <div class="item-info">
+                <span class="item-name">{{ item.productName }}</span>
+              </div>
+            </div>
+          }
+        </div>
+
+      </div>
+    }
+
+    @if (uncategorisedItems.length > 0) {
+      <div class="swimlane swimlane--uncategorised">
+        <div class="lane-header">
+          <span class="lane-label">Nicht zugeordnet</span>
+          <span class="lane-count">{{ uncategorisedItems.length }} Artikel</span>
+        </div>
+        <div class="lane-body">
+          @for (item of uncategorisedItems; track item.uid) {
+            <div
+              class="item-card"
+              [class.item-card--active]="activeItemUid === item.uid"
+              (click)="toggleItem(item.uid, $event)"
+            >
+              <div
+                class="item-qty-ctrl"
+                [class.item-qty-ctrl--active]="activeItemUid === item.uid"
+                (click)="onQuantityControlClick(item.uid, $event)"
+              >
+                <button class="qty-btn" [disabled]="activeItemUid !== item.uid" (click)="adjustQuantity(item, -1)">−</button>
+                <span class="item-qty">{{ item.quantity }}</span>
+                <button class="qty-btn" [disabled]="activeItemUid !== item.uid" (click)="adjustQuantity(item, 1)">+</button>
+              </div>
+              @if (item.imageUrl) {
+                <span class="image-badge-wrap">
+                  <img [src]="item.imageUrl" class="item-img" alt="" />
+                  @if (item.multiplier > 1) { <span class="multiplier-badge">{{ item.multiplier }}x</span> }
+                  @if (item.migrosProductUrl) {
+                    <a
+                      class="item-product-link"
+                      [class.item-product-link--active]="activeItemUid === item.uid"
+                      [href]="item.migrosProductUrl"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title="Auf migros.ch öffnen"
+                      (click)="$event.stopPropagation()"
+                    >
+                      <svg viewBox="0 0 16 16" aria-hidden="true">
+                        <path d="M9.5 2.75h3.75V6.5" />
+                        <path d="M7.25 8.75l5.75-5.75" />
+                        <path d="M6.5 3.75H4.25a1.5 1.5 0 0 0-1.5 1.5v6.5a1.5 1.5 0 0 0 1.5 1.5h6.5a1.5 1.5 0 0 0 1.5-1.5V9.5" />
+                      </svg>
+                    </a>
+                  }
+                </span>
+              } @else {
+                <div class="item-img-placeholder">
+                  🛍️
+                  @if (item.migrosProductUrl) {
+                    <a
+                      class="item-product-link"
+                      [class.item-product-link--active]="activeItemUid === item.uid"
+                      [href]="item.migrosProductUrl"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title="Auf migros.ch öffnen"
+                      (click)="$event.stopPropagation()"
+                    >
+                      <svg viewBox="0 0 16 16" aria-hidden="true">
+                        <path d="M9.5 2.75h3.75V6.5" />
+                        <path d="M7.25 8.75l5.75-5.75" />
+                        <path d="M6.5 3.75H4.25a1.5 1.5 0 0 0-1.5 1.5v6.5a1.5 1.5 0 0 0 1.5 1.5h6.5a1.5 1.5 0 0 0 1.5-1.5V9.5" />
+                      </svg>
+                    </a>
+                  }
+                </div>
+              }
+              <div class="item-info">
+                <span class="item-name">{{ item.productName }}</span>
+                <span class="item-cat-label">{{ item.category }}</span>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    }
+
+    @if (swimlanes.length === 0 && basket.length === 0) {
+      <div class="empty-state">
+        <p>Der Migros-Warenkorb ist leer.</p>
+      </div>
+    }
+
+  </div>
+
+</div>

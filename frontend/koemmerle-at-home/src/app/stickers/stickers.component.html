@@ -1,0 +1,238 @@
+<div class="stickers-page">
+
+  <header>
+    <h1>Sticker-Bogen</h1>
+  </header>
+
+  <div class="stickers-workspace">
+    <section class="preview-panel">
+      <div class="top-area">
+
+        <div class="config-panel">
+          <h2>Einstellungen</h2>
+
+          <div class="config-row">
+            <label>Spalten
+              <input type="number" [(ngModel)]="cols" min="1" max="10" class="num-input" />
+            </label>
+            <label>Zeilen
+              <input type="number" [(ngModel)]="rows" min="1" max="20" class="num-input" />
+            </label>
+          </div>
+
+          <div class="margin-editor">
+            <span class="slider-title">Seitenränder (mm)</span>
+            <div class="margin-cross">
+              <input type="number" [(ngModel)]="marginTop"    min="0" max="30" class="num-input" title="Oben"   style="grid-area:top" />
+              <input type="number" [(ngModel)]="marginLeft"   min="0" max="30" class="num-input" title="Links"  style="grid-area:left" />
+              <div class="margin-center" style="grid-area:center"></div>
+              <input type="number" [(ngModel)]="marginRight"  min="0" max="30" class="num-input" title="Rechts" style="grid-area:right" />
+              <input type="number" [(ngModel)]="marginBottom" min="0" max="30" class="num-input" title="Unten"  style="grid-area:bottom" />
+            </div>
+          </div>
+
+          <div class="slider-label">
+            <span class="slider-title">Innenabstand</span>
+            <div class="slider-row">
+              <input type="range" [(ngModel)]="padding" min="0" max="20" step="0.5" class="slider"
+                [style.--slider-progress]="(padding / 20 * 100) + '%'" />
+              <span class="slider-val">{{ padding }}%</span>
+            </div>
+          </div>
+
+          <div class="slider-label">
+            <span class="slider-title">Bild / Barcode</span>
+            <div class="slider-row">
+              <span class="slider-cap">Bild</span>
+              <input type="range" [(ngModel)]="imageRatio" min="0" max="80" step="5" class="slider"
+                [style.--slider-progress]="(imageRatio / 80 * 100) + '%'" />
+              <span class="slider-cap">Code</span>
+            </div>
+            <div class="slider-hint">{{ imageRatio }}% / {{ 100 - imageRatio }}%</div>
+          </div>
+
+          <div class="slider-label">
+            <span class="slider-title">Schriftgrösse</span>
+            <div class="slider-row">
+              <input type="range" [(ngModel)]="fontSize" min="0" max="20" step="1" class="slider"
+                [style.--slider-progress]="(fontSize / 20 * 100) + '%'" />
+              <span class="slider-val">{{ fontSize === 0 ? 'aus' : fontSize + 'pt' }}</span>
+            </div>
+          </div>
+
+          <div class="layout-toggle">
+            <button class="layout-btn" [class.active]="layout === 'horizontal'" (click)="layout = 'horizontal'">
+              <span class="layout-icon">▥</span> Horizontal
+            </button>
+            <button class="layout-btn" [class.active]="layout === 'vertical'" (click)="layout = 'vertical'">
+              <span class="layout-icon">▤</span> Vertikal
+            </button>
+          </div>
+
+          <label class="checkbox-row">
+            <input type="checkbox" [(ngModel)]="showCutlines" />
+            Schnittlinien anzeigen
+          </label>
+
+          <div class="selection-info">
+            @if (selectedItems.length === 0) {
+              Noch keine Sticker ausgewählt.
+            } @else {
+              <strong>{{ selectedItems.length }}</strong> Sticker —
+              <strong>{{ sheetPages.length }}</strong> Seite(n)
+              <button class="btn-link" (click)="clearSelection()">✕ Alle entfernen</button>
+            }
+          </div>
+
+          <button class="btn primary" (click)="downloadPdf()" [disabled]="!selectedItems.length || generatingPdf">
+            @if (generatingPdf) { ⏳ Generiere… }
+            @else { <img src="assets/icons/Download.png" class="btn-icon" alt="" />PDF herunterladen }
+          </button>
+        </div>
+
+        <div class="sheet-wrap">
+          @for (page of sheetPages; track $index) {
+            @if ($index > 0) {
+              <div class="page-sep">— Seite {{ $index + 1 }} —</div>
+            }
+            <div class="sheet">
+              <div class="sheet-grid"
+                [style.top.%]="marginTop / 297 * 100"
+                [style.left.%]="marginLeft / 210 * 100"
+                [style.right.%]="marginRight / 210 * 100"
+                [style.bottom.%]="marginBottom / 297 * 100"
+                [style.grid-template-columns]="colsStyle"
+                [style.grid-template-rows]="rowsStyle">
+
+                @for (item of page; track item.key) {
+                  <div class="sticker" [style.padding.%]="padding" [class.no-cutline]="!showCutlines">
+                    <div class="sticker-main" [class]="layout">
+                      <div class="s-image" [style.flex]="imageRatio">
+                        @if (item.imageData || item.imageUrl) {
+                          <span class="image-badge-wrap">
+                            <img [src]="item.imageData || item.imageUrl" alt="" (error)="hideOnError($event)" />
+                          </span>
+                        }
+                      </div>
+                      <div class="s-barcode" [style.flex]="100 - imageRatio">
+                        @if (barcodeUrls.get(item.barcode)) {
+                          <img [src]="barcodeUrls.get(item.barcode)" [alt]="item.barcode" />
+                        }
+                      </div>
+                    </div>
+                    @if (fontSize > 0) {
+                      <div class="s-name" [style.fontSize.rem]="fontSize / 16">{{ item.name }}</div>
+                    }
+                  </div>
+                }
+
+                @for (slot of emptySlots(page); track slot) {
+                  <div class="sticker empty-slot"></div>
+                }
+
+              </div>
+            </div>
+          }
+
+          @if (!selectedItems.length) {
+            <div class="sheet-placeholder">
+              <div class="placeholder-icon">🏷️</div>
+              <p>Produkte oder Rezepte auswählen</p>
+            </div>
+          }
+        </div>
+
+      </div>
+    </section>
+
+    <aside class="chooser-panel">
+      <div class="filter-bar">
+        <input [ngModel]="searchRaw" (ngModelChange)="onTextInput($event)" placeholder="Name suchen…" class="filter-text" />
+        <app-category-filter [items]="allItems" [(value)]="categoryFilter" (valueChange)="resetPage()" />
+        <label class="checkbox-row">
+          <input type="checkbox" [(ngModel)]="showUnavailable" (ngModelChange)="resetPage()" />
+          Nicht lieferbare anzeigen
+        </label>
+        @if (searchRaw || categoryFilter) {
+          <button class="btn-link" (click)="resetSearch()">✕ Zurücksetzen</button>
+        }
+        <span class="filter-count">{{ filteredItems.length }} / {{ allItems.length }}</span>
+      </div>
+
+      <div class="table-scroll">
+        <table class="items-table">
+          <thead>
+            <tr>
+              <th>
+                <input type="checkbox" [checked]="allPageSelected" (change)="toggleSelectPage()"
+                  title="Alle auf dieser Seite auswählen" />
+              </th>
+              <th>Bild</th>
+              <th>Name</th>
+              <th>Typ</th>
+              <th>Relevanz</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (item of pageItems; track item.key) {
+              <tr [class.selected]="isSelected(item)" (click)="toggleSelect(item)">
+                <td class="check-cell">
+                  <input type="checkbox" [checked]="isSelected(item)"
+                    [disabled]="syncingMigrosKeys.has(item.key)"
+                    (click)="$event.stopPropagation()" (change)="toggleSelect(item)" />
+                </td>
+                <td>
+                  @if (item.imageData || item.imageUrl) {
+                    <span class="image-badge-wrap">
+                      <img [src]="item.imageData || item.imageUrl" [alt]="item.name" class="thumb" />
+                      @if (item.multiplier > 1) { <span class="multiplier-badge">{{ item.multiplier }}x</span> }
+                    </span>
+                  }
+                </td>
+                <td class="name-cell">{{ item.name }}</td>
+                <td>
+                  <span class="type-badge" [class]="item.type">
+                    {{ item.source === 'migros' ? 'Migros' : (item.type === 'product' ? 'Produkt' : 'Rezept') }}
+                  </span>
+                </td>
+                <td>
+                  @if (item.type === 'product') {
+                    <svg width="24" height="24" viewBox="0 0 24 24" class="relevance-pie">
+                      <circle cx="12" cy="12" [attr.r]="pieR" fill="none" stroke="#e5e7eb" stroke-width="3"/>
+                      @if (item.relevance > 0) {
+                        <circle cx="12" cy="12" [attr.r]="pieR" fill="none" [attr.stroke]="relevanceColor(item.relevance)" stroke-width="3"
+                          [attr.stroke-dasharray]="relevanceDash(item.relevance)"
+                          transform="rotate(-90 12 12)"/>
+                      }
+                    </svg>
+                  } @else {
+                    <span class="small">–</span>
+                  }
+                </td>
+              </tr>
+            } @empty {
+              <tr><td colspan="5" class="empty">Keine Einträge gefunden.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      @if (totalPages > 1 || filteredItems.length > pageSizes[0]) {
+        <div class="pagination">
+          <div class="page-sizes">
+            @for (s of pageSizes; track s) {
+              <button class="page-size-btn" [class.active]="pageSize === s" (click)="setPageSize(s)">{{ s }}</button>
+            }
+          </div>
+          <div class="page-nav">
+            <button class="page-btn" (click)="goToPage(0)"                [disabled]="currentPage === 0">«</button>
+            <button class="page-btn" (click)="goToPage(currentPage - 1)"  [disabled]="currentPage === 0">‹</button>
+            <span class="page-info">{{ pageStart }}–{{ pageEnd }} von {{ filteredItems.length }}</span>
+            <button class="page-btn" (click)="goToPage(currentPage + 1)"  [disabled]="currentPage >= totalPages - 1">›</button>
+            <button class="page-btn" (click)="goToPage(totalPages - 1)"   [disabled]="currentPage >= totalPages - 1">»</button>
+          </div>
+        </div>
+      }
+    </aside>
+  </div>
+</div>

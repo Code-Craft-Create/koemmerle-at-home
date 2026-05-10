@@ -1,0 +1,77 @@
+<div class="queue-page">
+  <header>
+    <h1>Warenkorb-Warteschlange</h1>
+    <div class="status-bar">
+      <span class="status-dot" [class.online]="status.isLoggedIn"></span>
+      <span>{{ status.isLoggedIn ? 'Migros eingeloggt' : 'Nicht eingeloggt' }}</span>
+      <button class="btn" [class.paused]="status.isPaused" (click)="togglePause()">
+        {{ status.isPaused ? '▶ Fortsetzen' : '⏸ Pausieren' }}
+      </button>
+      <button class="btn" (click)="clearCompleted()"
+        [disabled]="!queue.length">
+        ✓ Erledigte löschen
+      </button>
+      <button class="btn danger" (click)="clearAll()"
+        [disabled]="!queue.length">
+        ✕ Alle löschen
+      </button>
+    </div>
+  </header>
+
+  <table class="queue-table">
+    <thead>
+      <tr>
+        <th></th>
+        <th>Produkt</th>
+        <th>Barcode</th>
+        <th>Menge</th>
+        <th>Gescannt</th>
+        <th>Status</th>
+        <th>Aktionen</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (item of queue; track item.id) {
+        <tr [class]="item.status.toLowerCase()">
+          <td class="img-cell">
+            <div class="img-stack">
+              @if (item.recipeImageData) {
+                <img [src]="item.recipeImageData" [title]="item.recipeName ?? ''" class="thumb" />
+              }
+              @if (item.productImageData) {
+                <span class="image-badge-wrap">
+                  <img [src]="item.productImageData" [alt]="item.productName" class="thumb" />
+                  @if (item.multiplier > 1) { <span class="multiplier-badge">{{ item.multiplier }}x</span> }
+                </span>
+              }
+            </div>
+          </td>
+          <td>{{ item.productName }}
+            @if (item.recipeName) {
+              <span class="recipe-label">{{ item.recipeName }}</span>
+            }
+          </td>
+          <td class="mono">{{ item.barcode }}</td>
+          <td>{{ item.quantity }}</td>
+          <td>{{ item.scannedAt | date:'dd.MM HH:mm' }}</td>
+          <td>
+            <span class="badge" [class]="item.status.toLowerCase()">
+              {{ statusLabel(item.status) }}
+            </span>
+            @if (item.errorMessage) {
+              <span class="error-msg" [title]="item.errorMessage">⚠</span>
+            }
+          </td>
+          <td class="actions">
+            @if (item.status === 'Failed') {
+              <button class="btn-sm" (click)="retry(item.id)">Wiederholen</button>
+            }
+            <button class="btn-sm danger" (click)="delete(item.id)">✕</button>
+          </td>
+        </tr>
+      } @empty {
+        <tr><td colspan="7" class="empty">Keine Einträge</td></tr>
+      }
+    </tbody>
+  </table>
+</div>

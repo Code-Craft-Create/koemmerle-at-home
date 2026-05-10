@@ -1,0 +1,91 @@
+<div class="admin-page">
+  <header>
+    <h1>Rezepte</h1>
+    <div class="header-actions">
+      <button class="btn" (click)="exportSelected()" [disabled]="selectedCount === 0 || busy">
+        Exportieren
+      </button>
+      <label class="btn import-btn" [class.disabled]="busy">
+        Importieren
+        <input class="hidden-file" type="file" accept="application/json,.json" (change)="importFile($event)" [disabled]="busy" />
+      </label>
+      <button class="btn primary" (click)="showNewForm = !showNewForm">+ Neues Rezept</button>
+    </div>
+  </header>
+
+  @if (message) {
+    <div class="msg-banner">{{ message }}</div>
+  }
+  @if (error) {
+    <div class="msg-banner error">{{ error }}</div>
+  }
+
+  @if (showNewForm) {
+    <div class="edit-panel">
+      <h2>Neues Rezept</h2>
+      <div class="form-row">
+        <label>
+          Barcode (Trigger)
+          <input [(ngModel)]="newBarcode" placeholder="z.B. PIZZA oder 7610200076004" />
+        </label>
+        <label>
+          Name
+          <input [(ngModel)]="newName" placeholder="z.B. Pizza Margherita" />
+        </label>
+      </div>
+      <div class="edit-actions">
+        <button class="btn primary" (click)="createRecipe()"
+                [disabled]="!newBarcode.trim() || !newName.trim()">Erstellen & öffnen</button>
+        <button class="btn" (click)="showNewForm = false">Abbrechen</button>
+      </div>
+    </div>
+  }
+
+  @if (recipes.length) {
+    <div class="table-wrap">
+      <table class="recipe-table">
+        <thead>
+          <tr>
+            <th class="select-col">
+              <input
+                type="checkbox"
+                [checked]="allSelected"
+                (change)="toggleAll($any($event.target).checked)"
+                aria-label="Alle Rezepte auswählen" />
+            </th>
+            <th>Rezept</th>
+            <th>Barcode</th>
+            <th>Produkte</th>
+            <th class="actions-col"></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (r of recipes; track r.id) {
+            <tr (click)="goToDetail(r.id)">
+              <td class="select-col" (click)="$event.stopPropagation()">
+                <input
+                  type="checkbox"
+                  [checked]="selectedIds.has(r.id)"
+                  (change)="toggleRecipe(r.id, $any($event.target).checked)"
+                  [attr.aria-label]="'Rezept ' + r.name + ' auswählen'" />
+              </td>
+              <td>
+                <div class="recipe-cell">
+                  <img [src]="r.imageData || 'assets/icons/DefaultRecipe.png'" class="recipe-thumb" [alt]="r.name" />
+                  <span class="recipe-name">{{ r.name }}</span>
+                </div>
+              </td>
+              <td><span class="recipe-barcode mono">{{ r.barcode }}</span></td>
+              <td class="recipe-count">{{ r.items.length }}</td>
+              <td class="actions-col" (click)="$event.stopPropagation()">
+                <button class="btn-sm danger" (click)="delete($event, r.id, r.name)">✕</button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  } @else {
+    <div class="empty">Noch keine Rezepte. Klicke auf "+ Neues Rezept".</div>
+  }
+</div>

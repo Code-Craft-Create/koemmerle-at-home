@@ -1,0 +1,121 @@
+<div class="forecast-page">
+
+  <header>
+    <div>
+      <h1>Prognose</h1>
+      <span class="subtitle">Nächste Bestellungen basierend auf Bestellverlauf</span>
+    </div>
+    <div class="header-actions">
+      @if (enqueueResult) {
+        <span class="enqueue-feedback">{{ enqueueResult }}</span>
+      }
+      <button class="btn primary" (click)="enqueueSelected()"
+        [disabled]="enqueueing || selected.size === 0">
+        @if (enqueueing) { ⏳ Einreihen… }
+        @else { 🛒 {{ selected.size }} ausgewählte bestellen }
+      </button>
+    </div>
+  </header>
+
+  <!-- Monthly bar chart -->
+  <section class="chart-section">
+    <div class="chart-header">
+      <h2>
+        @if (period === 'month') { Einheiten pro Monat (letzte 24 Monate) }
+        @else { Einheiten pro 2 Wochen (letztes Jahr) }
+      </h2>
+      <div class="period-toggle">
+        <button class="period-btn" [class.active]="period === 'month'" (click)="setPeriod('month')">
+          Kalendermonat
+        </button>
+        <button class="period-btn" [class.active]="period === 'biweekly'" (click)="setPeriod('biweekly')">
+          2 Wochen
+        </button>
+      </div>
+    </div>
+    <div class="chart-wrap">
+      <canvas #chartCanvas></canvas>
+    </div>
+  </section>
+
+  <!-- Category filter -->
+  <div class="filters">
+    <div class="filter-group">
+      <app-category-filter [items]="forecast" [(value)]="categoryFilter" />
+    </div>
+  </div>
+
+  @if (loading) {
+    <div class="empty">Lade…</div>
+  } @else if (!filtered.length) {
+    <div class="empty">Keine Prognosen verfügbar. Bitte Bestellungen synchronisieren.</div>
+  } @else {
+    <div class="table-toolbar">
+      <span class="summary">{{ filtered.length }} Produkte</span>
+      <button class="btn-link" (click)="selectAllDue()" [disabled]="dueCount === 0">
+        Alle dringlichen anwählen ({{ dueCount }})
+      </button>
+      @if (selected.size > 0) {
+        <button class="btn-link warn" (click)="clearSelection()">✕ Auswahl aufheben</button>
+      }
+    </div>
+
+    <div class="table-scroll">
+      <table class="forecast-table">
+        <thead>
+          <tr>
+            <th class="check-cell"></th>
+            <th>Bild</th>
+            <th>Produkt</th>
+            <th>Zuletzt bestellt</th>
+            <th>Intervall</th>
+            <th>Nächste Bestellung</th>
+            <th>Dringlichkeit</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (f of filtered; track f.productName) {
+            <tr [class.selected]="isSelected(f)" (click)="toggleSelect(f)">
+              <td class="check-cell">
+                <input type="checkbox" [checked]="isSelected(f)" [disabled]="!f.firstBarcode"
+                  (click)="$event.stopPropagation()" (change)="toggleSelect(f)" />
+              </td>
+              <td class="img-cell">
+                @if (f.imageData || f.imageUrl) {
+                  <span class="image-badge-wrap">
+                    <img [src]="f.imageData || f.imageUrl" [alt]="f.productName" class="thumb" />
+                    @if (f.multiplier > 1) { <span class="multiplier-badge">{{ f.multiplier }}x</span> }
+                  </span>
+                }
+              </td>
+              <td>
+                <div class="product-name">
+                  @if (f.productId) {
+                    <a [routerLink]="['/products', f.productId]" class="product-link">{{ f.productName }}</a>
+                  } @else {
+                    {{ f.productName }}
+                  }
+                </div>
+                <div class="crumb-row">
+                  @for (cat of categoryList(f); track $index) {
+                    <span class="crumb">{{ cat }}</span>
+                    @if (!$last) { <span class="sep">›</span> }
+                  }
+                </div>
+              </td>
+              <td>{{ formatDate(f.lastOrderDate) }}</td>
+              <td class="interval-col">{{ formatInterval(f.avgIntervalDays) }}</td>
+              <td>{{ formatDate(f.predictedNextDate) }}</td>
+              <td>
+                <span class="badge" [ngClass]="urgencyClass(f)">
+                  {{ urgencyLabel(f) }}
+                </span>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+</div>

@@ -1,0 +1,125 @@
+<div class="scan-screen" [class]="state" [class.global-overlay]="isGlobalOverlay" [class.hidden]="isGlobalOverlay && state === 'idle'" (click)="requestFocus()">
+
+  @if (state !== 'choosing') {
+    <!-- Scan status area (hidden during choosing so the overlay card disappears) -->
+    <div class="scan-area">
+
+      @switch (state) {
+        @case ('idle') {
+          <div class="prompt">
+            <img src="assets/icons/Basket.png" class="icon" alt="Warenkorb" />
+            <p>Produkt scannen…</p>
+          </div>
+        }
+
+        @case ('searching') {
+          <div class="searching" (click)="$event.stopPropagation()">
+            <div class="search-spinner"></div>
+            <p class="search-label">Suche Produkt…</p>
+            <p class="search-barcode">{{ searchingBarcode }}</p>
+            <button class="cancel-btn" (click)="cancelSearch()">⏹ Abbrechen</button>
+          </div>
+        }
+
+        @case ('confirming') {
+          <div class="confirming" (click)="$event.stopPropagation()">
+            @for (key of [animKey]; track key) {
+              @if (confirming?.imageUrl) {
+                <span class="image-badge-wrap image-loading-frame product-image-frame flying">
+                  <img [src]="confirming!.imageUrl" alt="" class="product-image" (load)="markImageLoaded($event)" (error)="markImageFailed($event)" />
+                  @if ((confirming?.multiplier ?? 1) > 1) { <span class="multiplier-badge">{{ confirming!.multiplier }}x</span> }
+                </span>
+              } @else {
+                <div class="product-icon flying">🛍️</div>
+              }
+            }
+            <p class="product-name">{{ confirming?.productName }}</p>
+            <div class="cart-badge">
+              <img src="assets/icons/BasketUpload.png" class="cart-badge-icon" alt="" />
+              <span class="cart-badge-qty">+{{ confirming?.quantity ?? 1 }}</span>
+              @if (cartQtyInMigros !== null) {
+                <span class="cart-badge-sep">→</span>
+                <span class="cart-badge-total">Total: {{ cartQtyInMigros + (confirming?.quantity ?? 1) }}</span>
+              }
+            </div>
+            <div class="button-row">
+              <button class="cancel-btn" (click)="cancel()">Abbrechen</button>
+              <button #confirmButton class="confirm-btn" (click)="confirmNow()">OK</button>
+            </div>
+          </div>
+        }
+
+        @case ('done') {
+          <div class="result">
+            <img src="assets/icons/Ok.png" class="result-icon" alt="" />
+            <p class="product-name">{{ selectedProductName || confirming?.productName || 'Produkt' }}</p>
+            <p class="sub">Zum Warenkorb hinzugefügt</p>
+            <button #doneButton class="confirm-btn" (click)="dismissDone()">OK</button>
+          </div>
+        }
+
+        @case ('unknown') {
+          <div class="result">
+            <div class="product-icon">❓</div>
+            <p class="product-name">Unbekannter Barcode</p>
+          </div>
+        }
+      }
+    </div>
+  }
+
+  @if (state === 'choosing') {
+    <div class="choosing" (click)="$event.stopPropagation()">
+      <div class="choose-header">
+        <div class="choose-header-text">
+          <p class="choose-label">Welches Produkt meinst du?</p>
+          @if (confirming?.totalAlternatives && confirming!.totalAlternatives! > confirming!.alternatives!.length) {
+            <p class="choose-sub">{{ confirming?.alternatives?.length }} von {{ confirming?.totalAlternatives }} Ergebnissen</p>
+          } @else {
+            <p class="choose-sub">{{ confirming?.alternatives?.length }} Ergebnisse gefunden</p>
+          }
+        </div>
+        <button class="cancel-btn" (click)="cancel()">Abbrechen</button>
+      </div>
+      <div class="alternatives-list">
+        @for (alt of confirming?.alternatives; track alt.migrosUid) {
+          <div class="alternative-card" (click)="chooseAlternative(alt)">
+            @if (alt.imageUrl) {
+              <span class="image-badge-wrap image-loading-frame alt-image-frame">
+                <img [src]="alt.imageUrl" alt="" class="alt-image" loading="lazy" (load)="markImageLoaded($event)" (error)="markImageFailed($event)" />
+                @if (alt.multiplier > 1) { <span class="multiplier-badge">{{ alt.multiplier }}x</span> }
+              </span>
+            } @else {
+              <div class="alt-icon">
+                <img src="assets/icons/Basket.png" alt="Produkt" />
+              </div>
+            }
+            <div class="alt-details">
+              <p class="alt-name">{{ alt.name }}</p>
+              @if (alt.weightText || alt.price) {
+                <p class="alt-meta">
+                  {{ alt.weightText }}
+                  @if (alt.weightText && alt.price) { | }
+                  {{ alt.price ? 'CHF ' + (alt.price | number:'1.2-2') : '' }}
+                </p>
+              }
+            </div>
+          </div>
+        }
+        @if (hasMoreAlternatives || loadMoreError) {
+          <div class="load-more-row">
+            @if (loadMoreError) {
+              <p class="load-more-error">{{ loadMoreError }}</p>
+            }
+            @if (hasMoreAlternatives) {
+              <button class="load-more-btn" (click)="loadMoreAlternatives()" [disabled]="loadingMoreAlternatives">
+                {{ loadingMoreAlternatives ? 'Lade…' : 'Weitere 20 laden' }}
+              </button>
+            }
+          </div>
+        }
+      </div>
+    </div>
+  }
+
+</div>

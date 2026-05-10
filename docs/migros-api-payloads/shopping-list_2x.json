@@ -1,0 +1,37 @@
+GET /shopping-list/public/v2/list/details?shoppingListId=196691
+
+Response: {
+    "shoppingListId": 196691,
+    "name": "List",
+    "totals": {
+        "instoreTotal": 0,
+        "onlineTotal": {
+            "estimatedTotal": 4.50,
+            "credits": 0,
+            "freeDelivery": true,
+            "firstOrder": false,
+            "deliveryPassActive": true,
+            "minimumOrderValueReached": false,
+            "limitedCategories": []
+        },
+        "frozenBoxProgressBarValue": 0,
+        "showFrozenBox": false
+    },
+    "categories": [
+        {
+            "id": 7494731,
+            "items": [
+                {
+                    "id": "100032443",
+                    "type": "PRODUCT",
+                    "quantity": 1,
+                    "name": "Halbentrahmte Milch",
+                    "note": "",
+                    "isEcomPromotionalOfferApplied": false,
+                    "ecomProductAvailability": "AVAILABLE"
+                }
+            ],
+            "showFrozenBox": false
+        }
+    ]
+}

@@ -1,0 +1,103 @@
+POST /product-display/public/v4/product-cards
+
+Request: {
+    "offerFilter": {
+        "storeType": "ONLINE",
+        "warehouseId": 1,
+        "ongoingOfferDate": "2026-05-08T00:00:00"
+    },
+    "productFilter": {
+        "uids": [
+            100199475
+        ]
+    }
+}
+
+Response: {
+    "uid": 100199475,
+    "migrosId": "105295100000",
+    "migrosOnlineId": "15124580",
+    "name": "Bananen",
+    "brand": "Alnatura",
+    "versioning": "Chips",
+    "title": "Alnatura · Bananen · Bio, Chips",
+    "description": "Alnatura · Bananen · Bio, Chips",
+    "productRange": "STANDARD",
+    "productAvailability": "ONLINE_AND_INSTORE",
+    "gtins": [
+        "4104420262188"
+    ],
+    "images": [
+        {
+            "cdn": "rokka",
+            "url": "https://image.migros.ch/d/{stack}/o-af-1-t.clr-fff/303c5edd7a18e8088fbf5a0c4648456e0a41d005/alnatura-bio-bananen-chips.jpg"
+        }
+    ],
+    "imageTransparent": {
+        "cdn": "rokka",
+        "url": "https://image.migros.ch/d/{stack}/303c5edd7a18e8088fbf5a0c4648456e0a41d005/alnatura-bio-bananen-chips.png"
+    },
+    "breadcrumb": [
+        {
+            "id": "7494736",
+            "name": "Snacks & Süssigkeiten",
+            "slugs": [
+                "snacks-sussigkeiten"
+            ]
+        },
+        {
+            "id": "7494785",
+            "name": "Trockenfrüchte",
+            "slugs": [
+                "snacks-sussigkeiten",
+                "trockenfruchte"
+            ]
+        },
+        {
+            "id": "7495031",
+            "name": "Dörrobst",
+            "slugs": [
+                "snacks-sussigkeiten",
+                "trockenfruchte",
+                "dorrobst"
+            ]
+        }
+    ],
+    "productUrls": "https://www.migros.ch/de/product/105295100000",
+    "isMgbCompatible": true,
+    "isConsignmentProduct": false,
+    "offer": {
+        "price": {
+            "displayUnitPrice": true,
+            "advertisedDisplayValue": "1.60",
+            "effectiveDisplayValue": "1.60",
+            "multiplier": 1,
+            "effectiveValue": 1.60,
+            "advertisedValue": 1.60,
+            "unitPrice": {
+                "value": 1.07,
+                "unit": "100g"
+            }
+        },
+        "quantity": "150 g",
+        "quantityPrice": "1.07/100g",
+        "isVariableWeight": false,
+        "channel": {
+            "offerType": "ONLINE",
+            "warehouseId": 1
+        },
+        "maxOrderableQuantity": 6,
+        "maxOrderableQuantityV2": 6,
+        "pictos": [
+            {
+                "type": "BIO",
+                "imagePath": "https://www-leshop-ch-cld-res.cloudinary.com/image/upload/{stack}/v1679483586/labels/bio",
+                "description": "Bio"
+            }
+        ],
+        "isNewOffer": false,
+        "isNotMorningDeliverable": false,
+        "displayPrice": true,
+        "type": "STANDARD"
+    }
+}

@@ -1,0 +1,149 @@
+.settings-page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+header {
+  margin-bottom: 2rem;
+  h1 {
+    margin: 0;
+    font-size: 1.8rem;
+    color: var(--text);
+  }
+}
+
+.settings-card {
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+
+  h2 {
+    margin: 0 0 1rem 0;
+    font-size: 1.25rem;
+    color: var(--text);
+  }
+}
+
+.status-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: #f9fafb;
+  border-radius: 8px;
+  
+  .status-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #ef4444;
+    &.online { background: #22c55e; }
+  }
+  
+  .expires {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+  }
+}
+
+.auth-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+
+  .or {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+  }
+
+  .token-input {
+    flex: 1;
+    min-width: 200px;
+    padding: 0.65rem 1rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    font-family: monospace;
+  }
+}
+
+.msg {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+
+.danger-zone {
+  border: 1px solid #fecaca;
+  
+  h2 { color: #dc2626; }
+  .hint { color: #dc2626; margin-bottom: 1.5rem; font-weight: 500; }
+}
+
+.action-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+  padding: 1rem 0;
+  border-bottom: 1px solid #f3f4f6;
+
+  &:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+
+  .action-info {
+    h3 {
+      margin: 0 0 0.25rem 0;
+      font-size: 1.05rem;
+      color: var(--text);
+    }
+    p {
+      margin: 0;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+  }
+}
+
+.btn {
+  padding: 0.65rem 1.25rem;
+  border-radius: 8px;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: #f3f4f6;
+  color: var(--text);
+
+  &.primary {
+    background: var(--orange);
+    color: white;
+    &:hover { filter: brightness(0.95); }
+  }
+
+  &.danger {
+    background: #ef4444;
+    color: white;
+    &:hover { background: #dc2626; }
+  }
+
+  &.outline {
+    background: transparent;
+    border: 1px solid #d1d5db;
+    &:hover { background: #f9fafb; }
+  }
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}

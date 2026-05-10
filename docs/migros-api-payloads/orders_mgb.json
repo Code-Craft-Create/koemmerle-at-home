@@ -1,0 +1,87 @@
+GET /ordergateway/public/web/v1/orders/23701192
+
+Response: {
+    "id": 23701192,
+    "orderNumber": "abc-032101708-xyz",
+    "customerId": "<deleted>",
+    "creationDate": "2026-01-29T22:18:46.387",
+    "deliveryState": "DELIVERED",
+    "cancellable": false,
+    "fulfilled": true,
+    "picked": true,
+    "editableBasedOnContext": false,
+    "deliveryStartDate": "2026-01-31T06:30:00",
+    "deliveryEndDate": "2026-01-31T09:00:00",
+    "languageCode": "GERMAN",
+    "email": "<deleted>",
+    "cumulusNumber": "<deleted>",
+    "estimatedGoodsTotal": {
+        "minimum": 201.67,
+        "maximum": 207.76,
+        "estimated": 204.81
+    },
+    "total": 205.25,
+    "totalShipping": 0.00,
+    "totalDiscount": -4.37,
+    "grandTotal": 205.25,
+    "productsVolume": 109.975158,
+    "weight": 32663,
+    "deliveryCharges": 0.00,
+    "freshBagCharges": 0,
+    "freshBagPenaltyCharges": 0.00,
+    "frozenCharges": 0,
+    "paymentCharges": 0.00,
+    "boxDeposit": 0.00,
+    "carbonCompensation": 0.00,
+    "usedCredit": 0.00,
+    "dispoBoxes": 4,
+    "freshBags": 1,
+    "returnedFreshBags": 1,
+    "destination": "<deleted>",
+    "frozenInformation": {
+        "amount": 11.05
+    },
+    "cumulusProductPoints": 0.00,
+    "cumulusPromotionPoints": 409.62,
+    "roundingDifference": 0.00,
+    "trackingLinkStatus": "EXPIRED",
+    "selfReportedProblemStatus": {
+        "enabled": false,
+        "reported": true
+    },
+    "details": {
+        "positions": [
+            {
+                "versioning": "Chips",
+                "itemNumber": 51,
+                "productId": 15124580,
+                "migrosId": "105295100000",
+                "uniqueId": 100199475,
+                "productName": "Bananen",
+                "brand": "Alnatura",
+                "requestedQuantity": 2,
+                "deliveredQuantity": 2,
+                "adjustedPrice": 3.20,
+                "weightedQuotedPrice": 1.60,
+                "estimatedSellingOfferPrice": 3.20,
+                "estimatedRegularOfferPrice": 3.20,
+                "modificationNumber": 0,
+                "gifted": false,
+                "categoryName": "Snacks & Süssigkeiten",
+                "categorySortPriority": 6,
+                "productImage": {
+                    "cdn": "rokka",
+                    "url": "https://image.migros.ch/d/{stack}/o-af-1-t.clr-fff/303c5edd7a18e8088fbf5a0c4648456e0a41d005/alnatura-bio-bananen-chips.jpg"
+                }
+            }
+        ],
+        "credits": [],
+        "promotions": "<deleted>",
+        "referralReward": {
+            "referrerReward": 0,
+            "friendGift": 0,
+            "cancelled": false
+        }
+    },
+    "paymentDetails": "<deleted>"
+}

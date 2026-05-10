@@ -1,0 +1,154 @@
+<div class="detail-page">
+
+  @if (loading) {
+    <div class="loading">Lade…</div>
+  } @else if (!product) {
+    <div class="not-found">Produkt nicht gefunden. <a routerLink="/products">← Zurück</a></div>
+  } @else {
+
+    <header>
+      <a routerLink="/products" class="back-link">← Meine Produkte</a>
+      <div class="header-actions">
+        <button class="btn" (click)="sync()" [disabled]="syncing">
+          {{ syncing ? '⏳ Syncing…' : '↻ Sync' }}
+        </button>
+      </div>
+    </header>
+
+    @if (message) {
+      <div class="msg-banner" [class.error]="messageIsError">{{ message }}</div>
+    }
+
+    <div class="content">
+
+      <aside class="sidebar">
+        @if (product.imageUrl) {
+          <span class="image-badge-wrap">
+            <img [src]="product.imageUrl" [alt]="product.name" class="product-image" />
+            @if (product.multiplier > 1) { <span class="multiplier-badge">{{ product.multiplier }}x</span> }
+          </span>
+        } @else {
+          <div class="no-image">Kein Bild</div>
+        }
+
+        <div class="meta">
+          <div class="meta-row">
+            <span class="meta-label">ID</span>
+            <span class="mono">{{ product.id }}</span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-label">Verfügbar</span>
+            <span class="badge" [class.done]="product.available" [class.none]="!product.available">
+              {{ product.available ? '✓ Ja' : '✗ Nein' }}
+            </span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-label">Rezept</span>
+            <span class="badge" [class.done]="product.hasMapping" [class.none]="!product.hasMapping">
+              {{ product.hasMapping ? '✓' : '–' }}
+            </span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-label">Multiplikator</span>
+            <span>
+              @if (product.multiplier > 1) {
+                <span class="multiplier-badge">{{ product.multiplier }}x</span>
+              } @else {
+                <span class="small">–</span>
+              }
+            </span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-label">Preis abgerufen</span>
+            <span class="small">{{ product.priceFetchedAt ? (product.priceFetchedAt | date:'dd.MM.yy HH:mm') : '–' }}</span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-label">Zuletzt synciert</span>
+            <span class="small">{{ product.lastSyncedAt ? (product.lastSyncedAt | date:'dd.MM.yy HH:mm') : '–' }}</span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-label">Zuletzt bestellt</span>
+            <span class="small">{{ product.lastOrderDate ? (product.lastOrderDate | date:'dd.MM.yy') : '–' }}</span>
+          </div>
+        </div>
+
+        <a [href]="product.migrosUrl" target="_blank" class="migros-link">Auf migros.ch öffnen ↗</a>
+      </aside>
+
+      <form class="form" (ngSubmit)="save()">
+        <h1 class="product-title">{{ product.name }}</h1>
+
+        <section class="form-section">
+          <h2>Allgemein</h2>
+
+          <label class="field">
+            <span>Name</span>
+            <input [(ngModel)]="draft.name" name="name" />
+          </label>
+
+          <label class="field">
+            <span>Migros-URL</span>
+            <input [value]="product.migrosUrl" disabled class="readonly" />
+          </label>
+
+          <label class="field">
+            <span>Barcodes (GTINs, kommagetrennt)</span>
+            <input [(ngModel)]="draft.barcodes" name="barcodes" class="mono" />
+          </label>
+
+          <label class="field">
+            <span>Preis (CHF)</span>
+            <input type="number" step="0.01" min="0" [(ngModel)]="draft.price" name="price" class="narrow" />
+          </label>
+        </section>
+
+        <section class="form-section">
+          <h2>Gewicht</h2>
+          <div class="field-row">
+            <label class="field">
+              <span>Anzeigetext</span>
+              <input [(ngModel)]="draft.weightText" name="weightText" placeholder="z.B. 700–950 g" />
+            </label>
+            <label class="field narrow">
+              <span>Min (g)</span>
+              <input type="number" [(ngModel)]="draft.weightMinGrams" name="weightMinGrams" />
+            </label>
+            <label class="field narrow">
+              <span>Max (g)</span>
+              <input type="number" [(ngModel)]="draft.weightMaxGrams" name="weightMaxGrams" />
+            </label>
+            <label class="field narrow">
+              <span>Einheit</span>
+              <input [(ngModel)]="draft.weightUnit" name="weightUnit" placeholder="g / Stück" />
+            </label>
+          </div>
+        </section>
+
+        <section class="form-section">
+          <h2>Kategorien</h2>
+          @if (categoryList.length) {
+            <div class="breadcrumb-preview">
+              @for (cat of categoryList; track $index) {
+                <span class="crumb">{{ cat }}</span>
+                @if (!$last) { <span class="sep">›</span> }
+              }
+            </div>
+          }
+          <label class="field">
+            <span>Kategoriepfad (pipe-getrennt)</span>
+            <input [(ngModel)]="draft.categories" name="categories"
+                   placeholder="z.B. Milchprodukte|Käse|Gruyère" class="mono" />
+          </label>
+        </section>
+
+        <div class="form-actions">
+          <button type="submit" class="btn primary" [disabled]="saving">
+            {{ saving ? 'Speichern…' : 'Speichern' }}
+          </button>
+          <button type="button" class="btn" (click)="toDraft(product)">Zurücksetzen</button>
+        </div>
+      </form>
+
+    </div>
+  }
+</div>

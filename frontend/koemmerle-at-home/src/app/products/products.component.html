@@ -1,0 +1,106 @@
+<div class="products-page">
+  <header>
+    <h1>Meine Produkte</h1>
+  </header>
+
+  @if (message) {
+    <div class="msg-banner">{{ message }}</div>
+  }
+
+  <div class="filter-bar">
+    <input
+      [ngModel]="searchRaw"
+      (ngModelChange)="onTextInput($event)"
+      placeholder="Name oder Barcode suchen…"
+      class="filter-text"
+    />
+    <app-category-filter [items]="products" [(value)]="categoryFilter" (valueChange)="onFilterChange()" />
+    @if (searchRaw || categoryFilter) {
+      <button class="btn-link" (click)="resetSearch()">✕ Zurücksetzen</button>
+    }
+    <span class="filter-count">{{ filtered.length }} / {{ products.length }}</span>
+  </div>
+
+  <div class="table-scroll">
+  <table class="products-table">
+    <thead>
+      <tr>
+        <th>Bild</th>
+        <th class="sortable" (click)="setSort('name')">
+          Name <span class="sort-icon">{{ sortCol === 'name' ? (sortDir === 1 ? '▲' : '▼') : '⇕' }}</span>
+        </th>
+        <th>Barcodes</th>
+        <th>Gewicht</th>
+        <th>Preis</th>
+        <th class="sortable" (click)="setSort('relevance')">
+          Relevanz <span class="sort-icon">{{ sortCol === 'relevance' ? (sortDir === 1 ? '▲' : '▼') : '⇕' }}</span>
+        </th>
+        <th>Rezept</th>
+        <th>Aktionen</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (p of paginated; track p.id) {
+        <tr>
+          <td>
+            @if (p.imageData || p.imageUrl) {
+              <span class="image-badge-wrap">
+                <img [src]="p.imageData || p.imageUrl" class="thumb" [alt]="p.name" />
+                @if (p.multiplier > 1) { <span class="multiplier-badge">{{ p.multiplier }}x</span> }
+              </span>
+            }
+          </td>
+          <td>
+            <a [routerLink]="['/products', p.id]">{{ p.name }}</a>
+          </td>
+          <td class="mono">{{ p.barcodes || '–' }}</td>
+          <td>{{ formatWeight(p) }}</td>
+          <td>{{ p.price != null ? (p.price | number:'1.2-2') + ' CHF' : '–' }}</td>
+          <td>
+            <svg width="24" height="24" viewBox="0 0 24 24" class="relevance-pie">
+              <circle cx="12" cy="12" [attr.r]="pieR" fill="none" stroke="#e5e7eb" stroke-width="3"/>
+              @if (p.relevance > 0) {
+                <circle cx="12" cy="12" [attr.r]="pieR" fill="none" [attr.stroke]="relevanceColor(p.relevance)" stroke-width="3"
+                  [attr.stroke-dasharray]="relevanceDash(p.relevance)"
+                  transform="rotate(-90 12 12)"/>
+              }
+            </svg>
+          </td>
+          <td>
+            @if (p.hasMapping) {
+              <span class="badge done">✓</span>
+            } @else {
+              <span class="badge none">–</span>
+            }
+          </td>
+          <td class="actions">
+            <button class="btn-sm" (click)="sync(p)" [disabled]="syncingIds.has(p.id)">
+              {{ syncingIds.has(p.id) ? '⏳' : '↻' }}
+            </button>
+            <button class="btn-sm danger" (click)="delete(p)">✕</button>
+          </td>
+        </tr>
+      } @empty {
+        <tr><td colspan="8" class="empty">Noch keine Produkte.</td></tr>
+      }
+    </tbody>
+  </table>
+  </div>
+
+  @if (pageCount > 1 || filtered.length > pageSizes[0]) {
+    <div class="pagination">
+      <div class="page-sizes">
+        @for (s of pageSizes; track s) {
+          <button class="page-size-btn" [class.active]="pageSize === s" (click)="setPageSize(s)">{{ s }}</button>
+        }
+      </div>
+      <div class="page-nav">
+        <button class="page-btn" (click)="page = 0"       [disabled]="page === 0">«</button>
+        <button class="page-btn" (click)="page = page - 1" [disabled]="page === 0">‹</button>
+        <span class="page-info">{{ pageStart }}–{{ pageEnd }} von {{ filtered.length }}</span>
+        <button class="page-btn" (click)="page = page + 1" [disabled]="page >= pageCount - 1">›</button>
+        <button class="page-btn" (click)="page = pageCount - 1" [disabled]="page >= pageCount - 1">»</button>
+      </div>
+    </div>
+  }
+</div>

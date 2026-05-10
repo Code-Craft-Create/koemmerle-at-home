@@ -1,0 +1,117 @@
+POST /product-display/public/v4/product-cards
+
+Request: {
+    "offerFilter": {
+        "storeType": "ONLINE",
+        "warehouseId": 1,
+        "ongoingOfferDate": "2026-05-08T00:00:00"
+    },
+    "productFilter": {
+        "uids": [
+            100032443
+        ]
+    },
+    "cumulusCoupons": "<deleted>"
+}
+
+Response: [
+    {
+        "uid": 100032443,
+        "migrosOnlineId": "6754577",
+        "name": "Halbentrahmte Milch",
+        "brand": "M-Budget",
+        "brandLine": "IP-SUISSE",
+        "versioning": "1.5% Fett, UHT",
+        "title": "M-Budget IP-SUISSE · Halbentrahmte Milch · 1.5% Fett, UHT",
+        "description": "M-Budget IP-SUISSE · Halbentrahmte Milch · 1.5% Fett, UHT",
+        "productRange": "STANDARD",
+        "productAvailability": "ONLINE_ONLY",
+        "gtins": [
+            "7613404619285",
+            "7613404619612"
+        ],
+        "images": [
+            {
+                "cdn": "cloudinary",
+                "url": "https://www-leshop-ch-cld-res.cloudinary.com/image/upload/{stack}/v2/prod/catalog/product/product-6754577"
+            }
+        ],
+        "imageTransparent": {
+            "cdn": "cloudinary",
+            "url": "https://www-leshop-ch-cld-res.cloudinary.com/image/upload/{stack}/v2/prod/catalog/product/product-6754577"
+        },
+        "breadcrumb": [
+            {
+                "id": "7494731",
+                "name": "Milchprodukte, Eier & frische Fertiggerichte",
+                "slugs": [
+                    "milchprodukte-eier-frische-ferti"
+                ]
+            },
+            {
+                "id": "7494751",
+                "name": "Milch, Butter & Eier",
+                "slugs": [
+                    "milchprodukte-eier-frische-ferti",
+                    "milch-butter-eier"
+                ]
+            },
+            {
+                "id": "7494867",
+                "name": "Milch & Milchgetränke",
+                "slugs": [
+                    "milchprodukte-eier-frische-ferti",
+                    "milch-butter-eier",
+                    "milch-milchgetranke"
+                ]
+            },
+            {
+                "id": "7495312",
+                "name": "UHT-Milch",
+                "slugs": [
+                    "milchprodukte-eier-frische-ferti",
+                    "milch-butter-eier",
+                    "milch-milchgetranke",
+                    "uht-milch"
+                ]
+            }
+        ],
+        "productUrls": "https://www.migros.ch/de/product/mo/6754577",
+        "isMgbCompatible": true,
+        "isConsignmentProduct": false,
+        "offer": {
+            "price": {
+                "displayUnitPrice": true,
+                "advertisedDisplayValue": "4.50",
+                "effectiveDisplayValue": "4.50",
+                "multiplier": 2,
+                "effectiveValue": 4.50,
+                "advertisedValue": 4.50,
+                "unitPrice": {
+                    "value": 0.11,
+                    "unit": "100ml"
+                }
+            },
+            "quantity": "2 × 2 l",
+            "quantityPrice": "0.11/100ml",
+            "isVariableWeight": false,
+            "channel": {
+                "offerType": "ONLINE",
+                "warehouseId": 1
+            },
+            "maxOrderableQuantity": 16,
+            "maxOrderableQuantityV2": 8,
+            "pictos": [
+                {
+                    "type": "REGION",
+                    "imagePath": "https://www-leshop-ch-cld-res.cloudinary.com/image/upload/{stack}/v1679482984/labels/suisse",
+                    "description": "Schweiz"
+                }
+            ],
+            "isNewOffer": false,
+            "isNotMorningDeliverable": false,
+            "displayPrice": true,
+            "type": "STANDARD"
+        }
+    }
+]

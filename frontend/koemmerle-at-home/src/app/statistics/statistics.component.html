@@ -1,0 +1,174 @@
+<div class="stats-page">
+  <header>
+    <h1>Statistiken</h1>
+    <span class="subtitle">Bestellte Produkte nach Zeitraum</span>
+  </header>
+
+  <div class="filters">
+    <div class="filter-group">
+      <label>Von
+        <input type="date" [(ngModel)]="dateFrom" (change)="load()" />
+      </label>
+      <label>Bis
+        <input type="date" [(ngModel)]="dateTo" (change)="load()" />
+      </label>
+      <button class="btn" (click)="load()" [disabled]="loading">
+        {{ loading ? '⏳' : '↻ Aktualisieren' }}
+      </button>
+    </div>
+
+    <div class="filter-group">
+      <app-category-filter [items]="stats" [(value)]="categoryFilter" />
+    </div>
+  </div>
+
+  <div class="debug-toggle">
+    <button class="btn-link" (click)="toggleDebug()">
+      {{ showDebug ? '▲ Debug ausblenden' : '▼ Debug anzeigen' }}
+    </button>
+    @if (showDebug) {
+      <button class="btn-link" (click)="loadDebug()" [disabled]="debugLoading" style="margin-left:1rem">
+        ↻ Neu laden
+      </button>
+    }
+  </div>
+
+  @if (showDebug) {
+    <div class="debug-panel">
+      @if (debugLoading) {
+        <p class="debug-loading">Lade…</p>
+      } @else if (debugError) {
+        <p class="warn">Fehler: {{ debugError }}</p>
+      } @else if (!debug) {
+        <p class="warn">Keine Daten empfangen.</p>
+      } @else {
+        <div class="debug-section">
+          <strong>Filter:</strong>
+          {{ debug.filter.from | date:'dd.MM.yyyy' }} – {{ debug.filter.to | date:'dd.MM.yyyy' }}
+        </div>
+
+        <div class="debug-section">
+          <strong>Bestellungen:</strong>
+          {{ debug.orders.total }} total —
+          {{ debug.orders.withDate }} mit Datum —
+          {{ debug.orders.withoutDate }} ohne Datum —
+          <span [class.warn]="debug.orders.inRange === 0">{{ debug.orders.inRange }} im Zeitraum</span>
+        </div>
+
+        @if (debug.orders.withoutDate > 0) {
+          <div class="debug-section warn">
+            ⚠ {{ debug.orders.withoutDate }} Bestellungen ohne OrderDate (noch nicht vollständig synchronisiert):
+            <ul>
+              @for (o of debug.orders.withoutDateDetails; track o.id) {
+                <li>ID {{ o.id }} · {{ o.migrosOrderId }} · Status: {{ o.status }} · DateText: "{{ o.dateText }}"</li>
+              }
+            </ul>
+          </div>
+        }
+
+        @if (debug.orders.inRange > 0) {
+          <div class="debug-section">
+            Bestellungen im Zeitraum:
+            <ul>
+              @for (o of debug.orders.inRangeDetails; track o.id) {
+                <li>ID {{ o.id }} · {{ o.migrosOrderId }} · {{ o.orderDate | date:'dd.MM.yyyy' }} · Status: {{ o.status }}</li>
+              }
+            </ul>
+          </div>
+        }
+
+        <div class="debug-section">
+          <strong>Positionen:</strong>
+          {{ debug.items.total }} total —
+          <span [class.warn]="debug.items.inRange === 0">{{ debug.items.inRange }} im Zeitraum</span> —
+          {{ debug.items.withProduct }} mit Produkt —
+          <span [class.warn]="debug.items.noProduct > 0">{{ debug.items.noProduct }} ohne Produkt</span>
+        </div>
+
+        @if (debug.items.sample?.length) {
+          <div class="debug-section">
+            Beispiel-Positionen:
+            <ul>
+              @for (i of debug.items.sample; track i.id) {
+                <li>
+                  "{{ i.productNameAtOrder }}" · Menge: {{ i.quantity }} ·
+                  ProductId: {{ i.productId ?? '–' }} ·
+                  OrderDate: {{ i.orderDate | date:'dd.MM.yyyy' }}
+                </li>
+              }
+            </ul>
+          </div>
+        }
+      }
+    </div>
+  }
+
+  @if (!loading && filtered.length) {
+    <div class="summary">
+      <span>{{ filtered.length }} Produkte</span>
+      <span class="dot">·</span>
+      <span>{{ totalItems }} Einheiten total</span>
+      @if (totalWeightGrams != null) {
+        <span class="dot">·</span>
+        <span>{{ formatWeight(totalWeightGrams) }} total</span>
+      }
+    </div>
+  }
+
+  @if (loading) {
+    <div class="empty">Lade…</div>
+  } @else if (!filtered.length) {
+    <div class="empty">Keine Bestelldaten für diesen Zeitraum.</div>
+  } @else {
+    <div class="table-scroll">
+    <table class="stats-table">
+      <thead>
+        <tr>
+          <th>Bild</th>
+          <th>Produkt</th>
+          <th>Kategorien</th>
+          <th class="qty-col sortable" (click)="setSort('count')">
+            Menge {{ sortCol === 'count' ? (sortDir === -1 ? '▼' : '▲') : '⇅' }}
+          </th>
+          <th class="qty-col sortable" (click)="setSort('weight')">
+            Gewicht {{ sortCol === 'weight' ? (sortDir === -1 ? '▼' : '▲') : '⇅' }}
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (s of filtered; track s.productName) {
+          <tr>
+            <td class="img-cell">
+              @if (s.imageData || s.imageUrl) {
+                <span class="image-badge-wrap">
+                  <img [src]="s.imageData || s.imageUrl" [alt]="s.productName" class="thumb" />
+                  @if (s.multiplier > 1) { <span class="multiplier-badge">{{ s.multiplier }}x</span> }
+                </span>
+              }
+            </td>
+            <td>
+              @if (s.productId) {
+                <a [routerLink]="['/products', s.productId]" class="product-link">{{ s.productName }}</a>
+              } @else {
+                {{ s.productName }}
+              }
+            </td>
+            <td>
+              <div class="crumb-row">
+                @for (cat of categoryList(s); track $index) {
+                  <span class="crumb">{{ cat }}</span>
+                  @if (!$last) { <span class="sep">›</span> }
+                }
+              </div>
+            </td>
+            <td class="qty-col">
+              <span class="qty-badge">{{ s.totalQuantity }}</span>
+            </td>
+            <td class="qty-col weight-col">{{ formatWeight(s.totalWeightGrams) }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+    </div>
+  }
+</div>

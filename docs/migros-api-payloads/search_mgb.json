@@ -1,0 +1,69 @@
+POST /product-display/public/v2/products/search
+
+Request: {
+    "query": "Alnature bananen chips",
+    "language": "de",
+    "storeType": "ONLINE",
+    "warehouseId": 1,
+    "sortFields": [],
+    "sortOrder": "asc",
+    "from": 0,
+    "limit": 100,
+    "filters": {},
+    "searchAlgorithm": "DEFAULT",
+    "mtid": "8D84697E-564B-48DE-B8A3-C7213DA492A2",
+    "enabledSponsoredProducts": true
+}
+
+Response: {
+    "items": [
+        {
+            "id": 100199475,
+            "type": "PRODUCT"
+        }
+    ],
+    "filters": [
+        {
+            "id": "my_products",
+            "label": "Zuvor gekauft",
+            "count": 1,
+            "type": "SINGLE"
+        },
+        {
+            "id": "product_bio",
+            "label": "Bio",
+            "count": 1,
+            "type": "SINGLE"
+        },
+        {
+            "id": "brand",
+            "label": "Marke",
+            "count": 1,
+            "type": "GROUP_MULTI",
+            "options": [
+                {
+                    "id": "brand",
+                    "label": "Alnatura",
+                    "value": "alnatura",
+                    "count": 1
+                }
+            ]
+        },
+        {
+            "id": "category",
+            "label": "Kategorien",
+            "count": 1,
+            "type": "GROUP_SINGLE",
+            "options": [
+                {
+                    "id": "category",
+                    "label": "Snacks & Süssigkeiten",
+                    "value": "7494736",
+                    "count": 1
+                }
+            ]
+        }
+    ],
+    "numberOfProducts": 1,
+    "offset": 1
+}

@@ -1,0 +1,317 @@
+.detail-page {
+  padding: 2rem;
+  max-width: 860px;
+  margin: 0 auto;
+  font-family: sans-serif;
+}
+
+.state-msg {
+  padding: 3rem;
+  text-align: center;
+  color: #6b7280;
+  &.error { color: #dc2626; }
+  a { color: var(--orange); text-decoration: none; &:hover { text-decoration: underline; } }
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+
+.back-link {
+  color: var(--orange);
+  text-decoration: none;
+  font-size: 0.9rem;
+  &:hover { text-decoration: underline; }
+}
+
+.msg-banner {
+  background: #e8f5e9;
+  border: 1px solid #a5d6a7;
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  color: #2e7d32;
+}
+
+// ── Recipe header card ──────────────────────────────────────────────────────
+
+.recipe-header-card {
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-start;
+  background: #fafafa;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.recipe-image-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.recipe-img {
+  width: 100px;
+  height: 100px;
+  object-fit: contain;
+  border-radius: 8px;
+  background: white;
+  border: 1px solid #e5e7eb;
+}
+
+
+.recipe-meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.recipe-title {
+  margin: 0 0 0.4rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.recipe-barcode {
+  display: inline-block;
+  background: #f3f4f6;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  margin-bottom: 0.75rem;
+}
+
+.edit-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.field-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #6b7280;
+}
+
+.edit-input {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  &:focus { outline: none; border-color: var(--orange); }
+}
+
+.edit-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+// ── Two-column layout ───────────────────────────────────────────────────────
+
+.columns {
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-start;
+
+  @media (max-width: 640px) {
+    flex-direction: column;
+  }
+}
+
+.add-column {
+  flex: 0 0 320px;
+  min-width: 0;
+
+  h2 {
+    font-size: 1.1rem;
+    margin: 0 0 0.75rem;
+  }
+}
+
+.items-column {
+  flex: 1;
+  min-width: 0;
+
+  h2 {
+    font-size: 1.1rem;
+    margin: 0 0 0.75rem;
+    .item-count { color: #9ca3af; font-weight: 400; font-size: 0.9rem; }
+  }
+}
+
+.empty-hint {
+  color: #9ca3af;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.items-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+
+  th, td {
+    padding: 0.4rem 0.6rem;
+    border-bottom: 1px solid #f3f4f6;
+    text-align: left;
+    vertical-align: middle;
+  }
+
+  th {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #6b7280;
+    font-weight: 600;
+  }
+}
+
+.search-wrapper {
+  position: relative; // only needed for the scan-indicator badge
+}
+
+.product-search {
+  width: 100%;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  background: white;
+  box-sizing: border-box;
+  &:focus { outline: none; border-color: var(--orange); }
+}
+
+.product-dropdown {
+  // In-flow — no absolute positioning, so it is never clipped by a scroll container
+  margin-top: 2px;
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  max-height: 320px;
+  overflow-y: auto;
+
+  .dropdown-header {
+    font-size: 0.78rem;
+    color: #6b7280;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 0.4rem 0.6rem;
+    border-bottom: 1px solid #f3f4f6;
+  }
+}
+
+.product-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  &:hover { background: #f3f4f6; }
+
+  .product-option-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .usage-badge {
+    font-size: 0.75rem;
+    color: #9ca3af;
+    background: #f3f4f6;
+    padding: 0.1rem 0.4rem;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+}
+
+.thumb-xs {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  border-radius: 3px;
+  background: white;
+  flex-shrink: 0;
+}
+
+.scan-indicator {
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.72rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+  pointer-events: none;
+  &.searching { color: #6b7280; background: #f3f4f6; }
+  &.unknown   { color: #dc2626; background: #fee2e2; }
+}
+
+.qty-input {
+  width: 4.5rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 5px;
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.thumb {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+  border-radius: 4px;
+  background: white;
+}
+
+.multiplier-badge {
+  min-width: 1rem;
+  height: 1rem;
+  padding: 0 0.25rem;
+  font-size: 0.52rem;
+}
+
+// ── Shared buttons ──────────────────────────────────────────────────────────
+
+.btn-sm {
+  padding: 0.2rem 0.6rem;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  background: white;
+  cursor: pointer;
+  font-size: 0.8rem;
+  &.primary {
+    background: var(--orange); color: white; border-color: var(--orange);
+    &:hover:not(:disabled) { background: var(--orange-dark); border-color: var(--orange-dark); }
+    &:disabled { background: #d1d5db; border-color: #d1d5db; color: #9ca3af; opacity: 1; cursor: default; }
+  }
+  &.danger { border-color: #fca5a5; color: #dc2626; }
+  &:hover:not(:disabled) { filter: brightness(0.9); }
+  &:disabled { opacity: 0.5; }
+}
+
+.img-upload-label {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hidden-file { display: none; }
+
+.mono { font-family: monospace; }
