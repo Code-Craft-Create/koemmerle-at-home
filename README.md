@@ -107,14 +107,15 @@ Build both macOS variants from the repository root:
 The release build requires Node.js 20, 22, or 24 for the Angular 21 production
 build, plus the .NET 10 SDK for publishing.
 
-The script creates self-contained single-file publishes for:
+The script creates self-contained single-file macOS publishes for:
 
 - Intel Macs: `release/osx-x64/start.command`
 - Apple silicon Macs: `release/osx-arm64/start.command`
 
 Run the matching `start.command` file. It starts the backend on
 `http://localhost:5050` and installs Playwright's Chromium browser on first run
-if it is missing:
+if it is missing. The backend opens the frontend in the default browser after
+startup:
 
 ```bash
 ./release/osx-arm64/start.command
@@ -125,7 +126,10 @@ Then open `http://localhost:5050` in a browser.
 You can also run the executable directly:
 
 ```bash
-ASPNETCORE_URLS=http://localhost:5050 ./release/osx-arm64/KoemmerleAtHome.Api
+cd release/osx-arm64
+DOTNET_BUNDLE_EXTRACT_BASE_DIR="$PWD/.dotnet-bundle" \
+  ASPNETCORE_URLS=http://localhost:5050 \
+  ./KoemmerleAtHome.Api
 ```
 
 ## Useful Endpoints

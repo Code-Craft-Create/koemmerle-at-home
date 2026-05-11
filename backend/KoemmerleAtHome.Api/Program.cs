@@ -1,4 +1,7 @@
+using System.Diagnostics;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Hosting.Server;
+using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.Extensions.FileProviders;
 using KoemmerleAtHome.Api.Data;
 using KoemmerleAtHome.Api.Hubs;
@@ -231,8 +234,67 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapHub<ScanHub>("/hubs/scan");
 
+OpenBrowserWhenReady(app);
 
 app.Run();
+
+static void OpenBrowserWhenReady(WebApplication app)
+{
+    var configured = app.Configuration["OpenBrowserOnStart"];
+    var shouldOpen = configured is null
+        ? !app.Environment.IsDevelopment()
+        : !string.Equals(configured, "false", StringComparison.OrdinalIgnoreCase);
+
+    if (!shouldOpen)
+        return;
+
+    app.Lifetime.ApplicationStarted.Register(() =>
+    {
+        var url = GetBrowserUrl(app);
+        app.Logger.LogInformation("Opening frontend at {Url}", url);
+        _ = Task.Run(() => OpenDefaultBrowser(url));
+    });
+}
+
+static string GetBrowserUrl(WebApplication app)
+{
+    var address = app.Services.GetRequiredService<IServer>()
+        .Features
+        .Get<IServerAddressesFeature>()?
+        .Addresses
+        .FirstOrDefault()
+        ?? "http://localhost:5000";
+
+    var uri = new Uri(address);
+    var host = uri.Host is "0.0.0.0" or "::" or "*" or "+"
+        ? "localhost"
+        : uri.Host;
+
+    return new UriBuilder(uri) { Host = host }.Uri.ToString().TrimEnd('/');
+}
+
+static void OpenDefaultBrowser(string url)
+{
+    try
+    {
+        if (OperatingSystem.IsMacOS())
+        {
+            Process.Start(new ProcessStartInfo("open", url) { UseShellExecute = false });
+        }
+        else if (OperatingSystem.IsWindows())
+        {
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+        }
+        else if (OperatingSystem.IsLinux())
+        {
+            Process.Start(new ProcessStartInfo("xdg-open", url) { UseShellExecute = false });
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.Error.WriteLine($"Could not open browser at {url}: {ex.Message}");
+    }
+}
 
 static void RepairPlaywrightExecutablePermissions()
 {
