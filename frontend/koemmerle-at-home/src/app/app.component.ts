@@ -27,6 +27,7 @@ export class AppComponent implements OnInit, OnDestroy {
   sessionStatus: MigrosSessionStatus | null = null;
   loginStarting = false;
   loginMessage = '';
+  appVersion = '';
 
   private globalBuffer = '';
   private globalTimer: any = null;
@@ -101,6 +102,10 @@ export class AppComponent implements OnInit, OnDestroy {
     this.sessionSub = this.api.migrosSessionUpdated$Obs.subscribe(status => this.applySessionStatus(status));
     this.refreshSessionStatus();
     this.sessionTimer = setInterval(() => this.refreshSessionStatus(), 60000);
+    this.api.getVersion().subscribe({
+      next: info => this.appVersion = info.displayVersion || info.version,
+      error: () => this.appVersion = ''
+    });
   }
 
   ngOnDestroy() {

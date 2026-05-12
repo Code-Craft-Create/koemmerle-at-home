@@ -30,6 +30,9 @@
           <a routerLink="/statistics" (click)="settingsOpen = false">Statistik</a>
           <a routerLink="/forecast" (click)="settingsOpen = false">Prognose (beta)</a>
           <a routerLink="/settings" (click)="settingsOpen = false">Einstellungen</a>
+          @if (appVersion) {
+            <div class="nav-version">Version {{ appVersion }}</div>
+          }
         </div>
       }
     </div>
@@ -59,6 +62,10 @@
 }
 
 <app-queue-sidebar [open]="queueOpen" (closePanel)="queueOpen = false" />
+
+@if (appVersion) {
+  <div class="app-version-watermark">v{{ appVersion }}</div>
+}
 
 @if (showLoginOverlay) {
   <div class="login-overlay" role="dialog" aria-modal="true" aria-labelledby="login-title">

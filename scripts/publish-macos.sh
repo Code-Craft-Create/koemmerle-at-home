@@ -14,6 +14,8 @@ case "$NODE_MAJOR" in
     ;;
 esac
 
+"$ROOT_DIR/scripts/sync-version.sh"
+
 publish_runtime() {
   local runtime="$1"
   local output="$OUTPUT_ROOT/$runtime"

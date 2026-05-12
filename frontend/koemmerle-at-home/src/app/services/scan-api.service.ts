@@ -234,6 +234,13 @@ export interface MigrosSessionStatus {
   expiresInSec: number | null;
 }
 
+export interface AppVersion {
+  version: string;
+  commit?: string;
+  displayVersion?: string;
+  informationalVersion?: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class ScanApiService {
   private readonly serverOrigin = window.location.port === '4200'
@@ -269,6 +276,10 @@ export class ScanApiService {
   get orderSyncProgress$Obs(): Observable<OrderProductSyncProgress> { return this.orderSyncProgress$.asObservable(); }
   get queueUpdated$Obs(): Observable<ScanQueueItem[]> { return this.queueUpdated$.asObservable(); }
   get migrosSessionUpdated$Obs(): Observable<MigrosSessionStatus> { return this.migrosSessionUpdated$.asObservable(); }
+
+  getVersion(): Observable<AppVersion> {
+    return this.http.get<AppVersion>(`${this.base}/version`);
+  }
 
   // ── Products ───────────────────────────────────────────────────────────────
   getProducts(): Observable<Product[]> {
