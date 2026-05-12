@@ -56,48 +56,82 @@
   white-space: nowrap;
 }
 
-.add-lane-btn {
-  padding: 0.4rem 1rem;
-  font-size: 0.85rem;
-  font-weight: 600;
-  font-family: sans-serif;
-  background: var(--orange, #f97316);
-  color: white;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background 0.15s;
-
-  &:hover { background: #ea6c0a; }
-  &:active { transform: scale(0.97); }
+.actions-menu {
+  position: relative;
 }
 
-.refresh-btn {
+.actions-menu-btn {
   width: 2.1rem;
   height: 2.1rem;
   display: inline-flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--border, #e5e7eb);
+  gap: 0.16rem;
+  border: none;
   border-radius: 8px;
-  background: white;
+  background: transparent;
   color: var(--text, #111);
-  font-size: 1rem;
-  font-weight: 700;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
+  transition: background 0.15s;
 
-  &:hover:not(:disabled) {
-    background: #f9fafb;
-    border-color: #d1d5db;
+  span {
+    width: 0.35rem;
+    height: 0.35rem;
+    border-radius: 50%;
+    background: currentColor;
   }
 
-  &:active:not(:disabled) { transform: scale(0.97); }
+  &:hover,
+  &.active {
+    background: #f9fafb;
+  }
+
+  &:active { transform: scale(0.97); }
+}
+
+.actions-dropdown {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  right: 0;
+  z-index: 120;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 190px;
+  padding: 0.45rem;
+  background: white;
+  border: 1px solid var(--border, #d1d5db);
+  border-radius: 10px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+}
+
+.actions-dropdown-btn {
+  width: 100%;
+  padding: 0.45rem 0.55rem;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text, #111);
+  font-size: 0.84rem;
+  font-weight: 600;
+  font-family: sans-serif;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+
+  &:hover:not(:disabled) {
+    background: #f3f4f6;
+  }
 
   &:disabled {
     cursor: default;
     opacity: 0.65;
   }
+}
+
+.actions-dropdown-btn--primary {
+  color: var(--orange, #f97316);
 }
 
 // ── Swimlanes container ───────────────────────────────────────────────────────

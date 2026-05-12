@@ -2,16 +2,53 @@ import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
-import { BasketItem, ScanApiService } from '../services/scan-api.service';
+import { BasketItem, BasketSwimlane, ScanApiService } from '../services/scan-api.service';
 
-export interface Swimlane {
-  id: string;
-  label: string;
-  categories: string[];
-}
+export type Swimlane = BasketSwimlane;
 
 const STORAGE_KEY = 'basket-swimlanes';
 const SIZE_KEY    = 'basket-card-size';
+
+const DEFAULT_SWIMLANES: Swimlane[] = [
+  {
+    id: 'fruechte-gemuese',
+    label: 'Früchte & Gemüse',
+    categories: ['Früchte & Gemüse']
+  },
+  {
+    id: 'milch-fleisch',
+    label: 'Milch & Fleisch',
+    categories: [
+      'Fleisch & Fisch',
+      'Milchprodukte Eier & frische Fertiggerichte'
+    ]
+  },
+  {
+    id: 'andere-lebensmittel',
+    label: 'Andere Lebensmittel',
+    categories: [
+      'Tiefkühlprodukte',
+      'Wein Bier & Spirituosen',
+      'Snacks & Süssigkeiten',
+      'Getränke Kaffee & Tee',
+      'Pasta Würzmittel & Konserven',
+      'Brot Backwaren & Frühstück'
+    ]
+  },
+  {
+    id: 'diverses',
+    label: 'Diverses',
+    categories: [
+      'Andere',
+      'Bekleidung & Accessoires',
+      'Drogerie & Kosmetik',
+      'Haushalt & Wohnen',
+      'Baby & Kinder',
+      'Waschen & Putzen',
+      'Tierbedarf'
+    ]
+  }
+];
 
 @Component({
   selector: 'app-basket',
@@ -26,9 +63,11 @@ export class BasketComponent implements OnInit, OnDestroy {
   openPickerId: string | null = null;
   editingLabelId: string | null = null;
   activeItemUid: string | null = null;
+  actionsMenuOpen = false;
   refreshing = false;
 
   private sub!: Subscription;
+  private loadingConfig = false;
 
   constructor(private api: ScanApiService) {}
 
@@ -46,10 +85,7 @@ export class BasketComponent implements OnInit, OnDestroy {
   }
 
   availableCategories(lane: Swimlane): string[] {
-    const usedByOthers = new Set(
-      this.swimlanes.filter(l => l.id !== lane.id).flatMap(l => l.categories)
-    );
-    return this.knownCategories.filter(cat => !usedByOthers.has(cat));
+    return [...new Set([...this.knownCategories, ...lane.categories])].sort();
   }
 
   itemsFor(lane: Swimlane): BasketItem[] {
@@ -62,10 +98,12 @@ export class BasketComponent implements OnInit, OnDestroy {
     return this.basket.filter(i => !assigned.has(i.category));
   }
 
-  addLane() {
-    const lane: Swimlane = { id: crypto.randomUUID(), label: 'Neue Swimlane', categories: [] };
+  addLane(event?: MouseEvent) {
+    event?.stopPropagation();
+    const lane: Swimlane = { id: crypto.randomUUID(), label: 'Neue Spalte', categories: [] };
     this.swimlanes = [...this.swimlanes, lane];
     this.editingLabelId = lane.id;
+    this.actionsMenuOpen = false;
     this.saveConfig();
   }
 
@@ -76,10 +114,22 @@ export class BasketComponent implements OnInit, OnDestroy {
   }
 
   toggleCategory(lane: Swimlane, cat: string) {
-    const idx = lane.categories.indexOf(cat);
-    lane.categories = idx === -1
-      ? [...lane.categories, cat]
-      : lane.categories.filter(c => c !== cat);
+    const ownsCategory = lane.categories.includes(cat);
+    this.swimlanes = this.swimlanes.map(current => {
+      if (current.id === lane.id) {
+        return {
+          ...current,
+          categories: ownsCategory
+            ? current.categories.filter(c => c !== cat)
+            : [...new Set([...current.categories, cat])]
+        };
+      }
+
+      return {
+        ...current,
+        categories: current.categories.filter(c => c !== cat)
+      };
+    });
     this.saveConfig();
   }
 
@@ -88,7 +138,16 @@ export class BasketComponent implements OnInit, OnDestroy {
     this.openPickerId = this.openPickerId === id ? null : id;
   }
 
-  closePickers() { this.openPickerId = null; this.activeItemUid = null; }
+  toggleActionsMenu(event: MouseEvent) {
+    event.stopPropagation();
+    this.actionsMenuOpen = !this.actionsMenuOpen;
+  }
+
+  closePickers() {
+    this.openPickerId = null;
+    this.activeItemUid = null;
+    this.actionsMenuOpen = false;
+  }
 
   toggleItem(uid: string, event: MouseEvent) {
     event.stopPropagation();
@@ -110,33 +169,49 @@ export class BasketComponent implements OnInit, OnDestroy {
     event?.stopPropagation();
     if (this.refreshing) return;
 
+    this.actionsMenuOpen = false;
     this.refreshing = true;
     this.api.getBasket().subscribe({
       next: items => {
         this.basket = items;
-        this.ensureDefaultLane();
         this.refreshing = false;
       },
       error: () => { this.refreshing = false; }
     });
   }
 
-  private ensureDefaultLane() {
-    if (this.swimlanes.length === 0 && this.knownCategories.length > 0) {
-      this.swimlanes = [{
-        id: crypto.randomUUID(),
-        label: 'Warenkorb',
-        categories: [...this.knownCategories]
-      }];
-      this.saveConfig();
-    }
+  resetToDefault(event?: MouseEvent) {
+    event?.stopPropagation();
+    const defaults = this.cloneDefaultSwimlanes();
+    this.swimlanes = defaults;
+    this.openPickerId = null;
+    this.editingLabelId = null;
+    this.actionsMenuOpen = false;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(defaults));
+    this.api.resetBasketSwimlanes().subscribe({
+      next: swimlanes => this.swimlanes = this.normaliseSwimlanes(swimlanes, defaults),
+      error: () => {}
+    });
   }
 
   private loadConfig() {
+    this.loadingConfig = true;
+
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) this.swimlanes = JSON.parse(raw);
-    } catch { this.swimlanes = []; }
+      this.swimlanes = raw
+        ? this.normaliseSwimlanes(JSON.parse(raw), this.cloneDefaultSwimlanes())
+        : this.cloneDefaultSwimlanes();
+    } catch { this.swimlanes = this.cloneDefaultSwimlanes(); }
+
+    this.api.getBasketSwimlanes().subscribe({
+      next: swimlanes => {
+        this.swimlanes = this.normaliseSwimlanes(swimlanes, this.cloneDefaultSwimlanes());
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(this.swimlanes));
+        this.loadingConfig = false;
+      },
+      error: () => { this.loadingConfig = false; }
+    });
   }
 
   onSizeChange() {
@@ -158,5 +233,35 @@ export class BasketComponent implements OnInit, OnDestroy {
 
   private saveConfig() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(this.swimlanes));
+    if (this.loadingConfig) return;
+
+    this.api.saveBasketSwimlanes(this.swimlanes).subscribe({
+      next: swimlanes => {
+        this.swimlanes = this.normaliseSwimlanes(swimlanes, this.swimlanes);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(this.swimlanes));
+      },
+      error: () => {}
+    });
+  }
+
+  private cloneDefaultSwimlanes(): Swimlane[] {
+    return DEFAULT_SWIMLANES.map(lane => ({
+      ...lane,
+      categories: [...lane.categories]
+    }));
+  }
+
+  private normaliseSwimlanes(value: unknown, fallback: Swimlane[]): Swimlane[] {
+    if (!Array.isArray(value)) return fallback;
+
+    return value
+      .filter((lane): lane is Partial<Swimlane> => !!lane && typeof lane === 'object')
+      .map(lane => ({
+        id: typeof lane.id === 'string' && lane.id.trim() ? lane.id.trim() : crypto.randomUUID(),
+        label: typeof lane.label === 'string' && lane.label.trim() ? lane.label.trim() : 'Neue Spalte',
+        categories: Array.isArray(lane.categories)
+          ? [...new Set(lane.categories.filter((c): c is string => typeof c === 'string' && c.trim().length > 0).map(c => c.trim()))]
+          : []
+      }));
   }
 }

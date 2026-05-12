@@ -143,6 +143,12 @@ export interface BasketItem {
   migrosProductUrl: string | null;
 }
 
+export interface BasketSwimlane {
+  id: string;
+  label: string;
+  categories: string[];
+}
+
 export interface ScanChoice {
   migrosUid: number;
   name: string;
@@ -406,6 +412,15 @@ export class ScanApiService {
   }
   getBasket(): Observable<BasketItem[]> {
     return this.http.get<BasketItem[]>(`${this.base}/cart/basket`);
+  }
+  getBasketSwimlanes(): Observable<BasketSwimlane[]> {
+    return this.http.get<BasketSwimlane[]>(`${this.base}/cart/basket/swimlanes`);
+  }
+  saveBasketSwimlanes(swimlanes: BasketSwimlane[]): Observable<BasketSwimlane[]> {
+    return this.http.put<BasketSwimlane[]>(`${this.base}/cart/basket/swimlanes`, swimlanes);
+  }
+  resetBasketSwimlanes(): Observable<BasketSwimlane[]> {
+    return this.http.delete<BasketSwimlane[]>(`${this.base}/cart/basket/swimlanes`);
   }
   setBasketQuantity(uid: string, quantity: number): Observable<void> {
     return this.http.put<void>(`${this.base}/cart/basket/quantity`, { uid, quantity });

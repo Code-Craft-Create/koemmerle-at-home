@@ -9,10 +9,22 @@
                [(ngModel)]="cardSize" (ngModelChange)="onSizeChange()"
                [style.--slider-progress]="((cardSize - 0.5) / 1.5 * 100) + '%'" />
       </div>
-      <button class="refresh-btn" (click)="refresh($event)" [disabled]="refreshing" title="Warenkorb neu laden">
-        {{ refreshing ? '⏳' : '↻' }}
-      </button>
-      <button class="add-lane-btn" (click)="addLane()">+ Spalte</button>
+      <div class="actions-menu" (click)="$event.stopPropagation()">
+        <button class="actions-menu-btn" (click)="toggleActionsMenu($event)" [class.active]="actionsMenuOpen" title="Aktionen" aria-label="Aktionen">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+        @if (actionsMenuOpen) {
+          <div class="actions-dropdown">
+            <button class="actions-dropdown-btn" (click)="refresh($event)" [disabled]="refreshing">
+              {{ refreshing ? 'Lädt...' : 'Refresh' }}
+            </button>
+            <button class="actions-dropdown-btn" (click)="resetToDefault($event)">Spalten Zurücksetzen</button>
+            <button class="actions-dropdown-btn actions-dropdown-btn--primary" (click)="addLane($event)">+ Spalte</button>
+          </div>
+        }
+      </div>
     </div>
   </div>
 
