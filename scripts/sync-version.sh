@@ -6,7 +6,7 @@ VERSION_FILE="$ROOT_DIR/VERSION"
 FRONTEND_DIR="$ROOT_DIR/frontend/koemmerle-at-home"
 PROPS_FILE="$ROOT_DIR/Directory.Build.props"
 
-VERSION="$(tr -d '[:space:]' < "$VERSION_FILE")"
+VERSION="${APP_VERSION:-$(tr -d '[:space:]' < "$VERSION_FILE")}"
 
 if [[ -z "$VERSION" ]]; then
   echo "VERSION must not be empty" >&2
