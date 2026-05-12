@@ -5,22 +5,20 @@ namespace KoemmerleAtHome.Api.Controllers;
 
 [ApiController]
 [Route("api/auth")]
-public class AuthController(BearerTokenService bearerTokenService, PlaywrightLoginService loginService) : ControllerBase
+public class AuthController(
+    BearerTokenService bearerTokenService,
+    PlaywrightLoginService loginService,
+    ILogger<AuthController> logger) : ControllerBase
 {
     [HttpGet("migros-session")]
-    public IActionResult GetSession() => Ok(new
-    {
-        isLoggedIn   = bearerTokenService.IsAvailable,
-        expiresAt    = bearerTokenService.ExpiresAt,
-        expiresInSec = bearerTokenService.ExpiresAt.HasValue
-            ? (int)(bearerTokenService.ExpiresAt.Value - DateTime.UtcNow).TotalSeconds
-            : (int?)null,
-    });
+    public IActionResult GetSession() => Ok(bearerTokenService.Status);
 
     [HttpPost("migros-login")]
     public async Task<IActionResult> StartLogin()
     {
+        logger.LogInformation("Migros login start requested");
         await loginService.StartLoginAsync();
+        logger.LogInformation("Migros login start request acknowledged");
         return Ok(new { message = "Browser navigated to migros.ch — log in and the token will be captured automatically." });
     }
 

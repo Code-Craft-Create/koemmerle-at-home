@@ -9,15 +9,22 @@ public class BearerTokenService : IDisposable
         Path.Combine(AppContext.BaseDirectory, "migros-session", "bearer-token.json");
 
     private readonly ILogger<BearerTokenService> _logger;
+    private readonly IServiceProvider _serviceProvider;
     private string? _token;
     private DateTime _expiresAt;
 
     public bool IsAvailable => _token is not null && DateTime.UtcNow < _expiresAt;
     public DateTime? ExpiresAt => _token is null ? null : _expiresAt;
 
-    public BearerTokenService(ILogger<BearerTokenService> logger)
+    public MigrosSessionStatus Status => new(
+        IsAvailable,
+        ExpiresAt,
+        ExpiresAt.HasValue ? (int)(ExpiresAt.Value - DateTime.UtcNow).TotalSeconds : null);
+
+    public BearerTokenService(ILogger<BearerTokenService> logger, IServiceProvider serviceProvider)
     {
         _logger = logger;
+        _serviceProvider = serviceProvider;
         LoadPersisted();
     }
 
@@ -34,6 +41,20 @@ public class BearerTokenService : IDisposable
         _expiresAt = ParseExpiry(bearerToken);
         Persist();
         _logger.LogInformation("Bearer token captured (expires {ExpiresAt:u})", _expiresAt);
+        _ = NotifySessionUpdatedAsync();
+    }
+
+    private async Task NotifySessionUpdatedAsync()
+    {
+        try
+        {
+            await _serviceProvider.GetRequiredService<IScanNotifier>()
+                .NotifyMigrosSessionUpdatedAsync(Status);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning("Could not notify clients about Migros session update: {Error}", ex.Message);
+        }
     }
 
     private static DateTime ParseExpiry(string bearerToken)

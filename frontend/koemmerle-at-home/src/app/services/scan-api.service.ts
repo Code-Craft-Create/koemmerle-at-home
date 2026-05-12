@@ -222,6 +222,12 @@ export interface CartStatus {
   isLoggedIn: boolean;
 }
 
+export interface MigrosSessionStatus {
+  isLoggedIn: boolean;
+  expiresAt: string | null;
+  expiresInSec: number | null;
+}
+
 @Injectable({ providedIn: 'root' })
 export class ScanApiService {
   private readonly serverOrigin = window.location.port === '4200'
@@ -232,6 +238,7 @@ export class ScanApiService {
   private scanResult$ = new Subject<ScanResult>();
   private orderSyncProgress$ = new Subject<OrderProductSyncProgress>();
   private queueUpdated$ = new Subject<ScanQueueItem[]>();
+  private migrosSessionUpdated$ = new Subject<MigrosSessionStatus>();
 
   constructor(private http: HttpClient, private zone: NgZone) {
     this.hub = new signalR.HubConnectionBuilder()
@@ -241,6 +248,8 @@ export class ScanApiService {
 
     this.hub.on('ScanResult',              (r) => this.zone.run(() => this.scanResult$.next(r)));
     this.hub.on('OrderProductSyncProgress',(p) => this.zone.run(() => this.orderSyncProgress$.next(p)));
+    this.hub.on('MigrosSessionUpdated', (s: MigrosSessionStatus) =>
+      this.zone.run(() => this.migrosSessionUpdated$.next(s)));
     this.hub.on('QueueUpdated', (q: ScanQueueItem[]) => this.zone.run(() => {
       const noImage = q.filter(i => !i.productImageData && !i.recipeImageData);
       if (noImage.length > 0)
@@ -253,6 +262,7 @@ export class ScanApiService {
   get scanResults$(): Observable<ScanResult> { return this.scanResult$.asObservable(); }
   get orderSyncProgress$Obs(): Observable<OrderProductSyncProgress> { return this.orderSyncProgress$.asObservable(); }
   get queueUpdated$Obs(): Observable<ScanQueueItem[]> { return this.queueUpdated$.asObservable(); }
+  get migrosSessionUpdated$Obs(): Observable<MigrosSessionStatus> { return this.migrosSessionUpdated$.asObservable(); }
 
   // ── Products ───────────────────────────────────────────────────────────────
   getProducts(): Observable<Product[]> {
@@ -422,8 +432,8 @@ export class ScanApiService {
     return this.http.delete<void>(`${this.base}/cart/queue/all`);
   }
 
-  getMigrosSession(): Observable<{ isLoggedIn: boolean; expiresAt: string | null; expiresInSec: number | null }> {
-    return this.http.get<any>(`${this.base}/auth/migros-session`);
+  getMigrosSession(): Observable<MigrosSessionStatus> {
+    return this.http.get<MigrosSessionStatus>(`${this.base}/auth/migros-session`);
   }
   startMigrosLogin(): Observable<{ message: string }> {
     return this.http.post<any>(`${this.base}/auth/migros-login`, {});

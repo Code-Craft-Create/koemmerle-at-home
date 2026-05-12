@@ -18,4 +18,7 @@ public class ScanHubNotifier(IHubContext<ScanHub> hubContext) : IScanNotifier
 
     public Task NotifyQueueUpdatedAsync(List<KoemmerleAtHome.Api.Models.ScanQueueItem> queue) =>
         hubContext.Clients.All.SendAsync("QueueUpdated", queue);
+
+    public Task NotifyMigrosSessionUpdatedAsync(MigrosSessionStatus status) =>
+        hubContext.Clients.All.SendAsync("MigrosSessionUpdated", status);
 }

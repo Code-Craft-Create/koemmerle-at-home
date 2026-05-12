@@ -7,6 +7,7 @@ public interface IScanNotifier
     Task NotifyScanResultAsync(ScanResult result, string? connectionId = null);
     Task NotifyOrderSyncProgressAsync(OrderProductSyncProgress progress);
     Task NotifyQueueUpdatedAsync(List<KoemmerleAtHome.Api.Models.ScanQueueItem> queue);
+    Task NotifyMigrosSessionUpdatedAsync(MigrosSessionStatus status);
 }
 
 public record OrderProductSyncProgress(int OrderId, int Done, int Total, string? CurrentProduct, string? LinkedProductUrl = null);

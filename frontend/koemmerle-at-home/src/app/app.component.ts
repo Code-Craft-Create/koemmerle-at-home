@@ -5,7 +5,7 @@ import { CommonModule } from '@angular/common';
 import { Subscription } from 'rxjs';
 import { filter } from 'rxjs/operators';
 import { ScanBridgeService } from './services/scan-bridge.service';
-import { ScanApiService } from './services/scan-api.service';
+import { MigrosSessionStatus, ScanApiService } from './services/scan-api.service';
 import { QueueSidebarComponent } from './shared/queue-sidebar.component';
 import { ScanComponent } from './scan/scan.component';
 
@@ -24,9 +24,13 @@ export class AppComponent implements OnInit, OnDestroy {
   settingsOpen = false;
   pendingCount = 0;
   failedCount = 0;
+  sessionStatus: MigrosSessionStatus | null = null;
+  loginStarting = false;
+  loginMessage = '';
 
   private globalBuffer = '';
   private globalTimer: any = null;
+  private sessionTimer: ReturnType<typeof setInterval> | null = null;
 
   @HostListener('document:click', ['$event'])
   onDocumentClick(event: Event) {
@@ -35,6 +39,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
   @HostListener('document:keydown', ['$event'])
   onGlobalKey(event: KeyboardEvent) {
+    if (this.showLoginOverlay) return;
     if (document.activeElement === this.navScanInput?.nativeElement) return;
     if (this.bridge.globalScanSuppressed) return;
 
@@ -65,8 +70,14 @@ export class AppComponent implements OnInit, OnDestroy {
 
   private routerSub!: Subscription;
   private focusSub!: Subscription;
+  private queueSub!: Subscription;
+  private sessionSub!: Subscription;
 
   constructor(private router: Router, private bridge: ScanBridgeService, private api: ScanApiService) {}
+
+  get showLoginOverlay() {
+    return this.sessionStatus !== null && !this.sessionStatus.isLoggedIn;
+  }
 
   ngOnInit() {
     this.routerSub = this.router.events.pipe(
@@ -85,12 +96,19 @@ export class AppComponent implements OnInit, OnDestroy {
       this.failedCount  = items.filter(i => i.status === 'Failed').length;
     };
     this.api.getQueue().subscribe(q => applyBadges(q));
-    this.api.queueUpdated$Obs.subscribe(q => applyBadges(q));
+    this.queueSub = this.api.queueUpdated$Obs.subscribe(q => applyBadges(q));
+
+    this.sessionSub = this.api.migrosSessionUpdated$Obs.subscribe(status => this.applySessionStatus(status));
+    this.refreshSessionStatus();
+    this.sessionTimer = setInterval(() => this.refreshSessionStatus(), 60000);
   }
 
   ngOnDestroy() {
     this.routerSub.unsubscribe();
     this.focusSub.unsubscribe();
+    this.queueSub.unsubscribe();
+    this.sessionSub.unsubscribe();
+    if (this.sessionTimer) clearInterval(this.sessionTimer);
   }
 
   onNavKey(event: KeyboardEvent) {
@@ -113,5 +131,47 @@ export class AppComponent implements OnInit, OnDestroy {
 
   private focusNav() {
     this.navScanInput?.nativeElement.focus();
+  }
+
+  refreshSessionStatus() {
+    this.api.getMigrosSession().subscribe({
+      next: status => this.applySessionStatus(status),
+      error: () => {
+        this.sessionStatus = { isLoggedIn: false, expiresAt: null, expiresInSec: null };
+        this.loginMessage = 'Backend-Verbindung konnte nicht geprüft werden.';
+      }
+    });
+  }
+
+  private applySessionStatus(status: MigrosSessionStatus) {
+    this.sessionStatus = status;
+    if (status.isLoggedIn) {
+      this.loginStarting = false;
+      this.loginMessage = '';
+    }
+  }
+
+  startMigrosLogin() {
+    this.loginStarting = true;
+    this.loginMessage = '';
+    const unlockTimer = setTimeout(() => {
+      this.loginStarting = false;
+      if (!this.loginMessage)
+        this.loginMessage = 'Falls das Login-Fenster bereits offen ist, wechsle dorthin und melde dich bei Migros an.';
+    }, 3000);
+
+    this.api.startMigrosLogin().subscribe({
+      next: () => {
+        clearTimeout(unlockTimer);
+        this.loginStarting = false;
+        this.loginMessage = 'Das Login-Fenster ist offen. Melde dich dort bei Migros an; diese Ansicht verschwindet automatisch danach.';
+        setTimeout(() => this.refreshSessionStatus(), 1500);
+      },
+      error: () => {
+        clearTimeout(unlockTimer);
+        this.loginStarting = false;
+        this.loginMessage = 'Login-Fenster konnte nicht geöffnet werden.';
+      }
+    });
   }
 }
