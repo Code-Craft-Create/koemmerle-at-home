@@ -102,9 +102,9 @@
         <label class="switch">
           <input
             type="checkbox"
-            [checked]="autoUpdateOrders"
+            [checked]="promptAutoUpdateOrders"
             [disabled]="autoUpdateSaving"
-            (change)="toggleAutoUpdateOrders($any($event.target).checked)"
+            (change)="togglePromptAutoUpdateOrders($any($event.target).checked)"
           />
           <span></span>
         </label>

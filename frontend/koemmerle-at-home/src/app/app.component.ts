@@ -32,7 +32,8 @@ export class AppComponent implements OnInit, OnDestroy {
   appVersion = '';
   latestRelease: LatestRelease | null = null;
   showReleaseBanner = false;
-  autoUpdateOrders = true;
+  autoUpdateOrders = false;
+  promptAutoUpdateOrders = true;
   autoUpdateSaving = false;
   showOrderImportPrompt = false;
   orderImportTrackerCollapsed = false;
@@ -246,6 +247,13 @@ export class AppComponent implements OnInit, OnDestroy {
 
   startOrderImportFromPrompt() {
     this.showOrderImportPrompt = false;
+    if (this.promptAutoUpdateOrders && !this.autoUpdateOrders) {
+      this.autoUpdateOrders = true;
+      this.api.setAutoUpdateOrders(true).subscribe({
+        next: s => this.autoUpdateOrders = s.autoUpdateOrders,
+        error: () => this.autoUpdateOrders = false
+      });
+    }
     this.orderImport.start();
   }
 
@@ -298,6 +306,10 @@ export class AppComponent implements OnInit, OnDestroy {
         this.autoUpdateSaving = false;
       }
     });
+  }
+
+  togglePromptAutoUpdateOrders(enabled: boolean) {
+    this.promptAutoUpdateOrders = enabled;
   }
 
   orderImportProgressPercent(): number {

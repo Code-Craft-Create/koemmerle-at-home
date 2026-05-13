@@ -31,7 +31,7 @@ public class SettingsController(AppDbContext db) : ControllerBase
             .Select(s => s.Value)
             .FirstOrDefaultAsync(ct);
 
-        if (value is null) return key == AutoUpdateOrdersKey;
+        if (value is null) return false;
 
         return bool.TryParse(value, out var enabled) && enabled;
     }

@@ -15,7 +15,7 @@ export class SettingsComponent implements OnInit {
   tokenMessage = '';
   thumbnailSyncing = false;
   thumbnailResult = '';
-  autoUpdateOrders = true;
+  autoUpdateOrders = false;
   autoUpdateSaving = false;
   settingsMessage = '';
   Math = Math;

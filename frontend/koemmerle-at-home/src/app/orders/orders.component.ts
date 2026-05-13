@@ -23,7 +23,7 @@ export class OrdersComponent implements OnInit, OnDestroy {
   syncAllTotal = 0;
   syncProgress: { [orderId: number]: OrderProductSyncProgress } = {};
   message = '';
-  autoUpdateOrders = true;
+  autoUpdateOrders = false;
   autoUpdateSaving = false;
 
   private sub?: Subscription;
