@@ -1,13 +1,12 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Text.Json;
+using KoemmerleAtHome.Api;
 
 namespace KoemmerleAtHome.Api.Services;
 
 public class BearerTokenService : IDisposable
 {
-    private static string TokenFile =>
-        Path.Combine(AppContext.BaseDirectory, "migros-session", "bearer-token.json");
-
+    private readonly string _tokenFile;
     private readonly ILogger<BearerTokenService> _logger;
     private readonly IServiceProvider _serviceProvider;
     private string? _token;
@@ -21,8 +20,12 @@ public class BearerTokenService : IDisposable
         ExpiresAt,
         ExpiresAt.HasValue ? (int)(ExpiresAt.Value - DateTime.UtcNow).TotalSeconds : null);
 
-    public BearerTokenService(ILogger<BearerTokenService> logger, IServiceProvider serviceProvider)
+    public BearerTokenService(
+        LocalAppData appData,
+        ILogger<BearerTokenService> logger,
+        IServiceProvider serviceProvider)
     {
+        _tokenFile = Path.Combine(appData.MigrosSessionDirectory, "bearer-token.json");
         _logger = logger;
         _serviceProvider = serviceProvider;
         LoadPersisted();
@@ -79,8 +82,8 @@ public class BearerTokenService : IDisposable
     {
         try
         {
-            if (!File.Exists(TokenFile)) return;
-            var data = JsonSerializer.Deserialize<PersistedToken>(File.ReadAllText(TokenFile));
+            if (!File.Exists(_tokenFile)) return;
+            var data = JsonSerializer.Deserialize<PersistedToken>(File.ReadAllText(_tokenFile));
             if (data is null) return;
             _token = data.Token;
             _expiresAt = data.ExpiresAt;
@@ -99,8 +102,8 @@ public class BearerTokenService : IDisposable
     {
         try
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(TokenFile)!);
-            File.WriteAllText(TokenFile, JsonSerializer.Serialize(new PersistedToken(_token!, _expiresAt)));
+            Directory.CreateDirectory(Path.GetDirectoryName(_tokenFile)!);
+            File.WriteAllText(_tokenFile, JsonSerializer.Serialize(new PersistedToken(_token!, _expiresAt)));
         }
         catch (Exception ex)
         {

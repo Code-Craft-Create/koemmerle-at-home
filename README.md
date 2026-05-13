@@ -1,13 +1,13 @@
-# Kömmerle At Home
+# KÖMMERLE At Home
 
-Kömmerle At Home is a home grocery automation system for Migros Online customers.
+KÖMMERLE At Home is a home grocery automation system for Migros Online customers.
 Family members, including young kids, scan barcodes at home; the app resolves
 the scan to products or recipes, queues the resulting items, and adds them to
 the family's Migros shopping list/cart.
 
 For products that do not have a convenient barcode at home, such as produce,
 bakery items, frozen goods, or Migros Online products that arrive without
-scannable packaging, Kömmerle At Home can generate printable barcode stickers.
+scannable packaging, KÖMMERLE At Home can generate printable barcode stickers.
 Stick a generated label near the product's storage place, scan that label later,
 and the item flows through the same queue and Migros basket automation.
 
@@ -75,11 +75,19 @@ frameworks if the generated `playwright.ps1` script disappears.
 
 The API listens on `http://localhost:5050` when started with the `http` launch
 profile. On startup it creates or updates a local SQLite database named
-`koemmerleathome.db` in the backend project directory.
+`koemmerleathome.db` in the per-user app data directory.
 
 When the backend starts, it opens a persistent Chromium window at migros.ch. Log
-in there once. The session is stored in `backend/KoemmerleAtHome.Api/playwright-session/`
-and the backend keeps the bearer token fresh while it is running.
+in there once. The browser profile and bearer token cache are stored in the same
+per-user app data directory, and the backend keeps the bearer token fresh while
+it is running.
+
+To intentionally keep runtime state somewhere else, pass `DataDirectory` during
+startup:
+
+```bash
+dotnet run --project backend/KoemmerleAtHome.Api --launch-profile http -- --DataDirectory .
+```
 
 ### Frontend
 
@@ -128,6 +136,7 @@ You can also run the executable directly:
 ```bash
 cd release/osx-arm64
 DOTNET_BUNDLE_EXTRACT_BASE_DIR="$PWD/.dotnet-bundle" \
+  KoemmerleAtHome__DataDirectory="$PWD" \
   ASPNETCORE_URLS=http://localhost:5050 \
   ./KoemmerleAtHome.Api
 ```
@@ -155,8 +164,19 @@ Local runtime state is intentionally kept out of version control:
 - `koemmerleathome.db*` stores products, recipes, queue items, orders, and app
   settings.
 - `playwright-session/` stores the local Migros browser profile.
+- `migros-session/` stores the captured bearer-token cache.
 - `bin/`, `obj/`, `.angular/cache/`, and `node_modules/` are generated build or
   dependency folders.
+
+By default these files live outside the downloaded release folder:
+
+- macOS: `~/Library/Application Support/Koemmerle At Home/`
+- Windows: `%APPDATA%\Koemmerle At Home\`
+- Linux: `$XDG_DATA_HOME/koemmerle-at-home/` or `~/.local/share/koemmerle-at-home/`
+
+Set `DataDirectory` at startup to override this location, for example
+`KoemmerleAtHome__DataDirectory="$PWD"` when you deliberately want state next to
+the executable.
 
 If the local database schema is older, the backend applies a small set of
 startup migrations in `Program.cs`.
@@ -174,7 +194,7 @@ once an authenticated token is available.
 
 ## License
 
-Kömmerle At Home is licensed under the Apache License, Version 2.0. See
+KÖMMERLE At Home is licensed under the Apache License, Version 2.0. See
 `LICENSE`.
 
 Third-party dependency notices are summarized in `THIRD-PARTY-NOTICES.md`.

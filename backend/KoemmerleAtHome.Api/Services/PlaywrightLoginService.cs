@@ -1,4 +1,5 @@
 using Microsoft.Playwright;
+using KoemmerleAtHome.Api;
 
 namespace KoemmerleAtHome.Api.Services;
 
@@ -7,12 +8,12 @@ namespace KoemmerleAtHome.Api.Services;
 /// Navigates to migros.ch on startup and whenever StartLoginAsync() is called.
 /// Token is captured from the silent OAuth response and stored in BearerTokenService.
 /// </summary>
-public class PlaywrightLoginService(BearerTokenService bearerTokenService, ILogger<PlaywrightLoginService> logger)
+public class PlaywrightLoginService(
+    BearerTokenService bearerTokenService,
+    LocalAppData appData,
+    ILogger<PlaywrightLoginService> logger)
     : BackgroundService
 {
-    private static string SessionDir =>
-        Path.Combine(Directory.GetCurrentDirectory(), "playwright-session");
-
     private IBrowserContext? _context;
     private bool _isLoggedIn;
     private readonly SemaphoreSlim _browserLock = new(1, 1);
@@ -144,15 +145,15 @@ public class PlaywrightLoginService(BearerTokenService bearerTokenService, ILogg
     private async Task LaunchBrowserAsync()
     {
         var playwright = await Playwright.CreateAsync();
-        Directory.CreateDirectory(SessionDir);
+        Directory.CreateDirectory(appData.PlaywrightSessionDirectory);
 
         // Remove stale Chromium lock files that survive crashes.
         foreach (var lockFile in new[] { "SingletonLock", "SingletonCookie", "SingletonSocket" })
         {
-            try { File.Delete(Path.Combine(SessionDir, lockFile)); } catch { }
+            try { File.Delete(Path.Combine(appData.PlaywrightSessionDirectory, lockFile)); } catch { }
         }
 
-        _context = await playwright.Chromium.LaunchPersistentContextAsync(SessionDir, new()
+        _context = await playwright.Chromium.LaunchPersistentContextAsync(appData.PlaywrightSessionDirectory, new()
         {
             Headless = false,
             ViewportSize = new ViewportSize { Width = 756, Height = 982 },
@@ -186,7 +187,7 @@ public class PlaywrightLoginService(BearerTokenService bearerTokenService, ILogg
             page.Load += async (_, loadedPage) => await InjectLoginBannerAsync(loadedPage);
         }
 
-        logger.LogInformation("Playwright browser launched. Session stored at: {Dir}", SessionDir);
+        logger.LogInformation("Playwright browser launched. Session stored at: {Dir}", appData.PlaywrightSessionDirectory);
     }
 
     private async Task NavigateAndWaitForLoginAsync(CancellationToken ct)
@@ -234,7 +235,7 @@ public class PlaywrightLoginService(BearerTokenService bearerTokenService, ILogg
 
                   const banner = document.createElement('div');
                   banner.id = id;
-                  banner.textContent = 'Bitte bei Migros anmelden, damit Kömmerle At Home deinen Warenkorb synchronisieren kann.';
+                  banner.textContent = 'Bitte bei Migros anmelden, damit KÖMMERLE At Home deinen Warenkorb synchronisieren kann.';
                   banner.style.position = 'fixed';
                   banner.style.top = '0';
                   banner.style.left = '0';

@@ -23,8 +23,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Remove="playwright-session\**;koemmerleathome.db*" />
-    <None Remove="playwright-session\**;koemmerleathome.db*" />
+    <Content Remove="playwright-session\**;migros-session\**;koemmerleathome.db*" />
+    <None Remove="playwright-session\**;migros-session\**;koemmerleathome.db*" />
   </ItemGroup>
 
   <Target Name="BuildFrontend" BeforeTargets="ComputeFilesToPublish" Condition="'$(BuildFrontend)' != 'false'">

@@ -49,7 +49,7 @@ if [ ! -d "\$HOME/Library/Caches/ms-playwright" ]; then
   ./KoemmerleAtHome.Api --install-playwright
 fi
 
-echo "Starting Kömmerle At Home..."
+echo "Starting KÖMMERLE At Home..."
 echo "Open $url in your browser."
 ASPNETCORE_URLS=$url ./KoemmerleAtHome.Api
 EOF

@@ -9,6 +9,7 @@
 
 koemmerleathome.db*
 playwright-session/
+migros-session/
 examples
 **/cert
 

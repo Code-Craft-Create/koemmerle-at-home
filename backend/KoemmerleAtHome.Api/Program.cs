@@ -3,6 +3,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.Extensions.FileProviders;
+using Microsoft.Data.Sqlite;
+using KoemmerleAtHome.Api;
 using KoemmerleAtHome.Api.Data;
 using KoemmerleAtHome.Api.Hubs;
 using KoemmerleAtHome.Api.Services;
@@ -16,6 +18,8 @@ if (args.Contains("--install-playwright", StringComparer.OrdinalIgnoreCase))
 }
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddSingleton<LocalAppData>();
 
 builder.Services.AddControllers()
     .AddJsonOptions(o =>
@@ -36,8 +40,22 @@ builder.Services.AddSignalR()
         options.PayloadSerializerOptions.Converters.Add(
             new System.Text.Json.Serialization.JsonStringEnumConverter()));
 
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("Default") ?? "Data Source=koemmerleathome.db"));
+builder.Services.AddDbContext<AppDbContext>((sp, options) =>
+{
+    var configuredConnectionString = builder.Configuration.GetConnectionString("Default");
+    if (!string.IsNullOrWhiteSpace(configuredConnectionString))
+    {
+        options.UseSqlite(configuredConnectionString);
+        return;
+    }
+
+    var appData = sp.GetRequiredService<LocalAppData>();
+    var connectionString = new SqliteConnectionStringBuilder
+    {
+        DataSource = appData.DatabasePath
+    }.ToString();
+    options.UseSqlite(connectionString);
+});
 
 builder.Services.AddSingleton<ImageThumbnailService>();
 builder.Services.AddSingleton<BearerTokenService>();
@@ -62,6 +80,10 @@ builder.Services.AddCors(options =>
               .AllowCredentials()));
 
 var app = builder.Build();
+
+var appData = app.Services.GetRequiredService<LocalAppData>();
+app.Logger.LogInformation("Local app data directory: {Directory}", appData.RootDirectory);
+app.Logger.LogInformation("SQLite database path: {DatabasePath}", appData.DatabasePath);
 
 using (var scope = app.Services.CreateScope())
 {
