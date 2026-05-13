@@ -23,6 +23,27 @@
     @if (tokenMessage) { <div class="msg">{{ tokenMessage }}</div> }
   </div>
 
+  <!-- Order Sync -->
+  <div class="settings-card">
+    <h2>Bestellungen</h2>
+    <div class="action-row">
+      <div class="action-info">
+        <h3>Auto-Update</h3>
+        <p>Importiert nach dem App-Start automatisch neue Migros-Bestellungen, sobald die Verbindung aktiv ist.</p>
+      </div>
+      <label class="switch">
+        <input
+          type="checkbox"
+          [checked]="autoUpdateOrders"
+          [disabled]="autoUpdateSaving"
+          (change)="toggleAutoUpdateOrders($any($event.target).checked)"
+        />
+        <span></span>
+      </label>
+    </div>
+    @if (settingsMessage) { <div class="msg">{{ settingsMessage }}</div> }
+  </div>
+
   <!-- Thumbnail Sync -->
   <div class="settings-card">
     <h2>Produkt-Thumbnails</h2>

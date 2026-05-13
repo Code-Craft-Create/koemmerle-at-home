@@ -1,9 +1,9 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
-import { EMPTY, Subscription, from, of } from 'rxjs';
-import { concatMap, finalize, switchMap, tap, toArray } from 'rxjs/operators';
+import { Subscription } from 'rxjs';
 import { ScanApiService, Order, OrderProductSyncProgress } from '../services/scan-api.service';
+import { OrderImportService } from '../services/order-import.service';
 
 @Component({
   selector: 'app-orders',
@@ -23,15 +23,28 @@ export class OrdersComponent implements OnInit, OnDestroy {
   syncAllTotal = 0;
   syncProgress: { [orderId: number]: OrderProductSyncProgress } = {};
   message = '';
+  autoUpdateOrders = true;
+  autoUpdateSaving = false;
 
   private sub?: Subscription;
-  private syncAllSub?: Subscription;
-  private stopSyncRequested = false;
+  private importSub?: Subscription;
+  private importDoneSub?: Subscription;
 
-  constructor(private api: ScanApiService) {}
+  constructor(private api: ScanApiService, private orderImport: OrderImportService) {}
 
   ngOnInit() {
     this.load();
+    this.api.getSettings().subscribe(s => this.autoUpdateOrders = s.autoUpdateOrders);
+    this.importSub = this.orderImport.state$.subscribe(s => {
+      this.syncingAll = s.active;
+      this.syncAllPhase = s.phase;
+      this.syncAllCurrent = s.current;
+      this.syncAllTotal = s.total;
+      if (s.message) this.message = s.message;
+    });
+    this.importDoneSub = this.orderImport.completed$.subscribe(count => {
+      if (count > 0) this.load();
+    });
     this.sub = this.api.orderSyncProgress$Obs.subscribe(p => {
       this.syncProgress[p.orderId] = p;
 
@@ -60,7 +73,8 @@ export class OrdersComponent implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     this.sub?.unsubscribe();
-    this.syncAllSub?.unsubscribe();
+    this.importSub?.unsubscribe();
+    this.importDoneSub?.unsubscribe();
   }
 
   load() {
@@ -128,100 +142,11 @@ export class OrdersComponent implements OnInit, OnDestroy {
   }
 
   syncAll() {
-    if (this.syncingAll) return;
-
-    this.syncAllSub?.unsubscribe();
-    this.stopSyncRequested = false;
-    this.syncingAll = true;
-    this.syncAllPhase = 'headers';
-    this.syncAllCurrent = 0;
-    this.syncAllTotal = 0;
-    this.message = 'Bestellungen werden importiert…';
-
-    this.syncAllSub = this.api.syncOrderHeaders().pipe(
-      tap(r => {
-        if (!this.stopSyncRequested) this.message = `${r.synced} neue Bestellungen gefunden`;
-      }),
-      switchMap(() => this.stopSyncRequested ? EMPTY : this.api.getOrders()),
-      switchMap(fresh => {
-        this.orders = fresh;
-        const toDetail = fresh.filter(o => o.status === 'HeaderFetched');
-        this.syncAllPhase = 'details';
-        this.syncAllCurrent = 0;
-        this.syncAllTotal = toDetail.length;
-
-        if (toDetail.length === 0) return of(null);
-
-        return from(toDetail).pipe(
-          concatMap(order =>
-            this.stopSyncRequested ? EMPTY : this.api.syncOrderDetail(order.id).pipe(
-              tap(() => {
-                this.syncAllCurrent++;
-                this.api.getOrder(order.id).subscribe(o => this.replaceOrder(o));
-              })
-            )
-          ),
-          toArray()
-        );
-      }),
-      switchMap(() => this.stopSyncRequested ? EMPTY : this.api.getOrders()),
-      switchMap(fresh => {
-        this.orders = fresh;
-        const toSync = fresh.filter(o => o.status === 'DetailFetched');
-        this.syncAllPhase = 'products';
-        this.syncAllCurrent = 0;
-        this.syncAllTotal = toSync.length;
-
-        if (toSync.length === 0) return of(null);
-
-        return from(toSync).pipe(
-          concatMap(order => {
-            if (this.stopSyncRequested) return EMPTY;
-
-            this.syncingProductsId = order.id;
-            this.syncProgress[order.id] = { orderId: order.id, done: 0, total: 0 };
-            return this.api.syncOrderProducts(order.id).pipe(
-              tap(() => this.syncAllCurrent++)
-            );
-          })
-        );
-      }),
-      finalize(() => {
-        this.syncingAll = false;
-        this.syncAllPhase = null;
-        this.syncingProductsId = null;
-        this.syncAllTotal = 0;
-        this.syncAllCurrent = 0;
-      })
-    ).subscribe({
-      complete: () => {
-        this.load();
-        this.message = this.stopSyncRequested
-          ? 'Import gestoppt'
-          : 'Alle Bestellungen synchronisiert';
-      },
-      error: () => {
-        this.load();
-        this.message = this.stopSyncRequested
-          ? 'Import gestoppt'
-          : 'Fehler beim Sync aller Bestellungen';
-      }
-    });
+    this.orderImport.start();
   }
 
   stopSyncAll() {
-    if (!this.syncingAll) return;
-    this.stopSyncRequested = true;
-    this.api.cancelProductSync().subscribe();
-    this.syncAllSub?.unsubscribe();
-    this.syncingAll = false;
-    this.syncAllPhase = null;
-    this.syncingProductsId = null;
-    this.syncAllCurrent = 0;
-    this.syncAllTotal = 0;
-    this.syncProgress = {};
-    this.message = 'Import gestoppt';
-    this.load();
+    this.orderImport.cancel();
   }
 
   private replaceOrder(order: Order) {
@@ -233,6 +158,22 @@ export class OrdersComponent implements OnInit, OnDestroy {
     const p = this.syncProgress[orderId];
     if (!p || p.total === 0) return 0;
     return Math.round((p.done / p.total) * 100);
+  }
+
+  toggleAutoUpdateOrders(enabled: boolean) {
+    this.autoUpdateOrders = enabled;
+    this.autoUpdateSaving = true;
+    this.api.setAutoUpdateOrders(enabled).subscribe({
+      next: s => {
+        this.autoUpdateOrders = s.autoUpdateOrders;
+        this.autoUpdateSaving = false;
+      },
+      error: () => {
+        this.autoUpdateOrders = !enabled;
+        this.autoUpdateSaving = false;
+        this.message = 'Auto-Update konnte nicht gespeichert werden';
+      }
+    });
   }
 
   toggleExpand(id: number) {

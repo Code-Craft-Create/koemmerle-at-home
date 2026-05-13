@@ -34,6 +34,77 @@ h1 { margin: 0; font-size: 1.5rem; font-weight: 700; }
   padding: 3rem;
 }
 
+.orders-setting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1rem;
+  margin-bottom: 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+
+  h2 {
+    margin: 0 0 0.2rem;
+    font-size: 1rem;
+  }
+
+  p {
+    margin: 0;
+    color: var(--text-2);
+    font-size: 0.86rem;
+    line-height: 1.35;
+  }
+}
+
+.switch {
+  flex-shrink: 0;
+  display: inline-flex;
+  cursor: pointer;
+
+  input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  span {
+    width: 3rem;
+    height: 1.65rem;
+    border-radius: 999px;
+    background: var(--border);
+    position: relative;
+    transition: background 0.18s ease;
+
+    &::after {
+      content: "";
+      position: absolute;
+      width: 1.25rem;
+      height: 1.25rem;
+      left: 0.2rem;
+      top: 0.2rem;
+      border-radius: 50%;
+      background: white;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.22);
+      transition: transform 0.18s ease;
+    }
+  }
+
+  input:checked + span {
+    background: var(--orange);
+
+    &::after {
+      transform: translateX(1.35rem);
+    }
+  }
+
+  input:disabled + span {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+}
+
 .order-list { display: flex; flex-direction: column; gap: 0.75rem; }
 
 .order-card {

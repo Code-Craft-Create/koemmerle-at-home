@@ -6,6 +6,7 @@ import { Subscription } from 'rxjs';
 import { filter } from 'rxjs/operators';
 import { ScanBridgeService } from './services/scan-bridge.service';
 import { LatestRelease, MigrosSessionStatus, ScanApiService } from './services/scan-api.service';
+import { OrderImportService, OrderImportState } from './services/order-import.service';
 import { QueueSidebarComponent } from './shared/queue-sidebar.component';
 import { ScanComponent } from './scan/scan.component';
 
@@ -19,6 +20,7 @@ export class AppComponent implements OnInit, OnDestroy {
   @ViewChild('navScanInput') navScanInput?: ElementRef<HTMLInputElement>;
 
   isScanRoute = false;
+  isOrdersRoute = false;
   navBarcode = '';
   queueOpen = false;
   settingsOpen = false;
@@ -30,10 +32,28 @@ export class AppComponent implements OnInit, OnDestroy {
   appVersion = '';
   latestRelease: LatestRelease | null = null;
   showReleaseBanner = false;
+  autoUpdateOrders = true;
+  autoUpdateSaving = false;
+  showOrderImportPrompt = false;
+  orderImportTrackerCollapsed = false;
+  orderImportState: OrderImportState = {
+    active: false,
+    phase: null,
+    current: 0,
+    total: 0,
+    message: '',
+    progress: {}
+  };
 
   private globalBuffer = '';
   private globalTimer: any = null;
   private sessionTimer: ReturnType<typeof setInterval> | null = null;
+  private startupOrderCheckDone = false;
+  private settingsLoaded = false;
+  private orderImportCollapsedByOrdersRoute = false;
+  private orderImportCollapsePendingForOrdersRoute = false;
+  private readonly orderImportSnoozeMs = 10 * 60 * 1000;
+  private readonly orderImportSnoozeUntilKey = 'orderImportSnoozeUntil';
   private readonly releaseStorageVersionKey = 'availableNewerRelease';
   private readonly releaseStorageAfterKey = 'showSeenReleaseInfoAgainAfter';
 
@@ -77,8 +97,14 @@ export class AppComponent implements OnInit, OnDestroy {
   private focusSub!: Subscription;
   private queueSub!: Subscription;
   private sessionSub!: Subscription;
+  private orderImportSub!: Subscription;
 
-  constructor(private router: Router, private bridge: ScanBridgeService, private api: ScanApiService) {}
+  constructor(
+    private router: Router,
+    private bridge: ScanBridgeService,
+    private api: ScanApiService,
+    private orderImport: OrderImportService
+  ) {}
 
   get showLoginOverlay() {
     return this.sessionStatus !== null && !this.sessionStatus.isLoggedIn;
@@ -88,11 +114,11 @@ export class AppComponent implements OnInit, OnDestroy {
     this.routerSub = this.router.events.pipe(
       filter(e => e instanceof NavigationEnd)
     ).subscribe((e: any) => {
-      this.isScanRoute = e.urlAfterRedirects === '/scan';
+      this.applyRouteState(e.urlAfterRedirects);
       if (this.isScanRoute) setTimeout(() => this.focusNav(), 100);
     });
     this.focusSub = this.bridge.focusRequest$.subscribe(() => this.focusNav());
-    this.isScanRoute = this.router.url === '/scan';
+    this.applyRouteState(this.router.url);
     if (this.isScanRoute) setTimeout(() => this.focusNav(), 100);
 
     // Drive badges from SignalR pushes; seed with the current queue on load.
@@ -104,7 +130,18 @@ export class AppComponent implements OnInit, OnDestroy {
     this.queueSub = this.api.queueUpdated$Obs.subscribe(q => applyBadges(q));
 
     this.sessionSub = this.api.migrosSessionUpdated$Obs.subscribe(status => this.applySessionStatus(status));
+    this.orderImportSub = this.orderImport.state$.subscribe(s => {
+      this.orderImportState = s;
+      if (s.active && this.isOrdersRoute && this.orderImportCollapsePendingForOrdersRoute && !this.orderImportTrackerCollapsed) {
+        this.forceCollapseOrderImportForOrdersRoute();
+      }
+    });
     this.refreshSessionStatus();
+    this.api.getSettings().subscribe(s => {
+      this.autoUpdateOrders = s.autoUpdateOrders;
+      this.settingsLoaded = true;
+      this.maybeHandleStartupOrders();
+    });
     this.sessionTimer = setInterval(() => this.refreshSessionStatus(), 60000);
     this.api.getVersion().subscribe({
       next: info => {
@@ -120,6 +157,7 @@ export class AppComponent implements OnInit, OnDestroy {
     this.focusSub.unsubscribe();
     this.queueSub.unsubscribe();
     this.sessionSub.unsubscribe();
+    this.orderImportSub.unsubscribe();
     if (this.sessionTimer) clearInterval(this.sessionTimer);
   }
 
@@ -145,6 +183,29 @@ export class AppComponent implements OnInit, OnDestroy {
     this.navScanInput?.nativeElement.focus();
   }
 
+  private applyRouteState(url: string) {
+    const wasOrdersRoute = this.isOrdersRoute;
+    this.isScanRoute = url === '/scan';
+    this.isOrdersRoute = url === '/orders';
+
+    if (!wasOrdersRoute && this.isOrdersRoute) {
+      if (this.orderImportTrackerCollapsed) {
+        this.orderImportCollapsePendingForOrdersRoute = false;
+        this.orderImportCollapsedByOrdersRoute = false;
+      } else if (this.orderImportState.active) {
+        this.forceCollapseOrderImportForOrdersRoute();
+      } else {
+        this.orderImportCollapsePendingForOrdersRoute = true;
+      }
+    } else if (wasOrdersRoute && !this.isOrdersRoute) {
+      if (this.orderImportCollapsedByOrdersRoute) {
+        this.orderImportTrackerCollapsed = false;
+      }
+      this.orderImportCollapsedByOrdersRoute = false;
+      this.orderImportCollapsePendingForOrdersRoute = false;
+    }
+  }
+
   refreshSessionStatus() {
     this.api.getMigrosSession().subscribe({
       next: status => this.applySessionStatus(status),
@@ -160,6 +221,128 @@ export class AppComponent implements OnInit, OnDestroy {
     if (status.isLoggedIn) {
       this.loginStarting = false;
       this.loginMessage = '';
+      this.maybeHandleStartupOrders();
+    }
+  }
+
+  private maybeHandleStartupOrders() {
+    if (this.startupOrderCheckDone || !this.settingsLoaded || !this.sessionStatus?.isLoggedIn) return;
+
+    this.startupOrderCheckDone = true;
+    this.api.getOrders().subscribe({
+      next: orders => {
+        if (this.autoUpdateOrders && !this.isOrderImportSnoozed()) {
+          this.orderImport.start();
+          return;
+        }
+
+        if (orders.length === 0) {
+          this.showOrderImportPrompt = true;
+        }
+      },
+      error: () => {}
+    });
+  }
+
+  startOrderImportFromPrompt() {
+    this.showOrderImportPrompt = false;
+    this.orderImport.start();
+  }
+
+  closeOrderImportPrompt() {
+    this.showOrderImportPrompt = false;
+  }
+
+  cancelOrderImport() {
+    this.snoozeOrderImport();
+    this.orderImport.cancel();
+  }
+
+  collapseOrderImportTracker() {
+    this.orderImportTrackerCollapsed = true;
+    this.orderImportCollapsedByOrdersRoute = false;
+    this.orderImportCollapsePendingForOrdersRoute = false;
+  }
+
+  expandOrderImportTracker() {
+    this.orderImportTrackerCollapsed = false;
+    this.orderImportCollapsedByOrdersRoute = false;
+    this.orderImportCollapsePendingForOrdersRoute = false;
+  }
+
+  private forceCollapseOrderImportForOrdersRoute() {
+    this.orderImportTrackerCollapsed = true;
+    this.orderImportCollapsedByOrdersRoute = true;
+    this.orderImportCollapsePendingForOrdersRoute = false;
+  }
+
+  private snoozeOrderImport() {
+    localStorage.setItem(this.orderImportSnoozeUntilKey, String(Date.now() + this.orderImportSnoozeMs));
+  }
+
+  private isOrderImportSnoozed(): boolean {
+    const snoozeUntil = Number(localStorage.getItem(this.orderImportSnoozeUntilKey) ?? '0');
+    return Number.isFinite(snoozeUntil) && Date.now() < snoozeUntil;
+  }
+
+  toggleAutoUpdateOrders(enabled: boolean) {
+    this.autoUpdateOrders = enabled;
+    this.autoUpdateSaving = true;
+    this.api.setAutoUpdateOrders(enabled).subscribe({
+      next: s => {
+        this.autoUpdateOrders = s.autoUpdateOrders;
+        this.autoUpdateSaving = false;
+      },
+      error: () => {
+        this.autoUpdateOrders = !enabled;
+        this.autoUpdateSaving = false;
+      }
+    });
+  }
+
+  orderImportProgressPercent(): number {
+    const state = this.orderImportState;
+    if (!state.total) return state.active ? 8 : 100;
+
+    return Math.max(8, Math.round((state.current / state.total) * 100));
+  }
+
+  currentProductSyncProgress() {
+    const entries = Object.values(this.orderImportState.progress);
+    return entries.find(p => p.total > 0 && p.done < p.total)
+      ?? entries.find(p => p.total > 0)
+      ?? null;
+  }
+
+  currentProductSyncProgressPercent(): number {
+    const progress = this.currentProductSyncProgress();
+    if (!progress?.total) return 0;
+
+    return Math.round((progress.done / progress.total) * 100);
+  }
+
+  orderImportPhaseLabel(): string {
+    switch (this.orderImportState.phase) {
+      case 'headers': return 'Bestellungen suchen';
+      case 'details': return 'Details laden';
+      case 'products': return 'Produkte verknüpfen';
+      default: return 'Bestellungen importieren';
+    }
+  }
+
+  orderImportCountLabel(): string {
+    const state = this.orderImportState;
+    if (state.total <= 0) return 'läuft...';
+
+    switch (state.phase) {
+      case 'headers':
+        return `${state.current} / ${state.total} Bestellungen gefunden`;
+      case 'details':
+        return `${state.current} / ${state.total} Bestelldetails geladen`;
+      case 'products':
+        return `${state.current} / ${state.total} Bestellungen synchronisiert`;
+      default:
+        return `${state.current} / ${state.total}`;
     }
   }
 

@@ -24,6 +24,22 @@
     <div class="msg-banner">{{ message }}</div>
   }
 
+  <section class="orders-setting">
+    <div>
+      <h2>Bestellungen automatisch aktualisieren</h2>
+      <p>Beim App-Start werden neue Migros-Bestellungen importiert.</p>
+    </div>
+    <label class="switch">
+      <input
+        type="checkbox"
+        [checked]="autoUpdateOrders"
+        [disabled]="autoUpdateSaving"
+        (change)="toggleAutoUpdateOrders($any($event.target).checked)"
+      />
+      <span></span>
+    </label>
+  </section>
+
   @if (orders.length === 0) {
     <div class="empty">Noch keine Bestellungen. Klicke auf "Bestellungen importieren".</div>
   }

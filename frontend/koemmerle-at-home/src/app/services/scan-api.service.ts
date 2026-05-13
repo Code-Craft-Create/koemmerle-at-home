@@ -250,6 +250,10 @@ export interface LatestRelease {
   publishedAt?: string | null;
 }
 
+export interface AppSettings {
+  autoUpdateOrders: boolean;
+}
+
 @Injectable({ providedIn: 'root' })
 export class ScanApiService {
   private readonly serverOrigin = window.location.port === '4200'
@@ -404,6 +408,13 @@ export class ScanApiService {
   }
   cancelProductSync(): Observable<void> {
     return this.http.post<void>(`${this.base}/orders/cancel-product-sync`, {});
+  }
+
+  getSettings(): Observable<AppSettings> {
+    return this.http.get<AppSettings>(`${this.base}/settings`);
+  }
+  setAutoUpdateOrders(autoUpdateOrders: boolean): Observable<AppSettings> {
+    return this.http.put<AppSettings>(`${this.base}/settings/auto-update-orders`, { autoUpdateOrders });
   }
 
   // ── Scan / Cart ────────────────────────────────────────────────────────────

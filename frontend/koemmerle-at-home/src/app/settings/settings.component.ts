@@ -15,12 +15,16 @@ export class SettingsComponent implements OnInit {
   tokenMessage = '';
   thumbnailSyncing = false;
   thumbnailResult = '';
+  autoUpdateOrders = true;
+  autoUpdateSaving = false;
+  settingsMessage = '';
   Math = Math;
 
   constructor(private api: ScanApiService) {}
 
   ngOnInit() {
     this.refreshSessionStatus();
+    this.api.getSettings().subscribe(s => this.autoUpdateOrders = s.autoUpdateOrders);
   }
 
   refreshSessionStatus() {
@@ -62,6 +66,24 @@ export class SettingsComponent implements OnInit {
       error: () => {
         this.thumbnailResult = 'Fehler beim Synchronisieren.';
         this.thumbnailSyncing = false;
+      }
+    });
+  }
+
+  toggleAutoUpdateOrders(enabled: boolean) {
+    this.autoUpdateOrders = enabled;
+    this.autoUpdateSaving = true;
+    this.settingsMessage = '';
+    this.api.setAutoUpdateOrders(enabled).subscribe({
+      next: s => {
+        this.autoUpdateOrders = s.autoUpdateOrders;
+        this.autoUpdateSaving = false;
+        this.settingsMessage = 'Einstellung gespeichert.';
+      },
+      error: () => {
+        this.autoUpdateOrders = !enabled;
+        this.autoUpdateSaving = false;
+        this.settingsMessage = 'Einstellung konnte nicht gespeichert werden.';
       }
     });
   }

@@ -85,6 +85,75 @@
   <div class="app-version-watermark">v{{ appVersion }}</div>
 }
 
+@if (showOrderImportPrompt && !orderImportState.active && !showLoginOverlay) {
+  <div class="order-import-modal" role="dialog" aria-modal="true" aria-labelledby="order-import-title">
+    <div class="order-import-panel">
+      <button class="order-import-close" type="button" (click)="closeOrderImportPrompt()" aria-label="Schliessen">×</button>
+      <h1 id="order-import-title">Bestellungen importieren?</h1>
+      <p>
+        Mit deinen bisherigen Migros-Bestellungen findet KÖMMERLE At Home viel schneller deine Lieblingsprodukte,
+        schlägt passendere Produkte für Sticker vor und macht das Anlegen von Rezepten spürbar einfacher.
+      </p>
+      <div class="order-import-setting">
+        <div>
+          <strong>Auto-Update</strong>
+          <span>Empfohlen: hält neue Bestellungen automatisch synchron.</span>
+        </div>
+        <label class="switch">
+          <input
+            type="checkbox"
+            [checked]="autoUpdateOrders"
+            [disabled]="autoUpdateSaving"
+            (change)="toggleAutoUpdateOrders($any($event.target).checked)"
+          />
+          <span></span>
+        </label>
+      </div>
+      <div class="order-import-actions">
+        <button type="button" class="order-import-secondary" (click)="closeOrderImportPrompt()">Später</button>
+        <button type="button" class="order-import-primary" (click)="startOrderImportFromPrompt()">Import starten</button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (orderImportState.active) {
+  <div class="order-import-toast" [class.collapsed]="orderImportTrackerCollapsed" role="status">
+    <button class="order-import-edge-collapse" type="button" (click)="collapseOrderImportTracker()" aria-label="Tracker einklappen">›</button>
+    <div class="order-import-toast-content">
+      <div class="order-import-toast-head">
+        <div>
+          <a routerLink="/orders" class="order-import-toast-title">{{ orderImportPhaseLabel() }}</a>
+          <span>{{ orderImportCountLabel() }}</span>
+        </div>
+        <button class="order-import-stop" type="button" (click)="cancelOrderImport()" aria-label="Import stoppen">
+          <span></span>
+          Stop
+        </button>
+      </div>
+      <div class="order-import-progress">
+        <div [style.width.%]="orderImportProgressPercent()"></div>
+      </div>
+      @if (orderImportState.phase === 'products' && currentProductSyncProgress(); as productProgress) {
+        @if (productProgress.currentProduct) {
+          <div class="order-import-progress-row">{{ productProgress.currentProduct }}</div>
+        }
+        <div class="order-import-progress product-progress">
+          <div [style.width.%]="currentProductSyncProgressPercent()"></div>
+        </div>
+      }
+      @if (orderImportState.message) {
+        <p>{{ orderImportState.message }}</p>
+      }
+    </div>
+    <button class="order-import-collapsed-content" type="button" (click)="expandOrderImportTracker()" aria-label="Import-Tracker öffnen">
+      <span class="order-import-peek-progress">
+        <span [style.height.%]="orderImportProgressPercent()"></span>
+      </span>
+      <span class="order-import-peek-label">Import</span>
+    </button>
+  </div>
+}
 @if (showLoginOverlay) {
   <div class="login-overlay" role="dialog" aria-modal="true" aria-labelledby="login-title">
     <div class="login-panel">
