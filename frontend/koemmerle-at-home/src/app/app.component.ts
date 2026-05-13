@@ -5,7 +5,7 @@ import { CommonModule } from '@angular/common';
 import { Subscription } from 'rxjs';
 import { filter } from 'rxjs/operators';
 import { ScanBridgeService } from './services/scan-bridge.service';
-import { MigrosSessionStatus, ScanApiService } from './services/scan-api.service';
+import { LatestRelease, MigrosSessionStatus, ScanApiService } from './services/scan-api.service';
 import { QueueSidebarComponent } from './shared/queue-sidebar.component';
 import { ScanComponent } from './scan/scan.component';
 
@@ -28,10 +28,14 @@ export class AppComponent implements OnInit, OnDestroy {
   loginStarting = false;
   loginMessage = '';
   appVersion = '';
+  latestRelease: LatestRelease | null = null;
+  showReleaseBanner = false;
 
   private globalBuffer = '';
   private globalTimer: any = null;
   private sessionTimer: ReturnType<typeof setInterval> | null = null;
+  private readonly releaseStorageVersionKey = 'availableNewerRelease';
+  private readonly releaseStorageAfterKey = 'showSeenReleaseInfoAgainAfter';
 
   @HostListener('document:click', ['$event'])
   onDocumentClick(event: Event) {
@@ -103,7 +107,10 @@ export class AppComponent implements OnInit, OnDestroy {
     this.refreshSessionStatus();
     this.sessionTimer = setInterval(() => this.refreshSessionStatus(), 60000);
     this.api.getVersion().subscribe({
-      next: info => this.appVersion = info.displayVersion || info.version,
+      next: info => {
+        this.appVersion = info.displayVersion || info.version;
+        this.applyLatestRelease(info.latestRelease ?? null);
+      },
       error: () => this.appVersion = ''
     });
   }
@@ -154,6 +161,32 @@ export class AppComponent implements OnInit, OnDestroy {
       this.loginStarting = false;
       this.loginMessage = '';
     }
+  }
+
+  private applyLatestRelease(release: LatestRelease | null) {
+    this.latestRelease = release;
+    this.showReleaseBanner = false;
+    if (!release?.version) return;
+
+    const storedVersion = localStorage.getItem(this.releaseStorageVersionKey);
+    const showAgainAfter = Number(localStorage.getItem(this.releaseStorageAfterKey) ?? '0');
+    this.showReleaseBanner = storedVersion !== release.version || !Number.isFinite(showAgainAfter) || Date.now() >= showAgainAfter;
+  }
+
+  dismissReleaseBanner() {
+    this.storeReleaseBannerSnooze(12 * 60 * 60 * 1000);
+  }
+
+  hideReleaseBannerLongTerm() {
+    this.storeReleaseBannerSnooze(365 * 24 * 60 * 60 * 1000);
+  }
+
+  private storeReleaseBannerSnooze(durationMs: number) {
+    if (!this.latestRelease?.version) return;
+
+    localStorage.setItem(this.releaseStorageVersionKey, this.latestRelease.version);
+    localStorage.setItem(this.releaseStorageAfterKey, String(Date.now() + durationMs));
+    this.showReleaseBanner = false;
   }
 
   startMigrosLogin() {

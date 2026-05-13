@@ -1,4 +1,22 @@
-<nav class="app-nav">
+<nav class="app-nav" [class.has-release-banner]="showReleaseBanner">
+  @if (showReleaseBanner && latestRelease) {
+    <div class="release-banner" role="status">
+      <div class="release-banner-text">
+        Neue Version verfügbar:
+        <a [href]="latestRelease.htmlUrl" target="_blank" rel="noopener noreferrer">
+          {{ latestRelease.name || latestRelease.version }}
+        </a>
+      </div>
+      <div class="release-banner-actions">
+        <button type="button" class="release-banner-secondary" (click)="hideReleaseBannerLongTerm()">
+          Nicht mehr anzeigen
+        </button>
+        <button type="button" class="release-banner-close" (click)="dismissReleaseBanner()">
+          Schliessen
+        </button>
+      </div>
+    </div>
+  }
   <div class="nav-top">
     <a routerLink="/" class="app-logo" routerLinkActive="never">
       <span class="logo-brand">KÖMMERLE</span>

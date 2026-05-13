@@ -239,6 +239,15 @@ export interface AppVersion {
   commit?: string;
   displayVersion?: string;
   informationalVersion?: string;
+  latestRelease?: LatestRelease | null;
+}
+
+export interface LatestRelease {
+  version: string;
+  tagName: string;
+  name: string;
+  htmlUrl: string;
+  publishedAt?: string | null;
 }
 
 @Injectable({ providedIn: 'root' })
