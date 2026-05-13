@@ -112,6 +112,13 @@ Build both macOS variants from the repository root:
 ./scripts/publish-macos.sh
 ```
 
+To build only one architecture, pass a target option:
+
+```bash
+./scripts/publish-macos.sh --arm
+./scripts/publish-macos.sh --x64
+```
+
 The release build requires Node.js 20, 22, or 24 for the Angular 21 production
 build, plus the .NET 10 SDK for publishing.
 

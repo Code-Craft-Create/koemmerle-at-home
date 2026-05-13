@@ -5,6 +5,47 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PROJECT="$ROOT_DIR/backend/KoemmerleAtHome.Api/KoemmerleAtHome.Api.csproj"
 OUTPUT_ROOT="$ROOT_DIR/release"
 NODE_MAJOR="$(node -p "process.versions.node.split('.')[0]")"
+RUNTIMES=()
+
+usage() {
+  cat <<'EOF'
+Usage: ./scripts/publish-macos.sh [--arm|--x64|--both]
+
+Options:
+  --arm    Build only the Apple silicon release (osx-arm64)
+  --x64    Build only the Intel Mac release (osx-x64)
+  --both   Build both releases (default)
+  --help   Show this help
+EOF
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --arm)
+      RUNTIMES=("osx-arm64")
+      ;;
+    --x64)
+      RUNTIMES=("osx-x64")
+      ;;
+    --both)
+      RUNTIMES=("osx-x64" "osx-arm64")
+      ;;
+    --help|-h)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "Unknown option: $1" >&2
+      usage >&2
+      exit 1
+      ;;
+  esac
+  shift
+done
+
+if [ "${#RUNTIMES[@]}" -eq 0 ]; then
+  RUNTIMES=("osx-x64" "osx-arm64")
+fi
 
 case "$NODE_MAJOR" in
   20|22|24) ;;
@@ -56,9 +97,11 @@ EOF
   chmod +x "$output/start.command"
 }
 
-publish_runtime osx-x64
-publish_runtime osx-arm64
+for runtime in "${RUNTIMES[@]}"; do
+  publish_runtime "$runtime"
+done
 
 echo "macOS release builds written to:"
-echo "  $OUTPUT_ROOT/osx-x64/start.command"
-echo "  $OUTPUT_ROOT/osx-arm64/start.command"
+for runtime in "${RUNTIMES[@]}"; do
+  echo "  $OUTPUT_ROOT/$runtime/start.command"
+done
