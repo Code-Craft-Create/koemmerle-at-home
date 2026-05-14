@@ -430,7 +430,7 @@ export class ScanApiService {
       headers: { 'X-SignalR-Connection-Id': connectionId }
     });
   }
-  getScanAlternatives(barcode: string, offset: number, limit = 20): Observable<ScanAlternativesResult> {
+  getScanAlternatives(barcode: string, offset: number, limit = 50): Observable<ScanAlternativesResult> {
     return this.http.get<ScanAlternativesResult>(`${this.base}/scan/alternatives`, {
       params: { barcode, offset, limit }
     });

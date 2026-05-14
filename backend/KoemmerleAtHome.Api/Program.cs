@@ -153,6 +153,14 @@ using (var scope = app.Services.CreateScope())
         Exec("""ALTER TABLE "Products" ADD COLUMN "MigrosUid" INTEGER""");
     if (TableExists("Products") && !HasColumn("Products", "Multiplier"))
         Exec("""ALTER TABLE "Products" ADD COLUMN "Multiplier" INTEGER NOT NULL DEFAULT 1""");
+    if (TableExists("Products") && !HasColumn("Products", "WeightText"))
+        Exec("""ALTER TABLE "Products" ADD COLUMN "WeightText" TEXT""");
+    if (TableExists("Products") && !HasColumn("Products", "WeightMinGrams"))
+        Exec("""ALTER TABLE "Products" ADD COLUMN "WeightMinGrams" TEXT""");
+    if (TableExists("Products") && !HasColumn("Products", "WeightMaxGrams"))
+        Exec("""ALTER TABLE "Products" ADD COLUMN "WeightMaxGrams" TEXT""");
+    if (TableExists("Products") && !HasColumn("Products", "WeightUnit"))
+        Exec("""ALTER TABLE "Products" ADD COLUMN "WeightUnit" TEXT""");
 
     // Add product identity columns to OrderItems if missing
     if (TableExists("OrderItems") && !HasColumn("OrderItems", "MigrosId"))

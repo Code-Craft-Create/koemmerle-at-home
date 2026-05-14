@@ -13,6 +13,7 @@ const FUSE_OPTIONS: IFuseOptions<Product> = {
   minMatchCharLength: 2,
   includeScore: true,
 };
+const SEARCH_RESULT_LIMIT = 50;
 
 @Component({
   selector: 'app-recipe-detail',
@@ -165,7 +166,7 @@ export class RecipeDetailComponent implements OnInit {
             || this.compareRelevanceDesc(a.item, b.item))
           .map(r => r.item)
       : available;
-    return filtered.slice(0, 30);
+    return filtered.slice(0, SEARCH_RESULT_LIMIT);
   }
 
   searchOptions(): ProductSearchOption[] {
@@ -174,6 +175,8 @@ export class RecipeDetailComponent implements OnInit {
       source: 'local',
       name: p.name,
       imageUrl: p.imageData || p.imageUrl,
+      weightText: p.weightText,
+      price: p.price,
       multiplier: p.multiplier,
       relevance: p.relevance,
       product: p,
@@ -188,6 +191,7 @@ export class RecipeDetailComponent implements OnInit {
         name: c.name,
         imageUrl: c.imageUrl,
         weightText: c.weightText,
+        price: c.price,
         multiplier: c.multiplier,
         relevance: 0.9,
         choice: c,
@@ -199,7 +203,7 @@ export class RecipeDetailComponent implements OnInit {
         this.directOptionMatchRank(b, query) - this.directOptionMatchRank(a, query)
         || b.relevance - a.relevance
         || a.name.localeCompare(b.name))
-      .slice(0, 30);
+      .slice(0, SEARCH_RESULT_LIMIT);
   }
 
   private compareRelevanceDesc(a: Product, b: Product): number {
@@ -301,7 +305,7 @@ export class RecipeDetailComponent implements OnInit {
     }
 
     this.migrosSearchTimer = setTimeout(() => {
-      this.api.getScanAlternatives(query, 0, 10).subscribe({
+      this.api.getScanAlternatives(query, 0, SEARCH_RESULT_LIMIT).subscribe({
         next: r => {
           if (this.addSearch.trim() === query) this.migrosSearchChoices = r.choices;
         },
@@ -402,6 +406,7 @@ interface ProductSearchOption {
   name: string;
   imageUrl?: string;
   weightText?: string;
+  price?: number;
   multiplier: number;
   relevance: number;
   product?: Product;

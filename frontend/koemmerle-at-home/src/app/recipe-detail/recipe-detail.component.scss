@@ -195,6 +195,7 @@
 .product-dropdown {
   // In-flow — no absolute positioning, so it is never clipped by a scroll container
   margin-top: 2px;
+  width: min(520px, calc(100vw - 4rem));
   background: white;
   border: 1px solid #d1d5db;
   border-radius: 6px;
@@ -211,23 +212,41 @@
     padding: 0.4rem 0.6rem;
     border-bottom: 1px solid #f3f4f6;
   }
+
+  @media (max-width: 640px) {
+    width: 100%;
+  }
 }
 
 .product-option {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.5rem;
-  padding: 0.4rem 0.6rem;
+  padding: 0.55rem 0.6rem;
   cursor: pointer;
   font-size: 0.875rem;
   &:hover { background: #f3f4f6; }
 
-  .product-option-name {
+  .product-option-main {
     flex: 1;
     min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .product-option-name {
+    min-width: 0;
+    color: #111827;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+
+  .product-option-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
   }
 
   .usage-badge {

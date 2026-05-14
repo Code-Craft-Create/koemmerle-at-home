@@ -14,7 +14,7 @@ public class ScanController(
     ILogger<ScanController> logger,
     AppDbContext db) : ControllerBase
 {
-    private const int SearchPageSize = 20;
+    private const int SearchPageSize = 50;
 
     [HttpPost]
     public async Task<IActionResult> Scan([FromBody] ScanRequest request, CancellationToken ct)

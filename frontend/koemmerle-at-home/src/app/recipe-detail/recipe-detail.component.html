@@ -82,9 +82,15 @@
                       @if (option.multiplier > 1) { <span class="multiplier-badge">{{ option.multiplier }}x</span> }
                     </span>
                   }
-                  <span class="product-option-name">{{ option.name }}</span>
-                  @if (option.source === 'migros') { <span class="usage-badge">Migros</span> }
-                  @if (option.weightText) { <span class="usage-badge">{{ option.weightText }}</span> }
+                  <span class="product-option-main">
+                    <span class="product-option-name">{{ option.name }}</span>
+                    @if (option.weightText || option.price != null) {
+                      <span class="product-option-meta">
+                        @if (option.weightText) { <span class="usage-badge">{{ option.weightText }}</span> }
+                        @if (option.price != null) { <span class="usage-badge">{{ option.price | number:'1.2-2' }} CHF</span> }
+                      </span>
+                    }
+                  </span>
                   @if (option.relevance > 0) {
                     <svg width="20" height="20" viewBox="0 0 24 24" style="flex-shrink:0">
                       <circle cx="12" cy="12" [attr.r]="pieR" fill="none" stroke="#e5e7eb" stroke-width="3"/>
@@ -108,8 +114,15 @@
                       @if (c.multiplier > 1) { <span class="multiplier-badge">{{ c.multiplier }}x</span> }
                     </span>
                   }
-                  <span class="product-option-name">{{ c.name }}</span>
-                  @if (c.weightText) { <span class="usage-badge">{{ c.weightText }}</span> }
+                  <span class="product-option-main">
+                    <span class="product-option-name">{{ c.name }}</span>
+                    @if (c.weightText || c.price != null) {
+                      <span class="product-option-meta">
+                        @if (c.weightText) { <span class="usage-badge">{{ c.weightText }}</span> }
+                        @if (c.price != null) { <span class="usage-badge">{{ c.price | number:'1.2-2' }} CHF</span> }
+                      </span>
+                    }
+                  </span>
                 </div>
               }
             </div>
