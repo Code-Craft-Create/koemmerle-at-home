@@ -50,6 +50,8 @@ export class ScanComponent implements OnInit, OnDestroy {
   private searchTimer: ReturnType<typeof setTimeout> | null = null;
   private resultSub!: Subscription;
   private barcodeSub!: Subscription;
+  private pendingUnitQuantity = 1;
+  private locallyCountedResults = new Map<string, number>();
 
   constructor(private api: ScanApiService, private bridge: ScanBridgeService) {}
 
@@ -68,6 +70,7 @@ export class ScanComponent implements OnInit, OnDestroy {
   @HostListener('document:keydown.enter', ['$event'])
   onEnter(event: Event) {
     if (this.state !== 'confirming' && this.state !== 'done') return;
+    if (this.isEditableTarget(event.target)) return;
     event.preventDefault();
     if (this.state === 'confirming') this.confirmNow();
     else this.dismissDone();
@@ -77,10 +80,24 @@ export class ScanComponent implements OnInit, OnDestroy {
     this.clearConfirmTimer();
     this.clearSearchTimer();
     this.searchingBarcode = '';
+    const matchingConfirmation = this.state === 'confirming'
+      && this.confirming
+      && this.confirming.barcode === result.barcode;
+    const wasLocallyCounted = this.consumeLocallyCountedResult(result.barcode);
+
+    if (wasLocallyCounted && !matchingConfirmation) {
+      return;
+    }
 
     if (!result.recognized) {
+      if (wasLocallyCounted && matchingConfirmation) {
+        this.restartConfirmTimer();
+        return;
+      }
+
       if (result.alternatives && result.alternatives.length > 0) {
         this.confirming = result;
+        this.pendingUnitQuantity = result.quantity ?? 1;
         this.state = 'choosing';
         this.loadingMoreAlternatives = false;
         this.loadMoreError = '';
@@ -94,12 +111,16 @@ export class ScanComponent implements OnInit, OnDestroy {
       return;
     }
 
-    if (this.state === 'confirming' && this.confirming && this.confirming.barcode === result.barcode) {
-      this.confirming.quantity = (this.confirming.quantity ?? 1) + (result.quantity ?? 1);
-      this.animKey++;
+    if (matchingConfirmation) {
+      this.pendingUnitQuantity = result.quantity ?? this.pendingUnitQuantity;
+      if (!wasLocallyCounted) {
+        this.confirming!.quantity = (this.confirming!.quantity ?? 1) + (result.quantity ?? 1);
+        this.animKey++;
+      }
     } else {
       this.confirming = result;
       this.confirming.quantity = this.confirming.quantity ?? 1;
+      this.pendingUnitQuantity = this.confirming.quantity;
       this.animKey++;
       this.cartQtyInMigros = null;
       this.api.getCartQuantity(result.barcode).subscribe({
@@ -112,7 +133,7 @@ export class ScanComponent implements OnInit, OnDestroy {
     this.focusConfirmButton();
     this.playSound('success');
 
-    this.confirmTimer = setTimeout(() => this.confirmNow(), CONFIRM_MS);
+    this.restartConfirmTimer();
   }
 
   confirmNow() {
@@ -131,6 +152,7 @@ export class ScanComponent implements OnInit, OnDestroy {
     this.confirmTimer = setTimeout(() => {
       this.state = 'idle';
       this.confirming = null;
+      this.pendingUnitQuantity = 1;
     }, 1500);
   }
 
@@ -138,6 +160,8 @@ export class ScanComponent implements OnInit, OnDestroy {
     this.clearConfirmTimer();
     this.state = 'idle';
     this.confirming = null;
+    this.pendingUnitQuantity = 1;
+    this.locallyCountedResults.clear();
     this.cartQtyInMigros = null;
     this.loadingMoreAlternatives = false;
     this.loadMoreError = '';
@@ -162,6 +186,7 @@ export class ScanComponent implements OnInit, OnDestroy {
       this.confirmTimer = setTimeout(() => {
         this.state = 'idle';
         this.confirming = null;
+        this.pendingUnitQuantity = 1;
         this.selectedProductName = null;
       }, 1500);
     }
@@ -219,8 +244,12 @@ export class ScanComponent implements OnInit, OnDestroy {
 
   private beginSearch(barcode: string) {
     if (this.state === 'confirming' && this.confirming?.barcode === barcode) {
-      // Same item scanned again. Pause timer, let handleResult increment quantity.
+      // Same item scanned again. Count it immediately while the lookup catches up.
       this.clearConfirmTimer();
+      this.confirming.quantity = (this.confirming.quantity ?? 1) + this.pendingUnitQuantity;
+      this.rememberLocallyCountedResult(barcode);
+      this.animKey++;
+      this.restartConfirmTimer();
       return;
     } else if (this.state === 'confirming' && this.confirming) {
       // Different item scanned! Enqueue the previous one immediately.
@@ -231,14 +260,17 @@ export class ScanComponent implements OnInit, OnDestroy {
       }
       this.clearConfirmTimer();
       this.confirming = null;
+      this.pendingUnitQuantity = 1;
     } else if (this.state === 'choosing') {
       this.state = 'idle';
       this.confirming = null;
+      this.pendingUnitQuantity = 1;
       this.loadingMoreAlternatives = false;
       this.loadMoreError = '';
     } else if (this.state === 'done') {
       this.clearConfirmTimer();
       this.confirming = null;
+      this.pendingUnitQuantity = 1;
     }
 
     this.clearSearchTimer();
@@ -280,6 +312,31 @@ export class ScanComponent implements OnInit, OnDestroy {
 
   private clearConfirmTimer() {
     if (this.confirmTimer) { clearTimeout(this.confirmTimer); this.confirmTimer = null; }
+  }
+
+  private isEditableTarget(target: EventTarget | null) {
+    return target instanceof HTMLInputElement
+      || target instanceof HTMLTextAreaElement
+      || target instanceof HTMLSelectElement
+      || target instanceof HTMLButtonElement
+      || (target instanceof HTMLElement && target.isContentEditable);
+  }
+
+  private restartConfirmTimer() {
+    this.clearConfirmTimer();
+    this.confirmTimer = setTimeout(() => this.confirmNow(), CONFIRM_MS);
+  }
+
+  private rememberLocallyCountedResult(barcode: string) {
+    this.locallyCountedResults.set(barcode, (this.locallyCountedResults.get(barcode) ?? 0) + 1);
+  }
+
+  private consumeLocallyCountedResult(barcode: string) {
+    const count = this.locallyCountedResults.get(barcode) ?? 0;
+    if (count <= 0) return false;
+    if (count === 1) this.locallyCountedResults.delete(barcode);
+    else this.locallyCountedResults.set(barcode, count - 1);
+    return true;
   }
 
   private playSound(type: 'success' | 'error') {

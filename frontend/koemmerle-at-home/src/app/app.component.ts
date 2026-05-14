@@ -72,7 +72,11 @@ export class AppComponent implements OnInit, OnDestroy {
     if (event.key === 'Enter') {
       const barcode = this.globalBuffer.trim();
       this.clearGlobalBuffer();
-      if (/^[a-zA-Z0-9\-]{6,}$/.test(barcode)) this.submitGlobal(barcode);
+      if (/^[a-zA-Z0-9\-]{6,}$/.test(barcode)) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        this.submitGlobal(barcode);
+      }
       return;
     }
 
@@ -162,8 +166,13 @@ export class AppComponent implements OnInit, OnDestroy {
     if (this.sessionTimer) clearInterval(this.sessionTimer);
   }
 
-  onNavKey(event: KeyboardEvent) {
-    if (event.key === 'Enter') this.submitNav();
+  onNavKey(event: Event) {
+    const keyboardEvent = event as KeyboardEvent;
+    if (keyboardEvent.key === 'Enter') {
+      keyboardEvent.preventDefault();
+      keyboardEvent.stopImmediatePropagation();
+      this.submitNav();
+    }
   }
 
   submitNav() {
