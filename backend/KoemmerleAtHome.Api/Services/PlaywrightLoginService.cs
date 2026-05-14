@@ -5,7 +5,8 @@ namespace KoemmerleAtHome.Api.Services;
 
 /// <summary>
 /// Owns the Playwright browser used solely for login and bearer-token capture.
-/// Navigates to migros.ch on startup and whenever StartLoginAsync() is called.
+/// Navigates to migros.ch on startup only when no bearer token is available,
+/// and whenever StartLoginAsync() is called.
 /// Token is captured from the silent OAuth response and stored in BearerTokenService.
 /// </summary>
 public class PlaywrightLoginService(
@@ -22,8 +23,17 @@ public class PlaywrightLoginService(
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        await LaunchBrowserAsync();
-        await NavigateAndWaitForLoginAsync(stoppingToken);
+        if (!bearerTokenService.IsAvailable)
+        {
+            await LaunchBrowserAsync();
+            await NavigateAndWaitForLoginAsync(stoppingToken);
+        }
+        else
+        {
+            _isLoggedIn = true;
+            logger.LogInformation("Persisted Migros bearer token available; deferring browser navigation until token refresh");
+        }
+
         await KeepTokenFreshAsync(stoppingToken);
     }
 
@@ -46,11 +56,11 @@ public class PlaywrightLoginService(
 
             if (ct.IsCancellationRequested) break;
             logger.LogInformation("Refreshing bearer token via browser navigation");
-            await NavigateForTokenAsync(ct);
+            await NavigateForTokenAsync(ct, focusWindow: false);
         }
     }
 
-    private async Task NavigateForTokenAsync(CancellationToken ct)
+    private async Task NavigateForTokenAsync(CancellationToken ct, bool focusWindow)
     {
         await EnsureBrowserAsync();
         if (_context is null) return;
@@ -58,11 +68,11 @@ public class PlaywrightLoginService(
         try
         {
             var page = _context.Pages.FirstOrDefault() ?? await _context.NewPageAsync();
-            await page.BringToFrontAsync();
+            if (focusWindow) await page.BringToFrontAsync();
             await page.GotoAsync("https://www.migros.ch/de",
                 new() { WaitUntil = WaitUntilState.DOMContentLoaded });
             await InjectLoginBannerAsync(page);
-            await page.BringToFrontAsync();
+            if (focusWindow) await page.BringToFrontAsync();
         }
         catch (Exception ex)
         {
@@ -71,11 +81,11 @@ public class PlaywrightLoginService(
             try
             {
                 var page = _context?.Pages.FirstOrDefault() ?? await _context!.NewPageAsync();
-                await page.BringToFrontAsync();
+                if (focusWindow) await page.BringToFrontAsync();
                 await page.GotoAsync("https://www.migros.ch/de",
                     new() { WaitUntil = WaitUntilState.DOMContentLoaded });
                 await InjectLoginBannerAsync(page);
-                await page.BringToFrontAsync();
+                if (focusWindow) await page.BringToFrontAsync();
             }
             catch (Exception retryEx)
             {
@@ -88,12 +98,13 @@ public class PlaywrightLoginService(
     public Task StartLoginAsync()
     {
         logger.LogInformation("Scheduling Migros login browser navigation");
+        var focusWindow = !bearerTokenService.IsAvailable;
         _ = Task.Run(async () =>
         {
             try
             {
                 logger.LogInformation("Migros login browser navigation started");
-                await NavigateForTokenAsync(CancellationToken.None);
+                await NavigateForTokenAsync(CancellationToken.None, focusWindow);
                 logger.LogInformation("Migros login browser navigation finished");
             }
             catch (Exception ex)
@@ -203,6 +214,7 @@ public class PlaywrightLoginService(
         if (await loginBtn.IsVisibleAsync())
         {
             logger.LogWarning("Not logged in to Migros — please log in manually in the browser window");
+            await page.BringToFrontAsync();
             while (!ct.IsCancellationRequested)
             {
                 await Task.Delay(2000, ct);
