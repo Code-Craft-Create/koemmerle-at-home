@@ -403,6 +403,17 @@ header {
   background: white;
 }
 
+.migros-loading {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
 .filter-count {
   margin-left: auto;
   font-size: 0.8rem;

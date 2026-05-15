@@ -156,7 +156,10 @@
         @if (searchRaw || categoryFilter) {
           <button class="btn-link" (click)="resetSearch()">✕ Zurücksetzen</button>
         }
-        <span class="filter-count">{{ filteredItems.length }} / {{ allItems.length }}</span>
+        @if (migrosLoading) {
+          <span class="migros-loading">Migros…</span>
+        }
+        <span class="filter-count">{{ filteredItems.length }} / {{ allItems.length + migrosItems.length }}</span>
       </div>
 
       <div class="table-scroll">

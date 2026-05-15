@@ -45,6 +45,7 @@ export class StickersComponent implements OnInit, OnDestroy {
   selectedKeys: string[] = [];   // ordered list for sheet layout
   barcodeUrls = new Map<string, string>();
   syncingMigrosKeys = new Set<string>();
+  migrosLoading = false;
 
   searchRaw = '';        // bound to the input — updates immediately
   textFilter = '';       // debounced — what Fuse actually runs on
@@ -277,13 +278,16 @@ export class StickersComponent implements OnInit, OnDestroy {
     const query = queryRaw.trim();
     if (query.length < 2) {
       this.migrosItems = [];
+      this.migrosLoading = false;
       this._filteredKey = '';
       return;
     }
 
-    this.api.getScanAlternatives(query, 0, 10).subscribe({
+    this.migrosLoading = true;
+    this.api.getScanAlternatives(query, 0).subscribe({
       next: result => {
         if (this.textFilter.trim() !== query) return;
+        this.migrosLoading = false;
         this.migrosItems = result.choices
           .filter(c => !this.allItems.some(item => item.migrosUid != null && item.migrosUid === c.migrosUid))
           .map(c => this.choiceToStickerItem(c));
@@ -291,6 +295,7 @@ export class StickersComponent implements OnInit, OnDestroy {
       },
       error: () => {
         if (this.textFilter.trim() === query) {
+          this.migrosLoading = false;
           this.migrosItems = [];
           this._filteredKey = '';
         }

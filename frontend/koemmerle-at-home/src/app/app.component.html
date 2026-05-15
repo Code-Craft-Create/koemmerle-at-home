@@ -43,10 +43,9 @@
       </button>
       @if (settingsOpen) {
         <div class="nav-settings-dropdown">
-          <a routerLink="/products" (click)="settingsOpen = false">Meine Produkte</a>
-          <a routerLink="/orders" (click)="settingsOpen = false">Bestellungen</a>
+<a routerLink="/orders" (click)="settingsOpen = false">Bestellungen</a>
           <a routerLink="/statistics" (click)="settingsOpen = false">Statistik</a>
-          <a routerLink="/forecast" (click)="settingsOpen = false">Prognose (beta)</a>
+          <!-- <a routerLink="/forecast" (click)="settingsOpen = false">Prognose (beta)</a> -->
           <a routerLink="/settings" (click)="settingsOpen = false">Einstellungen</a>
           @if (appVersion) {
             <div class="nav-version">Version {{ appVersion }}</div>
@@ -65,10 +64,11 @@
     </button>
   </div>
   <div class="nav-bottom">
-    <a routerLink="/scan" routerLinkActive="active">Scannen</a>
+    <!-- <a routerLink="/scan" routerLinkActive="active">Scannen</a> -->
     <a routerLink="/basket" routerLinkActive="active">Warenkorb</a>
     <a routerLink="/recipes" routerLinkActive="active">Rezepte</a>
     <a routerLink="/stickers" routerLinkActive="active">Sticker</a>
+    <a routerLink="/products" routerLinkActive="active">Meine Produkte</a>
   </div>
 </nav>
 <div class="nav-spacer"></div>
