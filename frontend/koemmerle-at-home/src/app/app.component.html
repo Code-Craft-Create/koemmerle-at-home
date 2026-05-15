@@ -66,9 +66,10 @@
   <div class="nav-bottom">
     <!-- <a routerLink="/scan" routerLinkActive="active">Scannen</a> -->
     <a routerLink="/basket" routerLinkActive="active">Warenkorb</a>
+    <a routerLink="/products" routerLinkActive="active">Meine Produkte</a>
     <a routerLink="/recipes" routerLinkActive="active">Rezepte</a>
     <a routerLink="/stickers" routerLinkActive="active">Sticker</a>
-    <a routerLink="/products" routerLinkActive="active">Meine Produkte</a>
+    <a routerLink="/bring" routerLinkActive="active">Bring-App</a>
   </div>
 </nav>
 <div class="nav-spacer"></div>
@@ -80,6 +81,7 @@
 }
 
 <app-queue-sidebar [open]="queueOpen" (closePanel)="queueOpen = false" />
+<app-confirm-dialog />
 
 @if (appVersion) {
   <div class="app-version-watermark">v{{ appVersion }}</div>

@@ -11,12 +11,14 @@ import { StatisticsComponent } from './statistics/statistics.component';
 import { StickersComponent } from './stickers/stickers.component';
 import { ForecastComponent } from './forecast/forecast.component';
 import { BasketComponent } from './basket/basket.component';
+import { BringComponent } from './bring/bring.component';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'basket', pathMatch: 'full' },
   { path: 'scan', component: ScanComponent },
   { path: 'queue', component: QueueComponent },
   { path: 'basket', component: BasketComponent },
+  { path: 'bring', component: BringComponent },
   { path: 'products', component: ProductsComponent },
   { path: 'products/:id', component: ProductDetailComponent },
   { path: 'orders', component: OrdersComponent },

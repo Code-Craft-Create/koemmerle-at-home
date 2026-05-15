@@ -1,0 +1,23 @@
+@if (request) {
+  <div class="confirm-backdrop" role="presentation" (click)="cancel()">
+    <div
+      class="confirm-panel"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="confirm-title"
+      (click)="$event.stopPropagation()"
+    >
+      <div class="confirm-accent" [class.danger]="request.tone === 'danger'"></div>
+      <h2 id="confirm-title">{{ request.title }}</h2>
+      <p>{{ request.message }}</p>
+      <div class="confirm-actions">
+        <button type="button" class="confirm-secondary" (click)="cancel()">
+          {{ request.cancelText }}
+        </button>
+        <button type="button" class="confirm-primary" [class.danger]="request.tone === 'danger'" (click)="confirm()">
+          {{ request.confirmText }}
+        </button>
+      </div>
+    </div>
+  </div>
+}

@@ -87,7 +87,7 @@
                     @if (option.weightText || option.price != null) {
                       <span class="product-option-meta">
                         @if (option.weightText) { <span class="usage-badge">{{ option.weightText }}</span> }
-                        @if (option.price != null) { <span class="usage-badge">{{ option.price | number:'1.2-2' }} CHF</span> }
+                        @if (option.price != null) { <span class="usage-badge price-badge">{{ option.price | number:'1.2-2' }} CHF</span> }
                       </span>
                     }
                   </span>
@@ -119,7 +119,7 @@
                     @if (c.weightText || c.price != null) {
                       <span class="product-option-meta">
                         @if (c.weightText) { <span class="usage-badge">{{ c.weightText }}</span> }
-                        @if (c.price != null) { <span class="usage-badge">{{ c.price | number:'1.2-2' }} CHF</span> }
+                        @if (c.price != null) { <span class="usage-badge price-badge">{{ c.price | number:'1.2-2' }} CHF</span> }
                       </span>
                     }
                   </span>

@@ -9,10 +9,11 @@ import { LatestRelease, MigrosSessionStatus, ScanApiService } from './services/s
 import { OrderImportService, OrderImportState } from './services/order-import.service';
 import { QueueSidebarComponent } from './shared/queue-sidebar.component';
 import { ScanComponent } from './scan/scan.component';
+import { ConfirmDialogComponent } from './shared/confirm-dialog.component';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, CommonModule, FormsModule, QueueSidebarComponent, ScanComponent],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, CommonModule, FormsModule, QueueSidebarComponent, ScanComponent, ConfirmDialogComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'
 })

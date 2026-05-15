@@ -1,0 +1,197 @@
+<div class="bring-page">
+  <header class="page-header">
+    <div>
+      <h1>Bring</h1>
+      <p>Bring-Liste auslesen, passende Migros-Produkte wählen und den Einkauf direkt startklar machen.</p>
+    </div>
+    <div class="header-actions">
+      <button class="secondary-btn" type="button" (click)="startSync()" [disabled]="startBusy">
+        {{ startBusy ? 'Öffnet...' : 'Starte Bring Web-App' }}
+      </button>
+      <button class="primary-btn" type="button" (click)="extract()" [disabled]="extractBusy">
+        {{ extractBusy ? 'Liest aus...' : 'Liste auslesen' }}
+      </button>
+    </div>
+  </header>
+
+  @if (message && items.length === 0) {
+    <div class="msg-banner">{{ message }}</div>
+  }
+  @if (error) {
+    <div class="msg-banner error">{{ error }}</div>
+  }
+
+  @if (items.length > 0) {
+    <div class="results-header">
+      <div>
+        <h2>Gefundene Bring-Artikel</h2>
+        <span>{{ items.length }} Artikel bereit zum Abgleichen</span>
+      </div>
+      <button type="button" class="clear-results-btn" (click)="clearResults()">Ergebnisse löschen</button>
+    </div>
+
+    <div class="sync-table">
+      <div class="sync-head">
+        <span>Bring-Artikel</span>
+        <span>Migros-Vorschläge</span>
+      </div>
+
+      @for (item of items; track item.index) {
+        <section class="sync-row">
+          <div class="bring-item">
+            <div class="bring-name">{{ item.name }}</div>
+            @if (item.specification) {
+              <div class="bring-spec">{{ item.specification }}</div>
+            }
+          </div>
+
+          <div class="suggestions" (click)="$event.stopPropagation()">
+            <div class="quantity-stack" aria-label="Anzahl">
+              <button class="qty-btn" type="button" (click)="adjustQuantity(item, 1)">+</button>
+              <span class="item-qty">{{ quantities[item.index] ?? 1 }}</span>
+              <button class="qty-btn" type="button" (click)="adjustQuantity(item, -1)">−</button>
+            </div>
+
+            <div class="primary-area">
+              @if (item.suggestions[0]; as primary) {
+                <button
+                  type="button"
+                  class="suggestion suggestion--primary"
+                  [class.selected]="selectedUid[item.index] === primary.migrosUid"
+                  (click)="select(item, primary)"
+                >
+                  <span class="choice-dot"></span>
+                  @if (primary.imageUrl) {
+                    <span class="image-badge-wrap">
+                      <img [src]="primary.imageUrl" [alt]="primary.name" />
+                      @if (primary.multiplier > 1) { <span class="multiplier-badge">{{ primary.multiplier }}x</span> }
+                    </span>
+                  } @else {
+                    <span class="image-badge-wrap">
+                      <span class="image-placeholder"></span>
+                      @if (primary.multiplier > 1) { <span class="multiplier-badge">{{ primary.multiplier }}x</span> }
+                    </span>
+                  }
+                  <span class="suggestion-body">
+                    <span class="suggestion-title">{{ primary.name }}</span>
+                    <span class="suggestion-meta">
+                      @if (primary.weightText) { <span class="usage-badge">{{ primary.weightText }}</span> }
+                      @if (primary.price != null) { <span class="usage-badge price-badge">{{ primary.price | number:'1.2-2' }} CHF</span> }
+                    </span>
+                  </span>
+                </button>
+              } @else {
+                <div class="no-suggestions">Keine Migros-Treffer gefunden.</div>
+              }
+
+              <div class="action-stack" (click)="$event.stopPropagation()">
+                <button type="button" class="action-card" (click)="openCustomSearch(item)">
+                  Suche anderen Artikel
+                </button>
+                <button
+                  type="button"
+                  class="action-card"
+                  [class.selected]="selectedUid[item.index] === null"
+                  (click)="clearSelection(item)"
+                >
+                  Nicht hinzufügen
+                </button>
+
+                @if (customSearchIndex === item.index) {
+                  <div class="custom-search">
+                    <input
+                      [ngModel]="customSearch[item.index]"
+                      (ngModelChange)="onCustomSearchInput(item, $event)"
+                      placeholder="Migros-Artikel suchen..."
+                      autofocus
+                    />
+                    <div class="custom-results">
+                      @if (customBusy[item.index]) {
+                        <div class="custom-empty">Sucht...</div>
+                      } @else {
+                        @for (suggestion of customResults[item.index] ?? []; track suggestion.migrosUid) {
+                          <button type="button" class="product-option" (click)="pickCustomSuggestion(item, suggestion)">
+                            @if (suggestion.imageUrl) {
+                              <span class="image-badge-wrap">
+                                <img [src]="suggestion.imageUrl" class="thumb-xs" [alt]="suggestion.name" />
+                                @if (suggestion.multiplier > 1) { <span class="multiplier-badge">{{ suggestion.multiplier }}x</span> }
+                              </span>
+                            }
+                            <span class="product-option-main">
+                              <span class="product-option-name">{{ suggestion.name }}</span>
+                              @if (suggestion.weightText || suggestion.price != null) {
+                                <span class="product-option-meta">
+                                  @if (suggestion.weightText) { <span class="usage-badge">{{ suggestion.weightText }}</span> }
+                                  @if (suggestion.price != null) { <span class="usage-badge price-badge">{{ suggestion.price | number:'1.2-2' }} CHF</span> }
+                                </span>
+                              }
+                            </span>
+                            @if (suggestion.relevance > 0) {
+                              <svg width="20" height="20" viewBox="0 0 24 24" class="dropdown-relevance">
+                                <circle cx="12" cy="12" [attr.r]="pieR" fill="none" stroke="#e5e7eb" stroke-width="3"/>
+                                <circle cx="12" cy="12" [attr.r]="pieR" fill="none" [attr.stroke]="relevanceColor(suggestion.relevance)" stroke-width="3"
+                                  [attr.stroke-dasharray]="relevanceDash(suggestion.relevance)"
+                                  transform="rotate(-90 12 12)"/>
+                              </svg>
+                            }
+                          </button>
+                        } @empty {
+                          <div class="custom-empty">Keine Treffer</div>
+                        }
+                      }
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+
+            @if (otherSuggestions(item).length > 0) {
+              <div class="suggestion-divider"><span>oder</span></div>
+              <div class="other-suggestions">
+                @for (suggestion of otherSuggestions(item); track suggestion.migrosUid) {
+                  <button
+                    type="button"
+                    class="suggestion suggestion--secondary"
+                    [class.selected]="selectedUid[item.index] === suggestion.migrosUid"
+                    (click)="select(item, suggestion)"
+                  >
+                    <span class="choice-dot"></span>
+                    @if (suggestion.imageUrl) {
+                      <span class="image-badge-wrap">
+                        <img [src]="suggestion.imageUrl" [alt]="suggestion.name" />
+                        @if (suggestion.multiplier > 1) { <span class="multiplier-badge">{{ suggestion.multiplier }}x</span> }
+                      </span>
+                    } @else {
+                      <span class="image-badge-wrap">
+                        <span class="image-placeholder"></span>
+                        @if (suggestion.multiplier > 1) { <span class="multiplier-badge">{{ suggestion.multiplier }}x</span> }
+                      </span>
+                    }
+                    <span class="suggestion-body">
+                      <span class="suggestion-title">{{ suggestion.name }}</span>
+                      <span class="suggestion-meta">
+                        @if (suggestion.weightText) { <span class="usage-badge">{{ suggestion.weightText }}</span> }
+                        @if (suggestion.price != null) { <span class="usage-badge price-badge">{{ suggestion.price | number:'1.2-2' }} CHF</span> }
+                      </span>
+                    </span>
+                  </button>
+                }
+              </div>
+            }
+          </div>
+        </section>
+      }
+    </div>
+
+    <footer class="queue-footer">
+      <span>{{ selectedCount() }} von {{ items.length }} Artikeln ausgewählt</span>
+      <button class="primary-btn" type="button" (click)="enqueueSelected()" [disabled]="enqueueBusy || selectedCount() === 0">
+        {{ enqueueBusy ? 'Fügt hinzu...' : 'Zu Warenkorb hinzufügen' }}
+      </button>
+    </footer>
+  } @else {
+    <div class="empty-state">
+      <p>Starte die Bring Web-App, öffne dort deine Einkaufsliste und lies sie danach hier aus.</p>
+    </div>
+  }
+</div>

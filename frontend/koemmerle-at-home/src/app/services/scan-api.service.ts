@@ -225,6 +225,39 @@ export interface ScanAlternativesResult {
   total: number;
 }
 
+export interface BringSuggestion {
+  migrosUid: number;
+  name: string;
+  imageUrl?: string;
+  weightText?: string;
+  price?: number;
+  multiplier: number;
+  relevance: number;
+  orderCount: number;
+  matchedQuery: string;
+}
+
+export interface BringMatch {
+  index: number;
+  name: string;
+  specification?: string;
+  suggestions: BringSuggestion[];
+}
+
+export interface BringExtractResponse {
+  items: BringMatch[];
+}
+
+export interface BringEnqueueResponse {
+  enqueued: number;
+  skipped: number;
+  queueItemIds: number[];
+}
+
+export interface BringSearchResponse {
+  suggestions: BringSuggestion[];
+}
+
 export interface CartStatus {
   isPaused: boolean;
   isLoggedIn: boolean;
@@ -497,6 +530,18 @@ export class ScanApiService {
   }
   enqueue(barcode: string, quantity: number, migrosUid?: number): Observable<number[]> {
     return this.http.post<number[]>(`${this.base}/scan/enqueue`, { barcode, quantity, migrosUid });
+  }
+  startBringSync(): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.base}/bring/start`, {});
+  }
+  extractBringList(): Observable<BringExtractResponse> {
+    return this.http.post<BringExtractResponse>(`${this.base}/bring/extract`, {});
+  }
+  searchBringProducts(query: string): Observable<BringSearchResponse> {
+    return this.http.get<BringSearchResponse>(`${this.base}/bring/search`, { params: { query } });
+  }
+  enqueueBringItems(items: { index: number; name: string; specification?: string; migrosUid: number; quantity: number }[]): Observable<BringEnqueueResponse> {
+    return this.http.post<BringEnqueueResponse>(`${this.base}/bring/enqueue`, { items });
   }
   getQueue(): Observable<ScanQueueItem[]> {
     return this.http.get<ScanQueueItem[]>(`${this.base}/cart/queue`);

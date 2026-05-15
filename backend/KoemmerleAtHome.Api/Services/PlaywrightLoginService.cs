@@ -1,5 +1,6 @@
 using Microsoft.Playwright;
 using KoemmerleAtHome.Api;
+using System.Text.Json;
 
 namespace KoemmerleAtHome.Api.Services;
 
@@ -15,6 +16,10 @@ public class PlaywrightLoginService(
     ILogger<PlaywrightLoginService> logger)
     : BackgroundService
 {
+    private const string BringListsUrl = "https://web.getbring.com/app/lists";
+    private const int BrowserWindowLeft = 756;
+    private const int BrowserViewportWidth = 1100;
+    private const int BrowserViewportHeight = 982;
     private IBrowserContext? _context;
     private bool _isLoggedIn;
     private readonly SemaphoreSlim _browserLock = new(1, 1);
@@ -68,6 +73,7 @@ public class PlaywrightLoginService(
         try
         {
             var page = _context.Pages.FirstOrDefault() ?? await _context.NewPageAsync();
+            await PrepareInteractivePageAsync(page);
             if (focusWindow) await page.BringToFrontAsync();
             await page.GotoAsync("https://www.migros.ch/de",
                 new() { WaitUntil = WaitUntilState.DOMContentLoaded });
@@ -81,6 +87,7 @@ public class PlaywrightLoginService(
             try
             {
                 var page = _context?.Pages.FirstOrDefault() ?? await _context!.NewPageAsync();
+                await PrepareInteractivePageAsync(page);
                 if (focusWindow) await page.BringToFrontAsync();
                 await page.GotoAsync("https://www.migros.ch/de",
                     new() { WaitUntil = WaitUntilState.DOMContentLoaded });
@@ -114,6 +121,121 @@ public class PlaywrightLoginService(
         });
 
         return Task.CompletedTask;
+    }
+
+    public Task StartBringListSyncAsync()
+    {
+        logger.LogInformation("Scheduling Bring list browser navigation");
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await EnsureBrowserAsync();
+                if (_context is null) return;
+
+                var page = _context.Pages.LastOrDefault(p =>
+                    p.Url.Contains("getbring.com", StringComparison.OrdinalIgnoreCase))
+                    ?? await _context.NewPageAsync();
+
+                await PrepareInteractivePageAsync(page);
+                await page.BringToFrontAsync();
+                await page.GotoAsync(BringListsUrl, new() { WaitUntil = WaitUntilState.DOMContentLoaded });
+                await InjectBringBannerAsync(page);
+                await page.BringToFrontAsync();
+                logger.LogInformation("Bring list browser navigation finished");
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning("Bring browser navigation failed: {Error}", ex.Message);
+            }
+        });
+
+        return Task.CompletedTask;
+    }
+
+    public async Task<IReadOnlyList<BringListItem>> ExtractBringListItemsAsync(CancellationToken ct = default)
+    {
+        logger.LogInformation("Starting Bring list extraction");
+        await EnsureBrowserAsync();
+        if (_context is null)
+        {
+            logger.LogWarning("Bring extraction aborted: Playwright browser context is not available");
+            return [];
+        }
+
+        logger.LogInformation("Bring extraction sees {PageCount} open Playwright page(s): {Urls}",
+            _context.Pages.Count,
+            string.Join(" | ", _context.Pages.Select(p => string.IsNullOrWhiteSpace(p.Url) ? "(blank)" : p.Url)));
+
+        var page = _context.Pages.LastOrDefault(p =>
+            p.Url?.Contains("getbring.com", StringComparison.OrdinalIgnoreCase) == true);
+        if (page is null)
+        {
+            logger.LogWarning("Bring extraction aborted: no open getbring.com page found");
+            throw new InvalidOperationException("No Bring page is open. Start list sync first.");
+        }
+
+        logger.LogInformation("Bring extraction using page URL: {Url}", page.Url);
+
+        try
+        {
+            await page.BringToFrontAsync();
+            await page.WaitForLoadStateAsync(LoadState.DOMContentLoaded);
+            logger.LogInformation("Bring page load state reached DOMContentLoaded; current URL: {Url}", page.Url);
+
+            var containerCount = await page.Locator(".bring-list-item-container.bring-list-item-container-to-purchase").CountAsync();
+            var textContainerCount = await page.Locator(".bring-list-item-container.bring-list-item-container-to-purchase .bring-list-item-text-container").CountAsync();
+            var nameCount = await page.Locator(".bring-list-item-container.bring-list-item-container-to-purchase .bring-list-item-name").CountAsync();
+            var specificationCount = await page.Locator(".bring-list-item-container.bring-list-item-container-to-purchase .bring-list-item-specification-label").CountAsync();
+            logger.LogInformation(
+                "Bring DOM selector counts: containers={ContainerCount}, textContainers={TextContainerCount}, names={NameCount}, specifications={SpecificationCount}",
+                containerCount, textContainerCount, nameCount, specificationCount);
+
+            var itemsJson = await page.EvaluateAsync<string>("""
+                (() => {
+                  const clean = (value) => (value || '').replace(/\s+/g, ' ').trim();
+                  const textContainers = Array.from(document.querySelectorAll(
+                    '.bring-list-item-container.bring-list-item-container-to-purchase .bring-list-item-text-container'
+                  ));
+
+                  const items = textContainers
+                    .map((textContainer) => {
+                      const name = clean(textContainer.querySelector('.bring-list-item-name')?.textContent);
+                      const specification = clean(textContainer.querySelector('.bring-list-item-specification-label')?.textContent);
+                      return name ? { name, specification: specification || null } : null;
+                    })
+                    .filter(Boolean);
+
+                  return JSON.stringify(items);
+                })()
+                """);
+
+            var items = string.IsNullOrWhiteSpace(itemsJson)
+                ? []
+                : JsonSerializer.Deserialize<List<BringListItemPayload>>(itemsJson, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                }) ?? [];
+
+            logger.LogInformation("Bring DOM evaluation returned {ItemCount} raw item(s)", items?.Count ?? 0);
+
+            var cleaned = (items ?? [])
+                .Where(i => !string.IsNullOrWhiteSpace(i.Name))
+                .Select(i => new BringListItem(i.Name.Trim(), string.IsNullOrWhiteSpace(i.Specification) ? null : i.Specification.Trim()))
+                .ToList();
+
+            logger.LogInformation("Bring extraction cleaned {ItemCount} item(s): {Items}",
+                cleaned.Count,
+                string.Join(" | ", cleaned.Take(20).Select(i =>
+                    string.IsNullOrWhiteSpace(i.Specification) ? i.Name : $"{i.Name} ({i.Specification})")));
+
+            return cleaned;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Bring list extraction failed on page URL {Url}", page.Url);
+            throw;
+        }
     }
 
     private async Task EnsureBrowserAsync()
@@ -167,8 +289,12 @@ public class PlaywrightLoginService(
         _context = await playwright.Chromium.LaunchPersistentContextAsync(appData.PlaywrightSessionDirectory, new()
         {
             Headless = false,
-            ViewportSize = new ViewportSize { Width = 756, Height = 982 },
-            Args = ["--window-position=756,0"],
+            ViewportSize = new ViewportSize { Width = BrowserViewportWidth, Height = BrowserViewportHeight },
+            Args =
+            [
+                $"--window-position={BrowserWindowLeft},0",
+                $"--window-size={BrowserViewportWidth},{BrowserViewportHeight}"
+            ],
         });
 
         // Capture bearer token from every migros.ch page load (silent OAuth flow).
@@ -206,6 +332,7 @@ public class PlaywrightLoginService(
         if (_context is null) return;
 
         var page = _context.Pages.FirstOrDefault() ?? await _context.NewPageAsync();
+        await PrepareInteractivePageAsync(page);
         await page.GotoAsync("https://www.migros.ch/de",
             new() { WaitUntil = WaitUntilState.DOMContentLoaded });
         await InjectLoginBannerAsync(page);
@@ -225,6 +352,18 @@ public class PlaywrightLoginService(
         _isLoggedIn = true;
         await RemoveLoginBannerAsync(page);
         logger.LogInformation("Logged in to Migros");
+    }
+
+    private static async Task PrepareInteractivePageAsync(IPage page)
+    {
+        try
+        {
+            await page.SetViewportSizeAsync(BrowserViewportWidth, BrowserViewportHeight);
+        }
+        catch
+        {
+            // The page may be closing or navigating; navigation will still proceed.
+        }
     }
 
     private static async Task InjectLoginBannerAsync(IPage page)
@@ -272,6 +411,45 @@ public class PlaywrightLoginService(
         }
     }
 
+    private static async Task InjectBringBannerAsync(IPage page)
+    {
+        try
+        {
+            if (!page.Url.Contains("getbring.com", StringComparison.OrdinalIgnoreCase))
+                return;
+
+            await page.EvaluateAsync("""
+                (() => {
+                  const id = 'koemmerle-bring-banner';
+                  if (document.getElementById(id)) return;
+
+                  const banner = document.createElement('div');
+                  banner.id = id;
+                  banner.textContent = 'Wähle in Bring die Einkaufsliste aus. Danach zurück zu KÖMMERLE At Home wechseln und die Liste auslesen.';
+                  banner.style.position = 'fixed';
+                  banner.style.top = '0';
+                  banner.style.left = '0';
+                  banner.style.right = '0';
+                  banner.style.zIndex = '2147483647';
+                  banner.style.padding = '12px 18px';
+                  banner.style.background = '#111111';
+                  banner.style.color = '#ffffff';
+                  banner.style.font = '700 15px system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
+                  banner.style.lineHeight = '1.35';
+                  banner.style.textAlign = 'center';
+                  banner.style.boxShadow = '0 2px 10px rgba(0, 0, 0, 0.18)';
+
+                  document.documentElement.appendChild(banner);
+                  document.body.style.paddingTop = `${banner.offsetHeight}px`;
+                })();
+                """);
+        }
+        catch
+        {
+            // Bring can be mid-navigation while the user logs in or changes lists.
+        }
+    }
+
     private static async Task RemoveLoginBannerAsync(IPage page)
     {
         try
@@ -300,3 +478,6 @@ public class PlaywrightLoginService(
             await _context.CloseAsync();
     }
 }
+
+public record BringListItem(string Name, string? Specification);
+internal record BringListItemPayload(string Name, string? Specification);
