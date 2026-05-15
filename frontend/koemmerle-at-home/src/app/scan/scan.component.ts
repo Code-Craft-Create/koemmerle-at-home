@@ -144,6 +144,7 @@ export class ScanComponent implements OnInit, OnDestroy {
     this.state = 'done';
     this.cartQtyInMigros = null;
     this.focusDoneButton();
+    this.computeFlyTarget();
 
     if (barcodeToEnqueue) {
       this.api.enqueue(barcodeToEnqueue, quantityToEnqueue).subscribe({ error: err => console.error(err) });
@@ -295,6 +296,20 @@ export class ScanComponent implements OnInit, OnDestroy {
 
   private focusDoneButton() {
     setTimeout(() => this.doneButton?.nativeElement.focus(), 0);
+  }
+
+  private computeFlyTarget() {
+    setTimeout(() => {
+      const layer = document.querySelector('.product-visual-layer') as HTMLElement | null;
+      const target = document.querySelector('.nav-queue-btn') as HTMLElement | null;
+      if (!layer || !target) return;
+      const layerRect = layer.getBoundingClientRect();
+      const targetRect = target.getBoundingClientRect();
+      const dx = (targetRect.left + targetRect.width / 2) - (layerRect.left + layerRect.width / 2);
+      const dy = (targetRect.top + targetRect.height / 2) - (layerRect.top + layerRect.height / 2);
+      layer.style.setProperty('--fly-dx', `${dx}px`);
+      layer.style.setProperty('--fly-dy', `${dy}px`);
+    }, 0);
   }
 
   dismissDone() {

@@ -3,6 +3,24 @@
   @if (state !== 'choosing') {
     <!-- Scan status area (hidden during choosing so the overlay card disappears) -->
     <div class="scan-area">
+      @if (confirming && (state === 'confirming' || state === 'done')) {
+        <div
+          class="product-visual-layer"
+          [class.pulsing]="state === 'confirming'"
+          [class.flying]="state === 'done'"
+          [attr.data-anim-key]="animKey % 2"
+          aria-hidden="true"
+        >
+          @if (confirming.imageUrl) {
+            <span class="image-badge-wrap image-loading-frame product-image-frame">
+              <img [src]="confirming.imageUrl" alt="" class="product-image" (load)="markImageLoaded($event)" (error)="markImageFailed($event)" />
+              @if (confirming.multiplier > 1) { <span class="multiplier-badge">{{ confirming.multiplier }}x</span> }
+            </span>
+          } @else {
+            <div class="product-icon">🛍️</div>
+          }
+        </div>
+      }
 
       @switch (state) {
         @case ('idle') {
@@ -23,16 +41,7 @@
 
         @case ('confirming') {
           <div class="confirming" (click)="$event.stopPropagation()">
-            @for (key of [animKey]; track key) {
-              @if (confirming?.imageUrl) {
-                <span class="image-badge-wrap image-loading-frame product-image-frame flying">
-                  <img [src]="confirming!.imageUrl" alt="" class="product-image" (load)="markImageLoaded($event)" (error)="markImageFailed($event)" />
-                  @if ((confirming?.multiplier ?? 1) > 1) { <span class="multiplier-badge">{{ confirming!.multiplier }}x</span> }
-                </span>
-              } @else {
-                <div class="product-icon flying">🛍️</div>
-              }
-            }
+            <div class="product-visual-spacer"></div>
             <p class="product-name">{{ confirming?.productName }}</p>
             <div class="cart-badge">
               <img src="assets/icons/BasketUpload.png" class="cart-badge-icon" alt="" />
@@ -65,6 +74,7 @@
           </div>
         }
       }
+
     </div>
   }
 

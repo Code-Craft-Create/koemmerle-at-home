@@ -87,6 +87,8 @@
   align-items: center;
   justify-content: center;
   min-width: 0;
+  position: relative;
+  overflow: visible;
 }
 
 /* ── Searching ── */
@@ -155,9 +157,20 @@
   flex-direction: column;
   align-items: center;
   gap: 0.6rem;
-  animation: pop-in 0.2s ease;
+  animation: fade-in 0.2s ease;
   text-align: center;
   width: 100%;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.product-visual-spacer {
+  width: 196px;
+  height: 98px;
+  flex: 0 0 98px;
 }
 
 .confirm-label {
@@ -267,8 +280,14 @@
   width: 100%;
 }
 
+.scan-screen.done .result {
+  padding-top: 98px;
+  box-sizing: border-box;
+}
+
 /* ── Product image / icon ── */
 .image-loading-frame {
+  position: relative;
   background: #fff;
   border-radius: 8px;
 
@@ -306,13 +325,36 @@
   }
 
   > .multiplier-badge {
-    z-index: 2;
+    z-index: 4;
   }
 }
 
 .product-image-frame {
   border-radius: 16px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset: -4px;
+    z-index: 3;
+    padding: 4px;
+    border-radius: 20px;
+    background: conic-gradient(
+      from 0deg,
+      var(--orange, #f97316) 0 var(--scan-border-progress, 0deg),
+      transparent var(--scan-border-progress, 0deg) 360deg
+    );
+    pointer-events: none;
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    mask-composite: exclude;
+  }
 }
 
 .product-image {
@@ -356,27 +398,104 @@
   font-family: sans-serif;
 }
 
-/* ── Flying animation (3 s, matches CONFIRM_MS) ── */
-.flying {
-  animation: fly-to-cart 3s forwards;
+/* ── Confirmation/flyaway animations ── */
+.product-visual-layer {
+  position: absolute;
+  top: -98px;
+  left: 0;
+  right: 0;
+  width: 196px;
+  height: 196px;
+  margin-inline: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1002;
+  pointer-events: none;
   transform-origin: center;
+  opacity: 1;
+  will-change: transform, opacity;
+}
+
+.pulsing {
+  &[data-anim-key="0"] .product-image-frame::after {
+    animation: product-border-draw-a 3s linear forwards;
+  }
+
+  &[data-anim-key="1"] .product-image-frame::after {
+    animation: product-border-draw-b 3s linear forwards;
+  }
+
+  .product-image-frame,
+  .product-icon {
+    animation: product-pulse 2.4s ease-in-out infinite;
+    transform-origin: center;
+  }
+}
+
+.flying {
+  animation: fly-to-cart 1.45s cubic-bezier(0.45, 0, 0.78, 0.28) forwards;
+  transform-origin: center;
+
+  .product-image-frame::after {
+    --scan-border-progress: 360deg;
+  }
+}
+
+@property --scan-border-progress {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@keyframes product-pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.045);
+  }
+}
+
+@keyframes product-border-draw-a {
+  from {
+    --scan-border-progress: 0deg;
+  }
+
+  to {
+    --scan-border-progress: 360deg;
+  }
+}
+
+@keyframes product-border-draw-b {
+  from {
+    --scan-border-progress: 0deg;
+  }
+
+  to {
+    --scan-border-progress: 360deg;
+  }
 }
 
 @keyframes fly-to-cart {
   0% {
-    transform: translate(0, 0) scale(1);
+    transform: scale(1);
     opacity: 1;
-    animation-timing-function: ease-out;
   }
 
-  15% {
-    transform: translate(0, -10px) scale(1.05);
+  20% {
+    transform: translateY(-8px) scale(1.035);
     opacity: 1;
-    animation-timing-function: ease-in;
+  }
+
+  78% {
+    transform: translate(var(--fly-dx, 0px), var(--fly-dy, 0px)) scale(0.11);
+    opacity: 0.72;
   }
 
   100% {
-    transform: translate(30vw, -35vh) scale(0.1);
+    transform: translate(var(--fly-dx, 0px), var(--fly-dy, 0px)) scale(0.08);
     opacity: 0;
   }
 }

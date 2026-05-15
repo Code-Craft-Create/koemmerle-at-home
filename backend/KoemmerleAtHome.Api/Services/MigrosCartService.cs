@@ -154,9 +154,7 @@ public class MigrosCartService(
             return null;
 
         var shoppingListId = await EnsureShoppingListIdAsync(ct);
-        var currentQty = await GetCurrentQuantityAsync(shoppingListId, uid, ct);
-        var multiplier = await GetMultiplierAsync(uid, ct);
-        return currentQty * multiplier;
+        return await GetCurrentQuantityAsync(shoppingListId, uid, ct);
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -245,7 +243,7 @@ public class MigrosCartService(
         if (multiplier == 1)
             multiplier = await GetMultiplierAsync(uid, ct);
         var currentQty = await GetCurrentQuantityAsync(shoppingListId, uid, ct);
-        var targetQty = PackQuantity((currentQty * multiplier) + item.Quantity, multiplier);
+        var targetQty = currentQty + item.Quantity;
 
         var body = new ShoppingListPutRequest(
             ShoppingListId: shoppingListId,
@@ -337,11 +335,6 @@ public class MigrosCartService(
         return dbMultipliers.TryGetValue(uid, out var dbMultiplier) ? dbMultiplier : 1;
     }
 
-    private static int PackQuantity(int singleQuantity, int multiplier)
-    {
-        if (singleQuantity <= 0) return 0;
-        return (int)Math.Ceiling(singleQuantity / (double)Math.Max(multiplier, 1));
-    }
 }
 
 public record MigrosBasketItem(
