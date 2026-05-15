@@ -103,18 +103,18 @@
   &:hover { color: inherit; }
 
   .logo-brand {
-    font-size: 1.6rem;
+    font-family: 'Figtree', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-size: 1.85rem;
     font-weight: 900;
     color: var(--orange);
-    letter-spacing: 0.05em;
+    letter-spacing: 0.01em;
     font-style: normal;
-    
   }
 
   .logo-sub {
     margin-top: 0.2rem;
-    font-size: 1.1rem;
-    font-weight: 300;
+    font-size: 1.35rem;
+    font-weight: 400;
     color: var(--text);
     letter-spacing: -0.02em;
   }
@@ -617,8 +617,7 @@
 }
 
 .nav-scan-bar {
-  flex: 1;
-  max-width: 720px;
+  flex: 3;
 }
 
 .nav-scan-wrap {
@@ -640,7 +639,7 @@
 
 .nav-scan-input {
   width: 100%;
-  padding: 0.6rem 2.5rem 0.6rem 1.25rem;
+  padding: 0.9rem 3rem 0.9rem 1.5rem;
   border: none;
   border-radius: 8px;
   font-size: 1rem;
@@ -661,7 +660,7 @@
 
 .nav-bottom {
   display: flex;
-  padding: 0 1.5rem;
+  padding: 0 0.4rem;
   border-bottom: 1px solid #d0d0d0;
 
   a {
