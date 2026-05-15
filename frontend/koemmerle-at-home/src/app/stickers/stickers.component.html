@@ -41,12 +41,12 @@
           </div>
 
           <div class="slider-label">
-            <span class="slider-title">Bild / Barcode</span>
+            <span class="slider-title">Barcode / Bild</span>
             <div class="slider-row">
-              <span class="slider-cap">Bild</span>
+              <span class="slider-cap">Code</span>
               <input type="range" [(ngModel)]="imageRatio" min="0" max="80" step="5" class="slider"
                 [style.--slider-progress]="(imageRatio / 80 * 100) + '%'" (ngModelChange)="scheduleLayoutSave()" />
-              <span class="slider-cap">Code</span>
+              <span class="slider-cap">Bild</span>
             </div>
             <div class="slider-hint">{{ imageRatio }}% / {{ 100 - imageRatio }}%</div>
           </div>
