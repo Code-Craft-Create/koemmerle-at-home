@@ -130,24 +130,34 @@
                 [style.grid-template-rows]="rowsStyle">
 
                 @for (item of page; track item.key) {
-                  <div class="sticker" [style.padding.%]="padding" [class.no-cutline]="!showCutlines">
-                    <div class="sticker-main" [class]="layout">
-                      <div class="s-image" [style.flex]="imageRatio">
-                        @if (item.imageData || item.imageUrl) {
-                          <span class="image-badge-wrap">
-                            <img [src]="item.imageData || item.imageUrl" alt="" (error)="hideOnError($event)" />
-                          </span>
-                        }
+                  <div class="sticker-slot"
+                    [class.drag-over]="dragOverKey === item.key"
+                    [class.dragging]="draggedKey === item.key"
+                    draggable="true"
+                    (dragstart)="onStickerDragStart(item.key, $event)"
+                    (dragover)="onStickerDragOver(item.key, $event)"
+                    (drop)="onStickerDrop(item.key)"
+                    (dragend)="onStickerDragEnd()">
+                    <div class="sticker" [style.padding.%]="padding" [class.no-cutline]="!showCutlines">
+                      <div class="sticker-main" [class]="layout">
+                        <div class="s-image" [style.flex]="imageRatio">
+                          @if (item.imageData || item.imageUrl) {
+                            <span class="image-badge-wrap">
+                              <img draggable="false" [src]="item.imageData || item.imageUrl" alt="" (error)="hideOnError($event)" />
+                            </span>
+                          }
+                        </div>
+                        <div class="s-barcode" [style.flex]="100 - imageRatio">
+                          @if (barcodeUrls.get(item.barcode)) {
+                            <img draggable="false" [src]="barcodeUrls.get(item.barcode)" [alt]="item.barcode" />
+                          }
+                        </div>
                       </div>
-                      <div class="s-barcode" [style.flex]="100 - imageRatio">
-                        @if (barcodeUrls.get(item.barcode)) {
-                          <img [src]="barcodeUrls.get(item.barcode)" [alt]="item.barcode" />
-                        }
-                      </div>
+                      @if (fontSize > 0) {
+                        <div class="s-name" [style.fontSize.rem]="fontSize / 16">{{ item.name }}</div>
+                      }
                     </div>
-                    @if (fontSize > 0) {
-                      <div class="s-name" [style.fontSize.rem]="fontSize / 16">{{ item.name }}</div>
-                    }
+                    <button class="sticker-remove" (click)="toggleSelect(item)" (mousedown)="$event.stopPropagation()" title="Entfernen"><span>×</span></button>
                   </div>
                 }
 

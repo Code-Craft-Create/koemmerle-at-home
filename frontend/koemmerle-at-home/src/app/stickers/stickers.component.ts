@@ -104,6 +104,9 @@ export class StickersComponent implements OnInit, OnDestroy {
   generatingPdf = false;
   private readonly pdfImageCache = new Map<string, string>();
 
+  draggedKey: string | null = null;
+  dragOverKey: string | null = null;
+
   constructor(private api: ScanApiService, private cdr: ChangeDetectorRef) {}
 
   ngOnInit() {
@@ -447,6 +450,42 @@ export class StickersComponent implements OnInit, OnDestroy {
     this._filteredKey = '';
   }
 
+  // ── Sticker grid drag & drop ───────────────────────────────────────────────
+
+  onStickerDragStart(key: string, event: DragEvent) {
+    this.draggedKey = key;
+    event.dataTransfer!.effectAllowed = 'move';
+  }
+
+  onStickerDragOver(key: string, event: DragEvent) {
+    if (!this.draggedKey || this.draggedKey === key) return;
+    event.preventDefault();
+    event.dataTransfer!.dropEffect = 'move';
+    this.dragOverKey = key;
+  }
+
+  onStickerDrop(targetKey: string) {
+    if (!this.draggedKey || this.draggedKey === targetKey) {
+      this.draggedKey = null;
+      this.dragOverKey = null;
+      return;
+    }
+    const from = this.selectedKeys.indexOf(this.draggedKey);
+    const to   = this.selectedKeys.indexOf(targetKey);
+    if (from < 0 || to < 0) { this.draggedKey = null; this.dragOverKey = null; return; }
+    const keys = [...this.selectedKeys];
+    keys.splice(from, 1);
+    keys.splice(to, 0, this.draggedKey);
+    this.selectedKeys = keys;
+    this.draggedKey   = null;
+    this.dragOverKey  = null;
+  }
+
+  onStickerDragEnd() {
+    this.draggedKey  = null;
+    this.dragOverKey = null;
+  }
+
   clearSelection() { this.selectedKeys = []; }
 
   get selectedItems(): StickerItem[] {
@@ -491,9 +530,12 @@ export class StickersComponent implements OnInit, OnDestroy {
       const cols = Math.max(1, this.cols), rows = Math.max(1, this.rows);
       const stickerW = (pageW - mL - mR) / cols;
       const stickerH = (pageH - mT - mB) / rows;
-      const pad = (this.padding / 100) * stickerW;
+      const pad      = (this.padding / 100) * stickerW;
+      const innerW   = stickerW - 2 * pad;
+      const mainGap  = 0.02 * innerW;  // CSS: .sticker-main { gap: 2% }
       const imgShare = this.imageRatio / 100;
-      const bcShare = 1 - imgShare;
+      const bcShare  = 1 - imgShare;
+      if (this.fontSize > 0) doc.setFontSize(this.fontSize);
 
       const items = this.selectedItems;
 
@@ -515,30 +557,39 @@ export class StickersComponent implements OnInit, OnDestroy {
           doc.rect(x, y, stickerW, stickerH);
         }
 
-        // Name strip at bottom
-        const nameH = 4;
-        const innerH = stickerH - nameH - pad * 2;
+        // Compute name height per-item (wraps 1–3 lines, matching CSS line-clamp: 3)
+        const lineH     = this.fontSize * 0.352 * 1.3;  // pt → mm with line-height 1.3
+        const nameLines = this.fontSize > 0
+          ? (doc.splitTextToSize(item.name, innerW) as string[]).slice(0, 3)
+          : [];
+        const nameH  = nameLines.length * lineH;
+        const nameGap = nameLines.length > 0 ? 0.01 * stickerW : 0;  // CSS: .sticker { gap: 1% }
+
+        // Zones — mirror CSS exactly:
+        //   .sticker-main    gap: 2%   (between image and barcode)
+        //   .s-barcode img   max-height: 80%  (barcode never fills full zone)
+        const innerH = stickerH - 2 * pad - nameH - nameGap;
         const innerY = y + pad;
 
-        // Compute image and barcode zones
         let imgX: number, imgY: number, imgSize: number;
         let bcX: number, bcY: number, bcW: number, bcH: number;
 
         if (this.layout === 'horizontal') {
-          const innerW = stickerW - pad * 2;
-          const imgW = innerW * imgShare;
-          const bcW2 = innerW * bcShare;
+          const availW = innerW - mainGap;
+          const imgW   = availW * imgShare;
+          const bcW2   = availW * bcShare;
           imgSize = Math.min(imgW, innerH);
           imgX = x + pad + (imgW - imgSize) / 2;
           imgY = innerY + (innerH - imgSize) / 2;
-          bcX = x + pad + imgW; bcY = innerY; bcW = bcW2; bcH = innerH;
+          bcX = x + pad + imgW + mainGap; bcY = innerY; bcW = bcW2; bcH = innerH;
         } else {
-          const imgH = innerH * imgShare;
-          const bcH2 = innerH * bcShare;
-          imgSize = Math.min(stickerW - pad * 2, imgH);
-          imgX = x + pad + ((stickerW - pad * 2) - imgSize) / 2;
+          const availH = innerH - mainGap;
+          const imgH   = availH * imgShare;
+          const bcH2   = availH * bcShare;
+          imgSize = Math.min(innerW, imgH);
+          imgX = x + pad + (innerW - imgSize) / 2;
           imgY = innerY + (imgH - imgSize) / 2;
-          bcX = x + pad; bcY = innerY + imgH; bcW = stickerW - pad * 2; bcH = bcH2;
+          bcX = x + pad; bcY = innerY + imgH + mainGap; bcW = innerW; bcH = bcH2;
         }
 
         // Image
@@ -558,27 +609,27 @@ export class StickersComponent implements OnInit, OnDestroy {
           } catch { /* CORS or load failure — skip */ }
         }
 
-        // Barcode
+        // Barcode — mirror CSS: .s-barcode img { max-height: 80% }
         try {
           const canvas = document.createElement('canvas');
           JsBarcode(canvas, item.barcode, {
             format: this.detectFormat(item.barcode),
-            margin: 2, height: 60, width: 2, displayValue: false,
+            margin: 4, height: 60, width: 2, displayValue: false,
           });
           const bcData = canvas.toDataURL('image/png');
           const aspect = canvas.width / canvas.height;
+          const maxBcH = bcH * 0.8;
           let w = bcW, h = w / aspect;
-          if (h > bcH) { h = bcH; w = h * aspect; }
+          if (h > maxBcH) { h = maxBcH; w = h * aspect; }
           doc.addImage(bcData, 'PNG', bcX + (bcW - w) / 2, bcY + (bcH - h) / 2, w, h);
         } catch { /* skip */ }
 
         // Name
-        if (this.fontSize > 0) {
-          doc.setFontSize(this.fontSize);
+        if (nameLines.length > 0) {
           doc.setTextColor(60);
-          const nameY = y + stickerH - pad;
-          const name = doc.splitTextToSize(item.name, stickerW - pad * 2)[0];
-          doc.text(name, x + stickerW / 2, nameY, { align: 'center' });
+          const bottomBaseline = y + stickerH - pad;
+          const firstY = bottomBaseline - (nameLines.length - 1) * lineH;
+          doc.text(nameLines, x + stickerW / 2, firstY, { align: 'center', lineHeightFactor: 1.3 });
         }
       }
 
