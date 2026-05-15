@@ -33,7 +33,7 @@ export class ProductsComponent implements OnInit, OnDestroy {
   searchRaw = '';        // bound to the input — updates immediately
   textFilter = '';       // debounced — what Fuse actually runs on
   categoryFilter = '';
-  sortCol: 'name' | 'lastSyncedAt' | 'relevance' = 'relevance';
+  sortCol: 'name' | 'lastSyncedAt' | 'relevance' | 'lastOrderDate' = 'relevance';
   sortDir: 1 | -1 = -1;
   pageSize = 100;
   page = 0;
@@ -46,9 +46,9 @@ export class ProductsComponent implements OnInit, OnDestroy {
   private _filteredKey = '';
   private _filteredCache: Product[] = [];
 
-  setSort(col: 'name' | 'lastSyncedAt' | 'relevance') {
+  setSort(col: 'name' | 'lastSyncedAt' | 'relevance' | 'lastOrderDate') {
     if (this.sortCol === col) this.sortDir = this.sortDir === 1 ? -1 : 1;
-    else { this.sortCol = col; this.sortDir = col === 'lastSyncedAt' ? -1 : 1; }
+    else { this.sortCol = col; this.sortDir = col === 'lastSyncedAt' || col === 'lastOrderDate' ? -1 : 1; }
     this.page = 0;
   }
 
@@ -88,6 +88,11 @@ export class ProductsComponent implements OnInit, OnDestroy {
       result = list.sort((a, b) => {
         if (this.sortCol === 'name') return a.name.localeCompare(b.name) * this.sortDir;
         if (this.sortCol === 'relevance') return this.compareRelevanceDesc(a, b) * -this.sortDir;
+        if (this.sortCol === 'lastOrderDate') {
+          const oa = a.lastOrderDate ? new Date(a.lastOrderDate).getTime() : 0;
+          const ob = b.lastOrderDate ? new Date(b.lastOrderDate).getTime() : 0;
+          return (oa - ob) * this.sortDir || this.compareRelevanceDesc(a, b);
+        }
         const da = a.lastSyncedAt ? new Date(a.lastSyncedAt).getTime() : 0;
         const db2 = b.lastSyncedAt ? new Date(b.lastSyncedAt).getTime() : 0;
         return (da - db2) * this.sortDir;
@@ -176,6 +181,13 @@ export class ProductsComponent implements OnInit, OnDestroy {
   formatWeight(p: Product): string {
     if (!p.weightText) return '–';
     return p.weightText;
+  }
+
+  formatLastOrder(p: Product): string {
+    if (!p.lastOrderDate) return '–';
+    const d = new Date(p.lastOrderDate);
+    if (isNaN(d.getTime())) return '–';
+    return d.toLocaleDateString('de-CH', { year: 'numeric', month: '2-digit', day: '2-digit' });
   }
 
   private loadBasket() {

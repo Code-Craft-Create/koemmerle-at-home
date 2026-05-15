@@ -36,6 +36,9 @@
         <th class="sortable" (click)="setSort('relevance')">
           Relevanz <span class="sort-icon">{{ sortCol === 'relevance' ? (sortDir === 1 ? '▲' : '▼') : '⇕' }}</span>
         </th>
+        <th class="sortable" (click)="setSort('lastOrderDate')">
+          Zuletzt bestellt <span class="sort-icon">{{ sortCol === 'lastOrderDate' ? (sortDir === 1 ? '▲' : '▼') : '⇕' }}</span>
+        </th>
         <th>Rezept</th>
         <th>Aktionen</th>
       </tr>
@@ -82,6 +85,7 @@
               }
             </svg>
           </td>
+          <td class="small">{{ formatLastOrder(p) }}</td>
           <td>
             @if (p.hasMapping) {
               <span class="badge done">✓</span>
@@ -97,7 +101,7 @@
           </td>
         </tr>
       } @empty {
-        <tr><td colspan="9" class="empty">Noch keine Produkte.</td></tr>
+        <tr><td colspan="10" class="empty">Noch keine Produkte.</td></tr>
       }
     </tbody>
   </table>

@@ -34,7 +34,7 @@ export function matchesCategory(categories: string | undefined, filter: string):
   `],
   template: `
     @for (opts of levels; track $index; let i = $index) {
-      <select [ngModel]="selections[i]" (ngModelChange)="onSelect(i, $event)">
+      <select [ngModel]="selections[i] ?? ''" (ngModelChange)="onSelect(i, $event)">
         <option value="">{{ i === 0 ? 'Alle Kategorien' : 'Alle' }}</option>
         @for (cat of opts; track cat) {
           <option [value]="cat">{{ cat }}</option>
@@ -83,6 +83,9 @@ export class CategoryFilterComponent implements OnChanges {
       // Don't show the next level unless this one has a selection
       if (!this.selections[depth]) break;
     }
+
+    // Always render at least the top-level select so the user sees the filter
+    if (result.length === 0) result.push([]);
 
     return result;
   }
