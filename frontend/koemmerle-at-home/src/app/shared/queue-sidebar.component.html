@@ -29,6 +29,12 @@
             <div class="qs-sub">{{ label(item.status) }}</div>
           </div>
           <div class="qs-qty">× {{ item.quantity }}</div>
+          <div class="qs-actions">
+            @if (item.status === 'Failed') {
+              <button class="qs-action-btn retry" (click)="retry(item.id)" title="Wiederholen">↩</button>
+            }
+            <button class="qs-action-btn delete" (click)="delete(item.id)" title="Löschen">✕</button>
+          </div>
         </div>
       } @empty {
       }

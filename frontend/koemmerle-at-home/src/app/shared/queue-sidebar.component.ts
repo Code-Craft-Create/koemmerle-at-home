@@ -41,6 +41,9 @@ export class QueueSidebarComponent implements OnInit, OnDestroy {
     call.subscribe(() => this.api.getCartStatus().subscribe(s => this.status = s));
   }
 
+  retry(id: number) { this.api.retryQueueItem(id).subscribe(); }
+  delete(id: number) { this.api.deleteQueueItem(id).subscribe(); }
+
   label(status: ScanQueueItem['status']): string {
     switch (status) {
       case 'Pending':    return 'Wartend';

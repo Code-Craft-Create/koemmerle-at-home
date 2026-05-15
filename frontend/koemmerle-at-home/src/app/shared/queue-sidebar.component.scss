@@ -112,6 +112,37 @@
   flex-shrink: 0;
 }
 
+.qs-actions {
+  display: flex;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.qs-action-btn {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  width: 28px;
+  height: 28px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  transition: background 0.1s, border-color 0.1s;
+
+  &.retry {
+    color: var(--orange);
+    &:hover { background: #fff3e8; border-color: var(--orange); }
+  }
+
+  &.delete {
+    color: var(--text-muted);
+    &:hover { background: #fef2f2; border-color: #fca5a5; color: #ef4444; }
+  }
+}
+
 .qs-empty {
   text-align: center;
   padding: 3rem 1rem;
