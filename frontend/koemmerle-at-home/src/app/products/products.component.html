@@ -59,11 +59,11 @@
           </td>
           <td>
             <div class="basket-col">
-              <button class="btn-sm basket-btn"
+              <button class="basket-btn"
                       (click)="addToBasket(p)"
                       [disabled]="!canBasket(p) || basketBusyIds.has(p.id)"
                       title="In Warenkorb">+</button>
-              <button class="btn-sm basket-btn"
+              <button class="basket-btn"
                       (click)="removeFromBasket(p)"
                       [disabled]="!canBasket(p) || basketQuantity(p) <= 0 || basketBusyIds.has(p.id)"
                       title="Aus Warenkorb entfernen">−</button>
