@@ -198,6 +198,21 @@ using (var scope = app.Services.CreateScope())
     if (TableExists("Products") && !HasColumn("Products", "AdditionalInfo"))
         Exec("""ALTER TABLE "Products" ADD COLUMN "AdditionalInfo" TEXT""");
 
+    // Add StickerPrintedAt column to Products if missing
+    if (TableExists("Products") && !HasColumn("Products", "StickerPrintedAt"))
+        Exec("""ALTER TABLE "Products" ADD COLUMN "StickerPrintedAt" TEXT""");
+
+    // Create StickerExports table if missing
+    if (!TableExists("StickerExports"))
+        Exec("""
+            CREATE TABLE "StickerExports" (
+                "Id"           INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                "ExportedAt"   TEXT NOT NULL,
+                "LayoutJson"   TEXT NOT NULL DEFAULT '',
+                "ProductsJson" TEXT NOT NULL DEFAULT ''
+            )
+            """);
+
     // Migrate ProductMappings from old 1:1 schema to new multi-item schema
     if (TableExists("ProductMappings") && HasColumn("ProductMappings", "ProductId"))
     {

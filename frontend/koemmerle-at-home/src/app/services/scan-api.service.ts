@@ -2,6 +2,7 @@ import { Injectable, NgZone } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import * as signalR from '@microsoft/signalr';
 import { Observable, Subject } from 'rxjs';
+import { map } from 'rxjs/operators';
 
 export interface Product {
   id: number;
@@ -27,6 +28,7 @@ export interface Product {
   relevance: number;
   orderCount: number;
   lastOrderDate?: string;
+  stickerPrintedAt?: string;
 }
 
 export interface RecipeItemDto {
@@ -254,6 +256,37 @@ export interface AppSettings {
   autoUpdateOrders: boolean;
 }
 
+export interface StickerLayoutSettings {
+  cols: number;
+  rows: number;
+  layout: 'horizontal' | 'vertical';
+  padding: number;
+  imageRatio: number;
+  fontSize: number;
+  marginTop: number;
+  marginRight: number;
+  marginBottom: number;
+  marginLeft: number;
+  showCutlines: boolean;
+}
+
+export interface StickerExportProduct {
+  name: string;
+  type: 'product' | 'recipe';
+  migrosId?: string;
+  migrosOnlineId?: number;
+  migrosUid?: number;
+  barcode?: string;
+}
+
+export interface StickerExportDto {
+  id: number;
+  exportedAt: string;
+  productCount: number;
+  layoutJson: string;
+  productsJson: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class ScanApiService {
   private readonly serverOrigin = window.location.port === '4200'
@@ -315,6 +348,33 @@ export class ScanApiService {
   }
   deleteProduct(id: number): Observable<void> {
     return this.http.delete<void>(`${this.base}/products/${id}`);
+  }
+  markStickerPrinted(ids: number[]): Observable<void> {
+    return this.http.post<void>(`${this.base}/products/sticker-printed`, ids);
+  }
+  clearStickerPrinted(): Observable<void> {
+    return this.http.delete<void>(`${this.base}/products/sticker-printed`);
+  }
+
+  // ── Sticker layout settings ────────────────────────────────────────────────
+  getStickerLayout(): Observable<StickerLayoutSettings | null> {
+    return this.http.get<{ value: string | null }>(`${this.base}/settings/json/StickerLayout`).pipe(
+      map(r => r.value ? JSON.parse(r.value) as StickerLayoutSettings : null)
+    );
+  }
+  setStickerLayout(layout: StickerLayoutSettings): Observable<void> {
+    return this.http.put<void>(`${this.base}/settings/json/StickerLayout`, { value: JSON.stringify(layout) });
+  }
+
+  // ── Sticker exports ────────────────────────────────────────────────────────
+  getStickerExports(): Observable<StickerExportDto[]> {
+    return this.http.get<StickerExportDto[]>(`${this.base}/sticker-exports`);
+  }
+  createStickerExport(req: { layoutJson: string; productsJson: string }): Observable<StickerExportDto> {
+    return this.http.post<StickerExportDto>(`${this.base}/sticker-exports`, req);
+  }
+  deleteStickerExport(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.base}/sticker-exports/${id}`);
   }
 
   // ── Recipes ────────────────────────────────────────────────────────────────

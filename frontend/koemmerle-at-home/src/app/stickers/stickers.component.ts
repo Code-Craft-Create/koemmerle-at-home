@@ -1,10 +1,10 @@
 import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { forkJoin, Subject, Subscription } from 'rxjs';
 import { debounceTime } from 'rxjs/operators';
 import Fuse, { type IFuseOptions } from 'fuse.js';
-import { ScanApiService, Product, RecipeDto, ScanChoice } from '../services/scan-api.service';
+import { ScanApiService, Product, RecipeDto, ScanChoice, StickerLayoutSettings, StickerExportProduct, StickerExportDto } from '../services/scan-api.service';
 import { CategoryFilterComponent, matchesCategory } from '../shared/category-filter.component';
 
 export interface StickerItem {
@@ -20,9 +20,19 @@ export interface StickerItem {
   relevance: number;
   orderCount: number;
   multiplier: number;
+  migrosId?: string;
+  migrosOnlineId?: number;
   migrosUid?: number;
   source: 'local' | 'migros';
+  stickerPrintedAt?: string;
 }
+
+const DEFAULT_LAYOUT = {
+  cols: 3, rows: 5, layout: 'vertical' as const,
+  padding: 4.5, imageRatio: 55, fontSize: 13,
+  marginTop: 8, marginRight: 8, marginBottom: 8, marginLeft: 8,
+  showCutlines: true,
+};
 
 const FUSE_OPTIONS: IFuseOptions<StickerItem> = {
   keys: ['name', 'barcode'],
@@ -34,7 +44,7 @@ const FUSE_OPTIONS: IFuseOptions<StickerItem> = {
 
 @Component({
   selector: 'app-stickers',
-  imports: [CommonModule, FormsModule, CategoryFilterComponent],
+  imports: [CommonModule, DatePipe, FormsModule, CategoryFilterComponent],
   templateUrl: './stickers.component.html',
   styleUrl: './stickers.component.scss'
 })
@@ -51,6 +61,19 @@ export class StickersComponent implements OnInit, OnDestroy {
   textFilter = '';       // debounced — what Fuse actually runs on
   categoryFilter = '';
   showUnavailable = false;
+  hidePrinted = true;
+
+  showPrintedConfirm = false;
+  confirmMarkPrinted = true;
+  confirmSaveExport = true;
+  pendingPrintedIds: number[] = [];
+  pendingExportItems: StickerItem[] = [];
+
+  stickerExports: StickerExportDto[] = [];
+  selectedExportId: number | null = null;
+
+  private layoutSubject = new Subject<void>();
+  private layoutSaveSub!: Subscription;
 
   private searchSubject = new Subject<string>();
   private searchSub!: Subscription;
@@ -89,10 +112,16 @@ export class StickersComponent implements OnInit, OnDestroy {
       this.currentPage = 0;
       this.searchMigros(v);
     });
+    this.layoutSaveSub = this.layoutSubject.pipe(debounceTime(1500)).subscribe(() => this.persistLayout());
+    this.loadLayoutSettings();
+    this.loadExports();
     this.load();
   }
 
-  ngOnDestroy() { this.searchSub.unsubscribe(); }
+  ngOnDestroy() {
+    this.searchSub.unsubscribe();
+    this.layoutSaveSub.unsubscribe();
+  }
 
   onTextInput(val: string) {
     this.searchRaw = val;
@@ -125,8 +154,11 @@ export class StickersComponent implements OnInit, OnDestroy {
           relevance: p.relevance,
           orderCount: p.orderCount,
           multiplier: p.multiplier ?? 1,
+          migrosId: p.migrosId,
+          migrosOnlineId: p.migrosOnlineId,
           migrosUid: p.migrosUid,
           source: 'local' as const,
+          stickerPrintedAt: p.stickerPrintedAt,
         }))
         .filter(p => p.barcode);
 
@@ -186,7 +218,7 @@ export class StickersComponent implements OnInit, OnDestroy {
   // ── Filtering & Pagination ─────────────────────────────────────────────────
 
   get filteredItems(): StickerItem[] {
-    const key = `${this.textFilter}|${this.categoryFilter}|${this.showUnavailable}|${this.migrosItems.map(i => i.key).join(',')}`;
+    const key = `${this.textFilter}|${this.categoryFilter}|${this.showUnavailable}|${this.hidePrinted}|${this.migrosItems.map(i => i.key).join(',')}`;
     if (key === this._filteredKey) return this._filteredCache;
     this._filteredKey = key;
 
@@ -197,6 +229,7 @@ export class StickersComponent implements OnInit, OnDestroy {
         .filter(r => {
           const item = r.item;
           if (!this.showUnavailable && item.type === 'product' && !item.available) return false;
+          if (this.hidePrinted && item.stickerPrintedAt) return false;
           return matchesCategory(item.categories, this.categoryFilter);
         })
         .sort((a, b) => {
@@ -223,6 +256,7 @@ export class StickersComponent implements OnInit, OnDestroy {
     } else {
       result = this.allItems.filter(item => {
         if (!this.showUnavailable && item.type === 'product' && !item.available) return false;
+        if (this.hidePrinted && item.stickerPrintedAt) return false;
         return matchesCategory(item.categories, this.categoryFilter);
       });
     }
@@ -390,8 +424,11 @@ export class StickersComponent implements OnInit, OnDestroy {
       relevance: p.relevance,
       orderCount: p.orderCount,
       multiplier: p.multiplier ?? 1,
+      migrosId: p.migrosId,
+      migrosOnlineId: p.migrosOnlineId,
       migrosUid: p.migrosUid,
       source: 'local',
+      stickerPrintedAt: p.stickerPrintedAt,
     };
   }
 
@@ -546,9 +583,145 @@ export class StickersComponent implements OnInit, OnDestroy {
       }
 
       doc.save('stickers.pdf');
+      this.pendingExportItems = [...this.selectedItems];
+      this.pendingPrintedIds = this.selectedItems
+        .filter(i => i.source === 'local' && i.id > 0)
+        .map(i => i.id);
+      this.showPrintedConfirm = true;
     } finally {
       this.generatingPdf = false;
     }
+  }
+
+  confirmSave(yes: boolean) {
+    this.showPrintedConfirm = false;
+    const ids = [...this.pendingPrintedIds];
+    const exportItems = [...this.pendingExportItems];
+    this.pendingPrintedIds = [];
+    this.pendingExportItems = [];
+
+    if (!yes) return;
+
+    if (this.confirmMarkPrinted && ids.length > 0) {
+      const now = new Date().toISOString();
+      this.api.markStickerPrinted(ids).subscribe();
+      for (const item of this.allItems) {
+        if (ids.includes(item.id)) item.stickerPrintedAt = now;
+      }
+      this._filteredKey = '';
+    }
+
+    if (this.confirmSaveExport && exportItems.length > 0) {
+      const layout = this.currentLayout();
+      const products: StickerExportProduct[] = exportItems.map(item => ({
+        name: item.name,
+        type: item.type,
+        migrosId: item.migrosId,
+        migrosOnlineId: item.migrosOnlineId,
+        migrosUid: item.migrosUid,
+        barcode: item.barcode || undefined,
+      }));
+      this.api.createStickerExport({
+        layoutJson: JSON.stringify(layout),
+        productsJson: JSON.stringify(products),
+      }).subscribe(exp => {
+        this.stickerExports = [exp, ...this.stickerExports];
+      });
+      this.selectedKeys = [];
+    }
+  }
+
+  clearAllPrinted() {
+    this.api.clearStickerPrinted().subscribe();
+    for (const item of this.allItems) item.stickerPrintedAt = undefined;
+    this._filteredKey = '';
+  }
+
+  // ── Layout persistence ─────────────────────────────────────────────────────
+
+  scheduleLayoutSave() { this.layoutSubject.next(); }
+
+  resetLayout() {
+    this.applyLayout(DEFAULT_LAYOUT);
+    this.persistLayout();
+  }
+
+  private currentLayout(): StickerLayoutSettings {
+    return {
+      cols: this.cols, rows: this.rows, layout: this.layout,
+      padding: this.padding, imageRatio: this.imageRatio, fontSize: this.fontSize,
+      marginTop: this.marginTop, marginRight: this.marginRight,
+      marginBottom: this.marginBottom, marginLeft: this.marginLeft,
+      showCutlines: this.showCutlines,
+    };
+  }
+
+  private persistLayout() {
+    this.api.setStickerLayout(this.currentLayout()).subscribe();
+  }
+
+  private applyLayout(layout: StickerLayoutSettings) {
+    this.cols = layout.cols;
+    this.rows = layout.rows;
+    this.layout = layout.layout;
+    this.padding = layout.padding;
+    this.imageRatio = layout.imageRatio;
+    this.fontSize = layout.fontSize;
+    this.marginTop = layout.marginTop;
+    this.marginRight = layout.marginRight;
+    this.marginBottom = layout.marginBottom;
+    this.marginLeft = layout.marginLeft;
+    this.showCutlines = layout.showCutlines;
+  }
+
+  private loadLayoutSettings() {
+    this.api.getStickerLayout().subscribe(layout => {
+      if (layout) this.applyLayout(layout);
+    });
+  }
+
+  // ── Export history ─────────────────────────────────────────────────────────
+
+  loadExports() {
+    this.api.getStickerExports().subscribe(exports => {
+      this.stickerExports = exports;
+    });
+  }
+
+  loadSelectedExport() {
+    const exp = this.stickerExports.find(e => e.id === this.selectedExportId);
+    if (!exp) return;
+
+    this.applyLayout(JSON.parse(exp.layoutJson) as StickerLayoutSettings);
+
+    const products = JSON.parse(exp.productsJson) as StickerExportProduct[];
+    const keys: string[] = [];
+    for (const prod of products) {
+      let found: StickerItem | undefined;
+      if (prod.type === 'recipe') {
+        found = this.allItems.find(i => i.type === 'recipe' && prod.barcode && i.barcode === prod.barcode);
+      } else {
+        found = this.allItems.find(i =>
+          i.type === 'product' && (
+            (prod.migrosUid != null && i.migrosUid === prod.migrosUid) ||
+            (prod.migrosOnlineId != null && i.migrosOnlineId === prod.migrosOnlineId) ||
+            (prod.migrosId != null && i.migrosId === prod.migrosId) ||
+            (prod.barcode && i.barcode === prod.barcode)
+          )
+        );
+      }
+      if (found && !keys.includes(found.key)) keys.push(found.key);
+    }
+    this.selectedKeys = keys;
+    this.generateBarcodeUrls();
+  }
+
+  deleteSelectedExport() {
+    if (this.selectedExportId == null) return;
+    const id = this.selectedExportId;
+    this.api.deleteStickerExport(id).subscribe();
+    this.stickerExports = this.stickerExports.filter(e => e.id !== id);
+    this.selectedExportId = null;
   }
 
   private loadImage(dataUrl: string): Promise<HTMLImageElement> {

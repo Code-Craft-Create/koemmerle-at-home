@@ -50,7 +50,30 @@ public class SettingsController(AppDbContext db) : ControllerBase
 
         await db.SaveChangesAsync(ct);
     }
+
+    [HttpGet("json/{key}")]
+    public async Task<IActionResult> GetJson(string key, CancellationToken ct)
+    {
+        var value = await db.AppSettings
+            .Where(s => s.Key == key)
+            .Select(s => s.Value)
+            .FirstOrDefaultAsync(ct);
+        return Ok(new { value });
+    }
+
+    [HttpPut("json/{key}")]
+    public async Task<IActionResult> SetJson(string key, [FromBody] SetJsonRequest req, CancellationToken ct)
+    {
+        var setting = await db.AppSettings.FirstOrDefaultAsync(s => s.Key == key, ct);
+        if (setting is null)
+            db.AppSettings.Add(new AppSetting { Key = key, Value = req.Value });
+        else
+            setting.Value = req.Value;
+        await db.SaveChangesAsync(ct);
+        return NoContent();
+    }
 }
 
 public record AppSettingsDto(bool AutoUpdateOrders);
 public record SetAutoUpdateOrdersRequest(bool AutoUpdateOrders);
+public record SetJsonRequest(string Value);

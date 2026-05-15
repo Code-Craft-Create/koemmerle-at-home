@@ -13,21 +13,21 @@
 
           <div class="config-row">
             <label>Spalten
-              <input type="number" [(ngModel)]="cols" min="1" max="10" class="num-input" />
+              <input type="number" [(ngModel)]="cols" min="1" max="10" class="num-input" (ngModelChange)="scheduleLayoutSave()" />
             </label>
             <label>Zeilen
-              <input type="number" [(ngModel)]="rows" min="1" max="20" class="num-input" />
+              <input type="number" [(ngModel)]="rows" min="1" max="20" class="num-input" (ngModelChange)="scheduleLayoutSave()" />
             </label>
           </div>
 
           <div class="margin-editor">
             <span class="slider-title">Seitenränder (mm)</span>
             <div class="margin-cross">
-              <input type="number" [(ngModel)]="marginTop"    min="0" max="30" class="num-input" title="Oben"   style="grid-area:top" />
-              <input type="number" [(ngModel)]="marginLeft"   min="0" max="30" class="num-input" title="Links"  style="grid-area:left" />
+              <input type="number" [(ngModel)]="marginTop"    min="0" max="30" class="num-input" title="Oben"   style="grid-area:top"    (ngModelChange)="scheduleLayoutSave()" />
+              <input type="number" [(ngModel)]="marginLeft"   min="0" max="30" class="num-input" title="Links"  style="grid-area:left"   (ngModelChange)="scheduleLayoutSave()" />
               <div class="margin-center" style="grid-area:center"></div>
-              <input type="number" [(ngModel)]="marginRight"  min="0" max="30" class="num-input" title="Rechts" style="grid-area:right" />
-              <input type="number" [(ngModel)]="marginBottom" min="0" max="30" class="num-input" title="Unten"  style="grid-area:bottom" />
+              <input type="number" [(ngModel)]="marginRight"  min="0" max="30" class="num-input" title="Rechts" style="grid-area:right"  (ngModelChange)="scheduleLayoutSave()" />
+              <input type="number" [(ngModel)]="marginBottom" min="0" max="30" class="num-input" title="Unten"  style="grid-area:bottom" (ngModelChange)="scheduleLayoutSave()" />
             </div>
           </div>
 
@@ -35,7 +35,7 @@
             <span class="slider-title">Innenabstand</span>
             <div class="slider-row">
               <input type="range" [(ngModel)]="padding" min="0" max="20" step="0.5" class="slider"
-                [style.--slider-progress]="(padding / 20 * 100) + '%'" />
+                [style.--slider-progress]="(padding / 20 * 100) + '%'" (ngModelChange)="scheduleLayoutSave()" />
               <span class="slider-val">{{ padding }}%</span>
             </div>
           </div>
@@ -45,7 +45,7 @@
             <div class="slider-row">
               <span class="slider-cap">Bild</span>
               <input type="range" [(ngModel)]="imageRatio" min="0" max="80" step="5" class="slider"
-                [style.--slider-progress]="(imageRatio / 80 * 100) + '%'" />
+                [style.--slider-progress]="(imageRatio / 80 * 100) + '%'" (ngModelChange)="scheduleLayoutSave()" />
               <span class="slider-cap">Code</span>
             </div>
             <div class="slider-hint">{{ imageRatio }}% / {{ 100 - imageRatio }}%</div>
@@ -55,24 +55,26 @@
             <span class="slider-title">Schriftgrösse</span>
             <div class="slider-row">
               <input type="range" [(ngModel)]="fontSize" min="0" max="20" step="1" class="slider"
-                [style.--slider-progress]="(fontSize / 20 * 100) + '%'" />
+                [style.--slider-progress]="(fontSize / 20 * 100) + '%'" (ngModelChange)="scheduleLayoutSave()" />
               <span class="slider-val">{{ fontSize === 0 ? 'aus' : fontSize + 'pt' }}</span>
             </div>
           </div>
 
           <div class="layout-toggle">
-            <button class="layout-btn" [class.active]="layout === 'horizontal'" (click)="layout = 'horizontal'">
+            <button class="layout-btn" [class.active]="layout === 'horizontal'" (click)="layout = 'horizontal'; scheduleLayoutSave()">
               <span class="layout-icon">▥</span> Horizontal
             </button>
-            <button class="layout-btn" [class.active]="layout === 'vertical'" (click)="layout = 'vertical'">
+            <button class="layout-btn" [class.active]="layout === 'vertical'" (click)="layout = 'vertical'; scheduleLayoutSave()">
               <span class="layout-icon">▤</span> Vertikal
             </button>
           </div>
 
           <label class="checkbox-row">
-            <input type="checkbox" [(ngModel)]="showCutlines" />
+            <input type="checkbox" [(ngModel)]="showCutlines" (ngModelChange)="scheduleLayoutSave()" />
             Schnittlinien anzeigen
           </label>
+
+          <button class="btn-link reset-layout-btn" (click)="resetLayout()">Layout zurücksetzen</button>
 
           <div class="selection-info">
             @if (selectedItems.length === 0) {
@@ -88,6 +90,29 @@
             @if (generatingPdf) { ⏳ Generiere… }
             @else { <img src="assets/icons/Download.png" class="btn-icon" alt="" />PDF herunterladen }
           </button>
+
+          @if (stickerExports.length > 0) {
+            <div class="export-history">
+              <span class="slider-title">Gespeicherte Exporte</span>
+              <select class="export-select" [(ngModel)]="selectedExportId">
+                <option [ngValue]="null">— Export wählen —</option>
+                @for (exp of stickerExports; track exp.id) {
+                  <option [ngValue]="exp.id">
+                    {{ exp.exportedAt | date:'dd.MM.yy HH:mm' }} · {{ exp.productCount }} Produkte
+                  </option>
+                }
+              </select>
+              <div class="export-history-actions">
+                <button class="btn small primary" [disabled]="!selectedExportId" (click)="loadSelectedExport()">
+                  Laden
+                </button>
+                <button class="btn small" [disabled]="!selectedExportId" (click)="deleteSelectedExport()">
+                  Löschen
+                </button>
+              </div>
+            </div>
+          }
+
         </div>
 
         <div class="sheet-wrap">
@@ -153,6 +178,10 @@
           <input type="checkbox" [(ngModel)]="showUnavailable" (ngModelChange)="resetPage()" />
           Nicht lieferbare anzeigen
         </label>
+        <label class="checkbox-row">
+          <input type="checkbox" [(ngModel)]="hidePrinted" (ngModelChange)="resetPage()" />
+          Bereits gedruckte ausblenden
+        </label>
         @if (searchRaw || categoryFilter) {
           <button class="btn-link" (click)="resetSearch()">✕ Zurücksetzen</button>
         }
@@ -160,6 +189,12 @@
           <span class="migros-loading">Migros…</span>
         }
         <span class="filter-count">{{ filteredItems.length }} / {{ allItems.length + migrosItems.length }}</span>
+        <button class="btn-link btn-clear-printed"
+          [disabled]="!allItems.some(i => !!i.stickerPrintedAt)"
+          (click)="clearAllPrinted()"
+          title="Alle «Gedruckt»-Markierungen löschen">
+          ✕ Gedruckte zurücksetzen
+        </button>
       </div>
 
       <div class="table-scroll">
@@ -174,6 +209,7 @@
               <th>Name</th>
               <th>Typ</th>
               <th>Relevanz</th>
+              <th title="Als Sticker gedruckt">Gedruckt</th>
             </tr>
           </thead>
           <tbody>
@@ -212,6 +248,11 @@
                     <span class="small">–</span>
                   }
                 </td>
+                <td class="printed-cell">
+                  @if (item.stickerPrintedAt) {
+                    <span class="printed-badge" [title]="item.stickerPrintedAt | date:'dd.MM.yyyy HH:mm'">✓</span>
+                  }
+                </td>
               </tr>
             } @empty {
               <tr><td colspan="5" class="empty">Keine Einträge gefunden.</td></tr>
@@ -239,3 +280,36 @@
     </aside>
   </div>
 </div>
+
+@if (showPrintedConfirm) {
+  <div class="modal-backdrop" (click)="confirmSave(false)">
+    <div class="modal-card" (click)="$event.stopPropagation()">
+      <div class="modal-icon">🏷️</div>
+      <h2 class="modal-title">Export merken?</h2>
+      <p class="modal-body">
+        {{ pendingExportItems.length }} Sticker wurden exportiert.
+        Was soll gespeichert werden?
+      </p>
+      <div class="modal-options">
+        <label class="modal-option">
+          <input type="checkbox" [(ngModel)]="confirmMarkPrinted" [disabled]="pendingPrintedIds.length === 0" />
+          <span>
+            <strong>Als gedruckt markieren</strong>
+            <small>Produkte werden standardmässig ausgeblendet</small>
+          </span>
+        </label>
+        <label class="modal-option">
+          <input type="checkbox" [(ngModel)]="confirmSaveExport" />
+          <span>
+            <strong>Export speichern</strong>
+            <small>Layout &amp; Produktliste für späteren Wiederaufruf merken</small>
+          </span>
+        </label>
+      </div>
+      <div class="modal-actions">
+        <button class="btn primary" [disabled]="!confirmMarkPrinted && !confirmSaveExport" (click)="confirmSave(true)">Speichern</button>
+        <button class="btn" (click)="confirmSave(false)">Abbrechen</button>
+      </div>
+    </div>
+  </div>
+}

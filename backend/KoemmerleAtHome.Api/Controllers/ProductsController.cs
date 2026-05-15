@@ -78,7 +78,7 @@ public class ProductsController(AppDbContext db, MigrosProductSyncService produc
         p.WeightText, p.WeightMinGrams, p.WeightMaxGrams, p.WeightUnit,
         p.Price, p.Multiplier, p.PriceFetchedAt, p.LastSyncedAt, p.Categories, hasMapping,
         ParseAvailable(p.AdditionalInfo), relevance, orderCount, lastOrderDate,
-        p.MigrosId, p.MigrosOnlineId, p.MigrosUid);
+        p.MigrosId, p.MigrosOnlineId, p.MigrosUid, p.StickerPrintedAt);
 
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int id, [FromBody] UpdateProductRequest req)
@@ -184,6 +184,27 @@ public class ProductsController(AppDbContext db, MigrosProductSyncService produc
         return NoContent();
     }
 
+    [HttpPost("sticker-printed")]
+    public async Task<IActionResult> MarkStickerPrinted([FromBody] int[] ids)
+    {
+        var now = DateTime.UtcNow;
+        var products = await db.Products.Where(p => ids.Contains(p.Id)).ToListAsync();
+        foreach (var p in products)
+            p.StickerPrintedAt = now;
+        await db.SaveChangesAsync();
+        return NoContent();
+    }
+
+    [HttpDelete("sticker-printed")]
+    public async Task<IActionResult> ClearStickerPrinted()
+    {
+        var products = await db.Products.Where(p => p.StickerPrintedAt != null).ToListAsync();
+        foreach (var p in products)
+            p.StickerPrintedAt = null;
+        await db.SaveChangesAsync();
+        return NoContent();
+    }
+
     [HttpGet("by-barcode")]
     public async Task<IActionResult> GetByBarcode([FromQuery] string barcode, CancellationToken ct)
     {
@@ -253,7 +274,8 @@ public record ProductDto(
     DateTime? LastOrderDate,
     string? MigrosId,
     long? MigrosOnlineId,
-    long? MigrosUid);
+    long? MigrosUid,
+    DateTime? StickerPrintedAt);
 
 public record SyncUrlRequest(string MigrosUrl);
 

@@ -21,4 +21,5 @@ public class Product
     public DateTime? LastSyncedAt { get; set; }             // null = stub only
     public string? Categories { get; set; }                 // pipe-separated breadcrumb
     public string? AdditionalInfo { get; set; }            // JSON: {"available": true/false, ...}
+    public DateTime? StickerPrintedAt { get; set; }        // set when user confirms sticker was printed
 }

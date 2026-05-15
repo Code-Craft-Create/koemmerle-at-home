@@ -13,7 +13,7 @@ import { ForecastComponent } from './forecast/forecast.component';
 import { BasketComponent } from './basket/basket.component';
 
 export const routes: Routes = [
-  { path: '', redirectTo: 'scan', pathMatch: 'full' },
+  { path: '', redirectTo: 'basket', pathMatch: 'full' },
   { path: 'scan', component: ScanComponent },
   { path: 'queue', component: QueueComponent },
   { path: 'basket', component: BasketComponent },
