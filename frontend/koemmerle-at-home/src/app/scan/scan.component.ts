@@ -178,11 +178,15 @@ export class ScanComponent implements OnInit, OnDestroy {
     if (this.state === 'choosing' && this.confirming) {
       const barcodeToEnqueue = this.confirming.barcode;
       this.selectedProductName = alt.name;
+      this.confirming.imageUrl = alt.imageUrl;
+      this.confirming.productName = alt.name;
+      this.confirming.multiplier = alt.multiplier;
 
       this.api.enqueue(barcodeToEnqueue, 1, alt.migrosUid).subscribe({ error: err => console.error(err) });
-      
+
       this.state = 'done';
       this.focusDoneButton();
+      this.computeFlyTarget();
       
       this.confirmTimer = setTimeout(() => {
         this.state = 'idle';

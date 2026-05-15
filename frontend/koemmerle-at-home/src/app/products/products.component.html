@@ -26,6 +26,7 @@
     <thead>
       <tr>
         <th>Bild</th>
+        <th>Korb</th>
         <th class="sortable" (click)="setSort('name')">
           Name <span class="sort-icon">{{ sortCol === 'name' ? (sortDir === 1 ? '▲' : '▼') : '⇕' }}</span>
         </th>
@@ -44,11 +45,26 @@
         <tr>
           <td>
             @if (p.imageData || p.imageUrl) {
-              <span class="image-badge-wrap">
+              <span class="image-badge-wrap" [class.in-basket]="basketQuantity(p) > 0">
                 <img [src]="p.imageData || p.imageUrl" class="thumb" [alt]="p.name" />
                 @if (p.multiplier > 1) { <span class="multiplier-badge">{{ p.multiplier }}x</span> }
+                @if (basketQuantity(p) > 0) {
+                  <span class="basket-qty-badge" title="Im Warenkorb">{{ basketQuantity(p) }}</span>
+                }
               </span>
             }
+          </td>
+          <td>
+            <div class="basket-col">
+              <button class="btn-sm basket-btn"
+                      (click)="addToBasket(p)"
+                      [disabled]="!canBasket(p) || basketBusyIds.has(p.id)"
+                      title="In Warenkorb">+</button>
+              <button class="btn-sm basket-btn"
+                      (click)="removeFromBasket(p)"
+                      [disabled]="!canBasket(p) || basketQuantity(p) <= 0 || basketBusyIds.has(p.id)"
+                      title="Aus Warenkorb entfernen">−</button>
+            </div>
           </td>
           <td>
             <a [routerLink]="['/products', p.id]">{{ p.name }}</a>
@@ -81,7 +97,7 @@
           </td>
         </tr>
       } @empty {
-        <tr><td colspan="8" class="empty">Noch keine Produkte.</td></tr>
+        <tr><td colspan="9" class="empty">Noch keine Produkte.</td></tr>
       }
     </tbody>
   </table>

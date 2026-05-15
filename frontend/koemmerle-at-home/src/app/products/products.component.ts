@@ -5,7 +5,7 @@ import { RouterModule } from '@angular/router';
 import Fuse, { type IFuseOptions } from 'fuse.js';
 import { Subject, Subscription } from 'rxjs';
 import { debounceTime } from 'rxjs/operators';
-import { ScanApiService, Product } from '../services/scan-api.service';
+import { ScanApiService, Product, BasketItem } from '../services/scan-api.service';
 import { CategoryFilterComponent, matchesCategory } from '../shared/category-filter.component';
 
 const FUSE_OPTIONS: IFuseOptions<Product> = {
@@ -26,6 +26,8 @@ export class ProductsComponent implements OnInit, OnDestroy {
   products: Product[] = [];
   private fuse = new Fuse<Product>([], FUSE_OPTIONS);
   syncingIds = new Set<number>();
+  basketByUid = new Map<string, BasketItem>();
+  basketBusyIds = new Set<number>();
   message = '';
 
   searchRaw = '';        // bound to the input — updates immediately
@@ -138,6 +140,7 @@ export class ProductsComponent implements OnInit, OnDestroy {
       this.page = 0;
     });
     this.load();
+    this.loadBasket();
   }
 
   ngOnDestroy() { this.searchSub.unsubscribe(); }
@@ -173,5 +176,69 @@ export class ProductsComponent implements OnInit, OnDestroy {
   formatWeight(p: Product): string {
     if (!p.weightText) return '–';
     return p.weightText;
+  }
+
+  private loadBasket() {
+    this.api.getBasket().subscribe({
+      next: items => { this.basketByUid = new Map(items.map(i => [i.uid, i])); },
+      error: () => { /* not logged in or offline — leave map empty */ }
+    });
+  }
+
+  basketQuantity(p: Product): number {
+    if (p.migrosUid == null) return 0;
+    return this.basketByUid.get(String(p.migrosUid))?.quantity ?? 0;
+  }
+
+  canBasket(p: Product): boolean {
+    return p.migrosUid != null;
+  }
+
+  addToBasket(p: Product) {
+    this.changeBasket(p, this.basketQuantity(p) + 1);
+  }
+
+  removeFromBasket(p: Product) {
+    const current = this.basketQuantity(p);
+    if (current <= 0) return;
+    this.changeBasket(p, current - 1);
+  }
+
+  private changeBasket(p: Product, next: number) {
+    if (p.migrosUid == null) return;
+    const uid = String(p.migrosUid);
+    const previous = this.basketQuantity(p);
+    this.basketBusyIds.add(p.id);
+    this.applyBasketQuantity(p, uid, next);
+    this.api.setBasketQuantity(uid, next).subscribe({
+      next: () => { this.basketBusyIds.delete(p.id); },
+      error: () => {
+        this.applyBasketQuantity(p, uid, previous);
+        this.basketBusyIds.delete(p.id);
+        this.message = 'Warenkorb-Update fehlgeschlagen';
+      }
+    });
+  }
+
+  private applyBasketQuantity(p: Product, uid: string, quantity: number) {
+    if (quantity <= 0) {
+      this.basketByUid.delete(uid);
+      return;
+    }
+    const existing = this.basketByUid.get(uid);
+    if (existing) {
+      existing.quantity = quantity;
+    } else {
+      this.basketByUid.set(uid, {
+        uid,
+        productName: p.name,
+        imageUrl: p.imageUrl ?? null,
+        quantity,
+        multiplier: p.multiplier,
+        price: p.price ?? null,
+        category: p.categories ?? '',
+        migrosProductUrl: p.migrosUrl
+      });
+    }
   }
 }
