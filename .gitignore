@@ -12,6 +12,7 @@ playwright-session/
 migros-session/
 examples
 **/cert
+.vs
 
 # Build results
 [Dd]ebug/

@@ -27,10 +27,14 @@
     <None Remove="playwright-session\**;migros-session\**;koemmerleathome.db*" />
   </ItemGroup>
 
-  <Target Name="BuildFrontend" BeforeTargets="ComputeFilesToPublish" Condition="'$(BuildFrontend)' != 'false'">
+  <Target Name="BuildFrontend" Condition="'$(BuildFrontend)' != 'false'">
     <Message Importance="high" Text="Building Angular frontend for publish..." />
     <Exec WorkingDirectory="$(SpaRoot)" Command="npm ci --legacy-peer-deps" />
     <Exec WorkingDirectory="$(SpaRoot)" Command="npm run build -- --configuration production" />
+  </Target>
+
+  <Target Name="IncludeFrontendFiles" BeforeTargets="ComputeFilesToPublish" DependsOnTargets="BuildFrontend">
+    <Error Condition="!Exists('$(SpaDist)index.html')" Text="Angular production build was not found at $(SpaDist). Run npm run build -- --configuration production in $(SpaRoot), or publish with BuildFrontend enabled." />
     <ItemGroup>
       <DistFiles Include="$(SpaDist)**\*" />
       <ResolvedFileToPublish Include="@(DistFiles->'%(FullPath)')" Exclude="@(ResolvedFileToPublish)">

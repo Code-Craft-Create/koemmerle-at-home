@@ -9,11 +9,11 @@ RUNTIMES=()
 
 usage() {
   cat <<'EOF'
-Usage: ./scripts/publish-macos.sh [--arm|--x64|--both]
+Usage: ./scripts/publish-linux.sh [--x64|--arm64|--both]
 
 Options:
-  --arm    Build only the Apple silicon release (osx-arm64)
-  --x64    Build only the Intel Mac release (osx-x64)
+  --x64    Build only the x64 release (linux-x64)
+  --arm64  Build only the ARM64 release (linux-arm64)
   --both   Build both releases (default)
   --help   Show this help
 EOF
@@ -21,14 +21,14 @@ EOF
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
-    --arm)
-      RUNTIMES=("osx-arm64")
-      ;;
     --x64)
-      RUNTIMES=("osx-x64")
+      RUNTIMES=("linux-x64")
+      ;;
+    --arm64|--arm)
+      RUNTIMES=("linux-arm64")
       ;;
     --both)
-      RUNTIMES=("osx-x64" "osx-arm64")
+      RUNTIMES=("linux-x64" "linux-arm64")
       ;;
     --help|-h)
       usage
@@ -44,7 +44,7 @@ while [ "$#" -gt 0 ]; do
 done
 
 if [ "${#RUNTIMES[@]}" -eq 0 ]; then
-  RUNTIMES=("osx-x64" "osx-arm64")
+  RUNTIMES=("linux-x64" "linux-arm64")
 fi
 
 case "$NODE_MAJOR" in
@@ -83,7 +83,7 @@ publish_runtime() {
 
   chmod +x "$output/KoemmerleAtHome.Api"
 
-  cat > "$output/start.command" <<EOF
+  cat > "$output/start.sh" <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -92,23 +92,24 @@ cd "\$(dirname "\$0")"
 export DOTNET_BUNDLE_EXTRACT_BASE_DIR="\$PWD/.dotnet-bundle"
 mkdir -p "\$DOTNET_BUNDLE_EXTRACT_BASE_DIR"
 
-if [ ! -d "\$HOME/Library/Caches/ms-playwright" ]; then
+PLAYWRIGHT_CACHE="\${PLAYWRIGHT_BROWSERS_PATH:-\${HOME}/.cache/ms-playwright}"
+if [ ! -d "\$PLAYWRIGHT_CACHE" ]; then
   echo "Installing Playwright Chromium for the Migros login window..."
   ./KoemmerleAtHome.Api --install-playwright
 fi
 
-echo "Starting KÖMMERLE At Home..."
+echo "Starting KOEMMERLE At Home..."
 echo "Open $url in your browser."
 ASPNETCORE_URLS=$url ./KoemmerleAtHome.Api
 EOF
-  chmod +x "$output/start.command"
+  chmod +x "$output/start.sh"
 }
 
 for runtime in "${RUNTIMES[@]}"; do
   publish_runtime "$runtime"
 done
 
-echo "macOS release builds written to:"
+echo "Linux release builds written to:"
 for runtime in "${RUNTIMES[@]}"; do
-  echo "  $OUTPUT_ROOT/$runtime/start.command"
+  echo "  $OUTPUT_ROOT/$runtime/start.sh"
 done

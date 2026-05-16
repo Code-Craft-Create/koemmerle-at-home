@@ -101,10 +101,18 @@ The Angular dev server runs on `http://localhost:4200` and talks to the backend
 at `http://localhost:5050`. The production frontend uses the same origin as the
 server that hosts it.
 
-## Ready-to-Run macOS Releases
+## Ready-to-Run Releases
 
 The backend can serve the production Angular build directly, so release users
 only need to start the ASP.NET Core executable and open its URL in a browser.
+
+The release build requires Node.js 20, 22, or 24 for the Angular 21 production
+build, plus the .NET 10 SDK for publishing.
+
+Stop any running Angular dev server or frontend build before publishing. The
+release scripts run `npm ci`, which replaces files in `node_modules`.
+
+### macOS
 
 Build both macOS variants from the repository root:
 
@@ -118,9 +126,6 @@ To build only one architecture, pass a target option:
 ./scripts/publish-macos.sh --arm
 ./scripts/publish-macos.sh --x64
 ```
-
-The release build requires Node.js 20, 22, or 24 for the Angular 21 production
-build, plus the .NET 10 SDK for publishing.
 
 The script creates self-contained single-file macOS publishes for:
 
@@ -147,6 +152,54 @@ DOTNET_BUNDLE_EXTRACT_BASE_DIR="$PWD/.dotnet-bundle" \
   ASPNETCORE_URLS=http://localhost:5050 \
   ./KoemmerleAtHome.Api
 ```
+
+### Linux
+
+Build both Linux variants from the repository root:
+
+```bash
+./scripts/publish-linux.sh
+```
+
+To build only one architecture, pass a target option:
+
+```bash
+./scripts/publish-linux.sh --x64
+./scripts/publish-linux.sh --arm64
+```
+
+The script creates self-contained single-file Linux publishes for:
+
+- Linux x64: `release/linux-x64/start.sh`
+- Linux ARM64: `release/linux-arm64/start.sh`
+
+Run the matching `start.sh` file. It starts the backend on
+`http://localhost:5050` and installs Playwright's Chromium browser on first run
+if it is missing:
+
+```bash
+./release/linux-x64/start.sh
+```
+
+Linux needs a desktop session with `xdg-open` available for automatic browser
+opening. On minimal systems, install the Playwright host dependencies required
+by Chromium before the first login window can open.
+
+### Windows
+
+Build the Windows release from PowerShell at the repository root:
+
+```powershell
+.\scripts\publish-windows.ps1
+```
+
+The script creates a self-contained single-file Windows publish for:
+
+- Windows x64: `release/win-x64/start.cmd`
+
+Run the matching `start.cmd` file. It starts the backend on
+`http://localhost:5050` and installs Playwright's Chromium browser on first run
+if it is missing.
 
 ## Useful Endpoints
 
