@@ -99,7 +99,7 @@ fi
 
 echo "Starting KÖMMERLE At Home..."
 echo "Open $url in your browser."
-ASPNETCORE_URLS=$url ./KoemmerleAtHome.Api
+OpenBrowserDelaySeconds=3 ASPNETCORE_URLS=$url ./KoemmerleAtHome.Api
 EOF
   chmod +x "$output/start.command"
 }

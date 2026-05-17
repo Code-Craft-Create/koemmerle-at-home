@@ -309,9 +309,29 @@ static void OpenBrowserWhenReady(WebApplication app)
     app.Lifetime.ApplicationStarted.Register(() =>
     {
         var url = GetBrowserUrl(app);
-        app.Logger.LogInformation("Opening frontend at {Url}", url);
-        _ = Task.Run(() => OpenDefaultBrowser(url));
+        var delay = GetOpenBrowserDelay(app);
+        app.Logger.LogInformation("Opening frontend at {Url} after {DelayMs} ms", url, delay.TotalMilliseconds);
+        _ = Task.Run(async () =>
+        {
+            if (delay > TimeSpan.Zero)
+                await Task.Delay(delay);
+
+            OpenDefaultBrowser(url);
+        });
     });
+}
+
+static TimeSpan GetOpenBrowserDelay(WebApplication app)
+{
+    var configured = app.Configuration["OpenBrowserDelaySeconds"];
+    if (double.TryParse(configured, System.Globalization.NumberStyles.Float,
+            System.Globalization.CultureInfo.InvariantCulture, out var seconds) &&
+        seconds > 0)
+    {
+        return TimeSpan.FromSeconds(seconds);
+    }
+
+    return TimeSpan.Zero;
 }
 
 static string GetBrowserUrl(WebApplication app)
