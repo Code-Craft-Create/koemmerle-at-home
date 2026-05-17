@@ -39,6 +39,7 @@ public sealed class MigrosHttpSession : IDisposable
     private readonly ILogger<MigrosHttpSession> _logger;
     private readonly BearerTokenService _bearerTokenService;
     private readonly HttpClient _httpClient;
+    private readonly bool _forceHttp2;
     private readonly object _browserStateLock = new();
 
     private string? _guestToken;
@@ -48,10 +49,15 @@ public sealed class MigrosHttpSession : IDisposable
     public bool IsLoggedIn => _bearerTokenService.IsAvailable;
     public DateTime? TokenExpiresAt => _bearerTokenService.ExpiresAt;
 
-    public MigrosHttpSession(BearerTokenService bearerTokenService, ILogger<MigrosHttpSession> logger)
+    public MigrosHttpSession(
+        BearerTokenService bearerTokenService,
+        IConfiguration configuration,
+        ILogger<MigrosHttpSession> logger)
     {
         _bearerTokenService = bearerTokenService;
         _logger = logger;
+        _forceHttp2 = configuration.GetValue<bool?>("Migros:ForceHttp2")
+            ?? OperatingSystem.IsWindows();
 
         var handler = new HttpClientHandler
         {
@@ -59,8 +65,11 @@ public sealed class MigrosHttpSession : IDisposable
             AutomaticDecompression = DecompressionMethods.All,
         };
         _httpClient = new HttpClient(handler);
-        _httpClient.DefaultRequestVersion = HttpVersion.Version20;
-        _httpClient.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact;
+        if (_forceHttp2)
+        {
+            _httpClient.DefaultRequestVersion = HttpVersion.Version20;
+            _httpClient.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact;
+        }
         _httpClient.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", GetFallbackUserAgent());
         _httpClient.DefaultRequestHeaders.Add("Accept", "application/json, text/plain, */*");
         _httpClient.DefaultRequestHeaders.TryAddWithoutValidation("Accept-Encoding", "gzip, deflate, br, zstd");
@@ -290,7 +299,9 @@ public sealed class MigrosHttpSession : IDisposable
 
     private async Task<HttpResponseMessage> SendAsync(HttpRequestMessage req, CancellationToken ct)
     {
-        ApplyHttp2(req);
+        if (_forceHttp2)
+            ApplyHttp2(req);
+
         return await _httpClient.SendAsync(req, ct);
     }
 
