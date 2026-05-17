@@ -10,21 +10,24 @@ on:
         description: 'Version to release, for example 0.2.0'
         required: true
         type: string
+      dry_run:
+        description: 'Build artifacts without creating or updating a GitHub release'
+        required: true
+        default: true
+        type: boolean
 
 permissions:
   contents: write
 
 jobs:
-  macos:
-    name: Build macOS release
-    runs-on: macos-15
+  version:
+    name: Resolve version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
       - name: Resolve version
         id: version
         shell: bash
@@ -45,6 +48,17 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "tag=v$version" >> "$GITHUB_OUTPUT"
 
+  macos:
+    name: Build macOS release
+    runs-on: macos-15
+    needs: version
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
@@ -60,7 +74,7 @@ jobs:
       - name: Sync version
         run: scripts/sync-version.sh
         env:
-          APP_VERSION: ${{ steps.version.outputs.version }}
+          APP_VERSION: ${{ needs.version.outputs.version }}
 
       - name: Restore .NET dependencies
         run: dotnet restore KoemmerleAtHome.sln
@@ -71,7 +85,7 @@ jobs:
       - name: Publish macOS apps
         run: scripts/publish-macos.sh
         env:
-          APP_VERSION: ${{ steps.version.outputs.version }}
+          APP_VERSION: ${{ needs.version.outputs.version }}
 
       - name: Package release assets
         shell: bash
@@ -80,17 +94,152 @@ jobs:
           mkdir -p artifacts
 
           for runtime in osx-x64 osx-arm64; do
-            tar -czf "artifacts/koemmerle-at-home-${{ steps.version.outputs.version }}-$runtime.tar.gz" \
+            tar -czf "artifacts/koemmerle-at-home-${{ needs.version.outputs.version }}-$runtime.tar.gz" \
               -C release "$runtime"
           done
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: koemmerle-at-home-${{ steps.version.outputs.version }}-macos
+          name: koemmerle-at-home-${{ needs.version.outputs.version }}-macos
           path: artifacts/*.tar.gz
           if-no-files-found: error
           retention-days: 14
+
+  windows:
+    name: Build Windows release
+    runs-on: windows-2025
+    needs: version
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/koemmerle-at-home/package-lock.json
+
+      - name: Sync version
+        shell: pwsh
+        run: scripts/sync-version.ps1
+        env:
+          APP_VERSION: ${{ needs.version.outputs.version }}
+
+      - name: Restore .NET dependencies
+        shell: pwsh
+        run: dotnet restore KoemmerleAtHome.sln
+
+      - name: Build solution
+        shell: pwsh
+        run: dotnet build KoemmerleAtHome.sln --configuration Release --no-restore
+
+      - name: Publish Windows app
+        shell: pwsh
+        run: scripts/publish-windows.ps1
+        env:
+          APP_VERSION: ${{ needs.version.outputs.version }}
+
+      - name: Package release asset
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force artifacts | Out-Null
+          Compress-Archive `
+            -Path release\win-x64 `
+            -DestinationPath "artifacts\koemmerle-at-home-${{ needs.version.outputs.version }}-win-x64.zip" `
+            -Force
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: koemmerle-at-home-${{ needs.version.outputs.version }}-windows
+          path: artifacts/*.zip
+          if-no-files-found: error
+          retention-days: 14
+
+  linux:
+    name: Build Linux release
+    runs-on: ubuntu-24.04
+    needs: version
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/koemmerle-at-home/package-lock.json
+
+      - name: Sync version
+        run: scripts/sync-version.sh
+        env:
+          APP_VERSION: ${{ needs.version.outputs.version }}
+
+      - name: Restore .NET dependencies
+        run: dotnet restore KoemmerleAtHome.sln
+
+      - name: Build solution
+        run: dotnet build KoemmerleAtHome.sln --configuration Release --no-restore
+
+      - name: Publish Linux apps
+        run: scripts/publish-linux.sh
+        env:
+          APP_VERSION: ${{ needs.version.outputs.version }}
+
+      - name: Package release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+
+          for runtime in linux-x64 linux-arm64; do
+            tar -czf "artifacts/koemmerle-at-home-${{ needs.version.outputs.version }}-$runtime.tar.gz" \
+              -C release "$runtime"
+          done
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: koemmerle-at-home-${{ needs.version.outputs.version }}-linux
+          path: artifacts/*.tar.gz
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    name: Create GitHub release
+    runs-on: ubuntu-latest
+    needs:
+      - version
+      - macos
+      - windows
+      - linux
+    if: ${{ github.event_name != 'workflow_dispatch' || !inputs.dry_run }}
+
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
 
       - name: Create GitHub release
         env:
@@ -99,13 +248,13 @@ jobs:
         run: |
           set -euo pipefail
 
-          tag="${{ steps.version.outputs.tag }}"
-          title="KÖMMERLE At Home v${{ steps.version.outputs.version }}"
+          tag="${{ needs.version.outputs.tag }}"
+          title="KÖMMERLE At Home v${{ needs.version.outputs.version }}"
 
           if gh release view "$tag" >/dev/null 2>&1; then
-            gh release upload "$tag" artifacts/*.tar.gz --clobber
+            gh release upload "$tag" artifacts/* --clobber
           else
-            gh release create "$tag" artifacts/*.tar.gz \
+            gh release create "$tag" artifacts/* \
               --title "$title" \
               --generate-notes
           fi
