@@ -12,6 +12,7 @@ namespace KoemmerleAtHome.Api.Services;
 /// </summary>
 public class PlaywrightLoginService(
     BearerTokenService bearerTokenService,
+    MigrosHttpSession migrosSession,
     LocalAppData appData,
     ILogger<PlaywrightLoginService> logger)
     : BackgroundService
@@ -35,8 +36,9 @@ public class PlaywrightLoginService(
         }
         else
         {
+            await NavigateForTokenAsync(stoppingToken, focusWindow: false);
             _isLoggedIn = true;
-            logger.LogInformation("Persisted Migros bearer token available; deferring browser navigation until token refresh");
+            logger.LogInformation("Persisted Migros bearer token available; browser session state refreshed");
         }
 
         await KeepTokenFreshAsync(stoppingToken);
@@ -77,6 +79,7 @@ public class PlaywrightLoginService(
             if (focusWindow) await page.BringToFrontAsync();
             await page.GotoAsync("https://www.migros.ch/de",
                 new() { WaitUntil = WaitUntilState.DOMContentLoaded });
+            await CaptureBrowserSessionAsync(page);
             await InjectLoginBannerAsync(page);
             if (focusWindow) await page.BringToFrontAsync();
         }
@@ -91,6 +94,7 @@ public class PlaywrightLoginService(
                 if (focusWindow) await page.BringToFrontAsync();
                 await page.GotoAsync("https://www.migros.ch/de",
                     new() { WaitUntil = WaitUntilState.DOMContentLoaded });
+                await CaptureBrowserSessionAsync(page);
                 await InjectLoginBannerAsync(page);
                 if (focusWindow) await page.BringToFrontAsync();
             }
@@ -297,6 +301,19 @@ public class PlaywrightLoginService(
             ],
         });
 
+        _context.Request += (_, request) =>
+        {
+            try
+            {
+                if (IsMigrosApiRequest(request.Url))
+                    migrosSession.UpdateBrowserHeaders(request.Headers);
+            }
+            catch
+            {
+                // Header capture is opportunistic; auth/token capture remains the critical path.
+            }
+        };
+
         // Capture bearer token from every migros.ch page load (silent OAuth flow).
         _context.Response += async (_, response) =>
         {
@@ -310,6 +327,8 @@ public class PlaywrightLoginService(
                         var token = json.Value.GetProperty("accessToken").GetString();
                         if (token is not null) bearerTokenService.SetToken(token);
                     }
+                    if (response.Request.Frame.Page is { } page)
+                        await CaptureBrowserSessionAsync(page);
                 }
                 catch { }
             }
@@ -335,6 +354,7 @@ public class PlaywrightLoginService(
         await PrepareInteractivePageAsync(page);
         await page.GotoAsync("https://www.migros.ch/de",
             new() { WaitUntil = WaitUntilState.DOMContentLoaded });
+        await CaptureBrowserSessionAsync(page);
         await InjectLoginBannerAsync(page);
 
         var loginBtn = page.Locator("[data-testid='login-button']");
@@ -350,9 +370,43 @@ public class PlaywrightLoginService(
         }
 
         _isLoggedIn = true;
+        await CaptureBrowserSessionAsync(page);
         await RemoveLoginBannerAsync(page);
         logger.LogInformation("Logged in to Migros");
     }
+
+    private async Task CaptureBrowserSessionAsync(IPage page)
+    {
+        if (_context is null) return;
+
+        try
+        {
+            var cookies = await _context.CookiesAsync(["https://www.migros.ch"]);
+            var cookieHeader = string.Join("; ", cookies
+                .Where(c => !string.IsNullOrWhiteSpace(c.Name))
+                .Select(c => $"{c.Name}={c.Value}"));
+            migrosSession.UpdateBrowserCookies(cookieHeader);
+
+            var userAgent = await page.EvaluateAsync<string>("navigator.userAgent");
+            if (!string.IsNullOrWhiteSpace(userAgent))
+            {
+                migrosSession.UpdateBrowserHeaders(new Dictionary<string, string>
+                {
+                    ["user-agent"] = userAgent
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug("Could not capture Migros browser session state: {Error}", ex.Message);
+        }
+    }
+
+    private static bool IsMigrosApiRequest(string url) =>
+        url.Contains("migros.ch/", StringComparison.OrdinalIgnoreCase) &&
+        (url.Contains("/public/", StringComparison.OrdinalIgnoreCase) ||
+         url.Contains("/authentication/", StringComparison.OrdinalIgnoreCase) ||
+         url.Contains("/oauth/", StringComparison.OrdinalIgnoreCase));
 
     private static async Task PrepareInteractivePageAsync(IPage page)
     {

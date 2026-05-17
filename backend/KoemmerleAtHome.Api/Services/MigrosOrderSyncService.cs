@@ -23,6 +23,7 @@ public class MigrosOrderSyncService(
     IHubContext<ScanHub> hub,
     ILogger<MigrosOrderSyncService> logger)
 {
+    private const string OrdersReferer = "https://www.migros.ch/de/account/orders";
     private static readonly JsonSerializerOptions JsonOpts = new() { PropertyNameCaseInsensitive = true };
 
     private CancellationTokenSource? _productSyncCts;
@@ -52,7 +53,7 @@ public class MigrosOrderSyncService(
         {
             var url = $"https://www.migros.ch/ordergateway/public/web/v1/customers/customer-orders?status=all&page={page}";
 
-            var resp = await session.GetAuthenticatedAsync(url, ct);
+            var resp = await session.GetAuthenticatedAsync(url, OrdersReferer, ct);
             if (!resp.IsSuccessStatusCode)
             {
                 logger.LogWarning("Order list API returned {Status} for page {Page}", resp.StatusCode, page);
@@ -111,7 +112,7 @@ public class MigrosOrderSyncService(
             ?? throw new InvalidOperationException($"Order {orderId} not found");
 
         var detailUrl = $"https://www.migros.ch/ordergateway/public/web/v1/orders/{order.MigrosOrderId}";
-        var resp = await session.GetAuthenticatedAsync(detailUrl, ct);
+        var resp = await session.GetAuthenticatedAsync(detailUrl, OrdersReferer, ct);
 
         if (!resp.IsSuccessStatusCode)
         {

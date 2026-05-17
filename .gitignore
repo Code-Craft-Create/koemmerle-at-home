@@ -13,6 +13,7 @@ migros-session/
 examples
 **/cert
 .vs
+temp
 
 # Build results
 [Dd]ebug/
