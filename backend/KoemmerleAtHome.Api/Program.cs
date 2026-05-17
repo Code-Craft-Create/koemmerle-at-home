@@ -19,6 +19,12 @@ if (args.Contains("--install-playwright", StringComparer.OrdinalIgnoreCase))
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Logging.ClearProviders();
+builder.Logging.AddSimpleConsole(options =>
+{
+    options.TimestampFormat = "yyyy-MM-dd HH:mm:ss.fff zzz ";
+});
+
 builder.Services.AddSingleton<LocalAppData>();
 
 builder.Services.AddControllers()
