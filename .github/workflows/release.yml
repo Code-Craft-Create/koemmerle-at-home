@@ -83,7 +83,7 @@ jobs:
         run: dotnet build KoemmerleAtHome.sln --configuration Release --no-restore
 
       - name: Publish macOS apps
-        run: scripts/publish-macos.sh
+        run: bash scripts/publish-macos.sh
         env:
           APP_VERSION: ${{ needs.version.outputs.version }}
 
@@ -201,7 +201,7 @@ jobs:
         run: dotnet build KoemmerleAtHome.sln --configuration Release --no-restore
 
       - name: Publish Linux apps
-        run: scripts/publish-linux.sh
+        run: bash scripts/publish-linux.sh
         env:
           APP_VERSION: ${{ needs.version.outputs.version }}
 
