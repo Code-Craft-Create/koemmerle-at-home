@@ -291,6 +291,10 @@
   </div>
 </div>
 
+@if (easterEggOpen) {
+  <app-easter-egg-game [items]="easterEggItems" (close)="closeEasterEgg()" />
+}
+
 @if (showPrintedConfirm) {
   <div class="modal-backdrop" (click)="confirmSave(false)">
     <div class="modal-card" (click)="$event.stopPropagation()">

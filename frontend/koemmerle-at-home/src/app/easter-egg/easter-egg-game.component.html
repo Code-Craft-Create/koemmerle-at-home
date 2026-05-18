@@ -1,0 +1,88 @@
+<div class="ee-overlay" role="dialog" aria-modal="true" aria-label="Mini-Spiel">
+  <div class="ee-frame">
+    <canvas #canvas class="ee-canvas"
+      (click)="onCanvasClick($event)"
+      (mousemove)="onCanvasMouseMove($event)"
+      (mouseleave)="onCanvasMouseLeave()"></canvas>
+
+    <div class="ee-topbar">
+      <div class="ee-actions">
+        @if (showAudioDebug) {
+          <button class="ee-btn" type="button" (click)="toggleAudioDebug()"
+            [attr.aria-pressed]="audioDebugOpen" title="Audio-Debug">🎛</button>
+        }
+        <button class="ee-btn" type="button" (click)="toggleMute()" [attr.aria-pressed]="musicMuted">
+          {{ musicMuted ? '🔇' : '🔊' }}
+        </button>
+        <button class="ee-btn ee-btn--close" type="button" (click)="exit()" aria-label="Schliessen">×</button>
+      </div>
+    </div>
+
+    @if (audioDebugOpen) {
+      <div class="ee-audio-debug">
+        <div class="ee-audio-debug-title">Audio</div>
+        @for (v of audioVoices; track v.id) {
+          <label class="ee-audio-debug-row">
+            <input type="checkbox" [checked]="!voiceMuted[v.id]" (change)="toggleVoiceMute(v.id)" />
+            <span>{{ v.label }}</span>
+          </label>
+        }
+        @if (showMaskSliders) {
+          <div class="ee-audio-debug-title">Mask</div>
+          <label class="ee-debug-slider">
+            <span>Brightness: <strong>{{ maskBrightness }}</strong></span>
+            <input type="range" min="180" max="255" step="1"
+              [value]="maskBrightness" (input)="onMaskBrightnessChange($event)" />
+          </label>
+          <label class="ee-debug-slider">
+            <span>Chroma: <strong>{{ maskChroma }}</strong></span>
+            <input type="range" min="0" max="40" step="1"
+              [value]="maskChroma" (input)="onMaskChromaChange($event)" />
+          </label>
+        }
+      </div>
+    }
+
+    @if (showIntroBanner) {
+      <div class="ee-banner">
+        <div class="ee-banner-text">
+          <strong>Achtung!</strong> Deine Produkte sind aus dem Lieferwagen entkommen!
+          <br />Scanne ihre Barcodes, um sie wieder einzufangen.
+        </div>
+      </div>
+    }
+
+    @if (phase === 'success') {
+      <div class="ee-success">
+        <div class="ee-success-card">
+          <h2>🎉 Alle Pakete gerettet!</h2>
+          <table class="ee-score-table">
+            <tr>
+              <td>Eingefangen</td>
+              <td>{{ caughtCount }} × 15</td>
+              <td class="ee-score-plus">+{{ scoreBreakdown.itemPoints }}</td>
+            </tr>
+            <tr>
+              <td>Zeit</td>
+              <td>{{ finalSeconds }}s × 1</td>
+              <td class="ee-score-minus">−{{ scoreBreakdown.timePenalty }}</td>
+            </tr>
+            <tr>
+              <td>Hinweise</td>
+              <td>{{ totalHintClicks }} × 1</td>
+              <td class="ee-score-minus">−{{ scoreBreakdown.hintPenalty }}</td>
+            </tr>
+            <tr class="ee-score-total">
+              <td>Total</td>
+              <td></td>
+              <td>{{ scoreBreakdown.total }}</td>
+            </tr>
+          </table>
+          <button class="ee-btn ee-btn--primary" type="button" (click)="exit()">
+            Zurück zum Sticker-Bogen
+          </button>
+        </div>
+      </div>
+    }
+  </div>
+</div>

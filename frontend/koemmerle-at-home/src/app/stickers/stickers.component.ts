@@ -6,6 +6,8 @@ import { debounceTime } from 'rxjs/operators';
 import Fuse, { type IFuseOptions } from 'fuse.js';
 import { ScanApiService, Product, RecipeDto, ScanChoice, StickerLayoutSettings, StickerExportProduct, StickerExportDto } from '../services/scan-api.service';
 import { CategoryFilterComponent, matchesCategory } from '../shared/category-filter.component';
+import { EasterEggService } from '../easter-egg/easter-egg.service';
+import { EasterEggGameComponent } from '../easter-egg/easter-egg-game.component';
 
 export interface StickerItem {
   key: string;
@@ -15,6 +17,8 @@ export interface StickerItem {
   imageUrl?: string;
   imageData?: string;
   barcode: string;
+  /** Raw comma-separated list of all GTINs for products that have aliases. Undefined for recipes. */
+  barcodes?: string;
   categories?: string;
   available: boolean;
   relevance: number;
@@ -44,7 +48,7 @@ const FUSE_OPTIONS: IFuseOptions<StickerItem> = {
 
 @Component({
   selector: 'app-stickers',
-  imports: [CommonModule, DatePipe, FormsModule, CategoryFilterComponent],
+  imports: [CommonModule, DatePipe, FormsModule, CategoryFilterComponent, EasterEggGameComponent],
   templateUrl: './stickers.component.html',
   styleUrl: './stickers.component.scss'
 })
@@ -107,7 +111,17 @@ export class StickersComponent implements OnInit, OnDestroy {
   draggedKey: string | null = null;
   dragOverKey: string | null = null;
 
-  constructor(private api: ScanApiService, private cdr: ChangeDetectorRef) {}
+  // Easter egg: hidden mini-game launched by clicking the bottom-right
+  // version watermark while there are selected sticker items.
+  easterEggOpen = false;
+  easterEggItems: StickerItem[] = [];
+  private easterEggSub!: Subscription;
+
+  constructor(
+    private api: ScanApiService,
+    private cdr: ChangeDetectorRef,
+    private easterEgg: EasterEggService,
+  ) {}
 
   ngOnInit() {
     this.searchSub = this.searchSubject.pipe(debounceTime(150)).subscribe(v => {
@@ -116,6 +130,7 @@ export class StickersComponent implements OnInit, OnDestroy {
       this.searchMigros(v);
     });
     this.layoutSaveSub = this.layoutSubject.pipe(debounceTime(1500)).subscribe(() => this.persistLayout());
+    this.easterEggSub = this.easterEgg.triggerRequest$.subscribe(() => this.tryStartEasterEgg());
     this.loadLayoutSettings();
     this.loadExports();
     this.load();
@@ -124,6 +139,24 @@ export class StickersComponent implements OnInit, OnDestroy {
   ngOnDestroy() {
     this.searchSub.unsubscribe();
     this.layoutSaveSub.unsubscribe();
+    this.easterEggSub?.unsubscribe();
+  }
+
+  private tryStartEasterEgg() {
+    if (this.easterEggOpen) return;
+    const items = this.selectedItems.filter(i => !!i.barcode);
+    if (items.length === 0) {
+      // No items loaded — fail silently rather than nagging the user.
+      console.debug('[easter-egg] No sticker items loaded — ignoring trigger.');
+      return;
+    }
+    this.easterEggItems = items;
+    this.easterEggOpen = true;
+  }
+
+  closeEasterEgg() {
+    this.easterEggOpen = false;
+    this.easterEggItems = [];
   }
 
   onTextInput(val: string) {
@@ -152,6 +185,7 @@ export class StickersComponent implements OnInit, OnDestroy {
           imageUrl: p.imageUrl,
           imageData: p.imageData,
           barcode: p.barcodes.split(',')[0].trim(),
+          barcodes: p.barcodes,
           categories: p.categories,
           available: p.available ?? true,
           relevance: p.relevance,
@@ -422,6 +456,7 @@ export class StickersComponent implements OnInit, OnDestroy {
       imageUrl: p.imageUrl,
       imageData: p.imageData,
       barcode: p.barcodes.split(',')[0].trim(),
+      barcodes: p.barcodes,
       categories: p.categories,
       available: p.available ?? true,
       relevance: p.relevance,
