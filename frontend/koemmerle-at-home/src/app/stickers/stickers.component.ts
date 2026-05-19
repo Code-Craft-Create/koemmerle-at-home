@@ -5,9 +5,12 @@ import { forkJoin, Subject, Subscription } from 'rxjs';
 import { debounceTime } from 'rxjs/operators';
 import Fuse, { type IFuseOptions } from 'fuse.js';
 import { ScanApiService, Product, RecipeDto, ScanChoice, StickerLayoutSettings, StickerExportProduct, StickerExportDto } from '../services/scan-api.service';
+import { ScanBridgeService } from '../services/scan-bridge.service';
 import { CategoryFilterComponent, matchesCategory } from '../shared/category-filter.component';
+import { ToastService } from '../shared/toast.service';
 import { EasterEggService } from '../easter-egg/easter-egg.service';
 import { EasterEggGameComponent } from '../easter-egg/easter-egg-game.component';
+import { StickerStateService } from './sticker-state.service';
 
 export interface StickerItem {
   key: string;
@@ -75,6 +78,7 @@ export class StickersComponent implements OnInit, OnDestroy {
 
   stickerExports: StickerExportDto[] = [];
   selectedExportId: number | null = null;
+  savingExport = false;
 
   private layoutSubject = new Subject<void>();
   private layoutSaveSub!: Subscription;
@@ -121,6 +125,9 @@ export class StickersComponent implements OnInit, OnDestroy {
     private api: ScanApiService,
     private cdr: ChangeDetectorRef,
     private easterEgg: EasterEggService,
+    private state: StickerStateService,
+    private bridge: ScanBridgeService,
+    private toast: ToastService,
   ) {}
 
   ngOnInit() {
@@ -131,15 +138,42 @@ export class StickersComponent implements OnInit, OnDestroy {
     });
     this.layoutSaveSub = this.layoutSubject.pipe(debounceTime(1500)).subscribe(() => this.persistLayout());
     this.easterEggSub = this.easterEgg.triggerRequest$.subscribe(() => this.tryStartEasterEgg());
+    this.restoreState();
     this.loadLayoutSettings();
     this.loadExports();
     this.load();
   }
 
   ngOnDestroy() {
+    this.snapshotState();
     this.searchSub.unsubscribe();
     this.layoutSaveSub.unsubscribe();
     this.easterEggSub?.unsubscribe();
+  }
+
+  private restoreState() {
+    if (!this.state.hasState) return;
+    this.selectedKeys = [...this.state.selectedKeys];
+    this.searchRaw = this.state.searchRaw;
+    this.textFilter = this.state.searchRaw;
+    this.categoryFilter = this.state.categoryFilter;
+    this.showUnavailable = this.state.showUnavailable;
+    this.hidePrinted = this.state.hidePrinted;
+    this.currentPage = this.state.currentPage;
+    this.pageSize = this.state.pageSize;
+    this.migrosItems = [...this.state.migrosItems];
+  }
+
+  private snapshotState() {
+    this.state.selectedKeys = [...this.selectedKeys];
+    this.state.searchRaw = this.searchRaw;
+    this.state.categoryFilter = this.categoryFilter;
+    this.state.showUnavailable = this.showUnavailable;
+    this.state.hidePrinted = this.hidePrinted;
+    this.state.currentPage = this.currentPage;
+    this.state.pageSize = this.pageSize;
+    this.state.migrosItems = [...this.migrosItems];
+    this.state.hasState = true;
   }
 
   private tryStartEasterEgg() {
@@ -162,6 +196,56 @@ export class StickersComponent implements OnInit, OnDestroy {
   onTextInput(val: string) {
     this.searchRaw = val;
     this.searchSubject.next(val);
+  }
+
+  onSearchFocus() { this.bridge.suppressGlobal(); }
+  onSearchBlur() { this.bridge.unsuppressGlobal(); }
+
+  onSearchKeydown(e: KeyboardEvent) {
+    if (e.key !== 'Enter') return;
+    const val = this.searchRaw.trim();
+    if (!/^\d{8,14}$/.test(val)) return;
+    e.preventDefault();
+    this.handleGtinScan(val);
+  }
+
+  private handleGtinScan(gtin: string) {
+    const local = this.allItems.find(i => {
+      if (i.barcode === gtin) return true;
+      if (i.type === 'product' && i.barcodes) {
+        return i.barcodes.split(',').map(b => b.trim()).includes(gtin);
+      }
+      return false;
+    });
+    if (local) {
+      this.addToSelection(local);
+      this.clearSearchInput();
+      return;
+    }
+
+    this.api.getProductByBarcode(gtin).subscribe({
+      next: r => {
+        if (r.type === 'found' && r.products?.length) {
+          const item = this.productToStickerItem(r.products[0]);
+          this.upsertStickerItem(item);
+          this.addToSelection(item);
+          this.generateBarcodeUrls();
+          this.clearSearchInput();
+        }
+      }
+    });
+  }
+
+  private addToSelection(item: StickerItem) {
+    if (!this.selectedKeys.includes(item.key)) this.selectedKeys.push(item.key);
+  }
+
+  private clearSearchInput() {
+    this.searchRaw = '';
+    this.textFilter = '';
+    this.migrosItems = [];
+    this.currentPage = 0;
+    this._filteredKey = '';
   }
 
   resetSearch() {
@@ -222,7 +306,6 @@ export class StickersComponent implements OnInit, OnDestroy {
         return this.compareRelevanceDesc(a, b);
       });
       this.fuse = new Fuse(this.allItems, FUSE_OPTIONS);
-      this.migrosItems = [];
       this._filteredKey = '';
       this.generateBarcodeUrls();
     });
@@ -698,23 +781,41 @@ export class StickersComponent implements OnInit, OnDestroy {
     }
 
     if (this.confirmSaveExport && exportItems.length > 0) {
-      const layout = this.currentLayout();
-      const products: StickerExportProduct[] = exportItems.map(item => ({
-        name: item.name,
-        type: item.type,
-        migrosId: item.migrosId,
-        migrosOnlineId: item.migrosOnlineId,
-        migrosUid: item.migrosUid,
-        barcode: item.barcode || undefined,
-      }));
-      this.api.createStickerExport({
-        layoutJson: JSON.stringify(layout),
-        productsJson: JSON.stringify(products),
-      }).subscribe(exp => {
-        this.stickerExports = [exp, ...this.stickerExports];
-      });
+      this.persistExport(exportItems);
       this.selectedKeys = [];
     }
+  }
+
+  saveCurrentSelection() {
+    this.persistExport(this.selectedItems);
+  }
+
+  private persistExport(items: StickerItem[]) {
+    if (items.length === 0 || this.savingExport) return;
+    this.savingExport = true;
+    const layout = this.currentLayout();
+    const products: StickerExportProduct[] = items.map(item => ({
+      name: item.name,
+      type: item.type,
+      migrosId: item.migrosId,
+      migrosOnlineId: item.migrosOnlineId,
+      migrosUid: item.migrosUid,
+      barcode: item.barcode || undefined,
+    }));
+    this.api.createStickerExport({
+      layoutJson: JSON.stringify(layout),
+      productsJson: JSON.stringify(products),
+    }).subscribe({
+      next: exp => {
+        this.stickerExports = [exp, ...this.stickerExports];
+        this.savingExport = false;
+        this.toast.success(`Auswahl gespeichert (${items.length} ${items.length === 1 ? 'Produkt' : 'Produkte'})`);
+      },
+      error: () => {
+        this.savingExport = false;
+        this.toast.error('Speichern fehlgeschlagen');
+      }
+    });
   }
 
   clearAllPrinted() {
@@ -774,6 +875,12 @@ export class StickersComponent implements OnInit, OnDestroy {
     });
   }
 
+  onExportSelectionChange() {
+    if (this.selectedExportId == null) return;
+    if (this.selectedKeys.length > 0) return;
+    this.loadSelectedExport();
+  }
+
   loadSelectedExport() {
     const exp = this.stickerExports.find(e => e.id === this.selectedExportId);
     if (!exp) return;
@@ -800,12 +907,21 @@ export class StickersComponent implements OnInit, OnDestroy {
     }
     this.selectedKeys = keys;
     this.generateBarcodeUrls();
+    const missing = products.length - keys.length;
+    if (missing > 0) {
+      this.toast.info(`Export geladen (${keys.length} von ${products.length} Produkten gefunden)`);
+    } else {
+      this.toast.success(`Export geladen (${keys.length} ${keys.length === 1 ? 'Produkt' : 'Produkte'})`);
+    }
   }
 
   deleteSelectedExport() {
     if (this.selectedExportId == null) return;
     const id = this.selectedExportId;
-    this.api.deleteStickerExport(id).subscribe();
+    this.api.deleteStickerExport(id).subscribe({
+      next: () => this.toast.success('Export gelöscht'),
+      error: () => this.toast.error('Löschen fehlgeschlagen'),
+    });
     this.stickerExports = this.stickerExports.filter(e => e.id !== id);
     this.selectedExportId = null;
   }

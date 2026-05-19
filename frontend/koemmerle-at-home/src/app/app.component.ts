@@ -10,11 +10,12 @@ import { OrderImportService, OrderImportState } from './services/order-import.se
 import { QueueSidebarComponent } from './shared/queue-sidebar.component';
 import { ScanComponent } from './scan/scan.component';
 import { ConfirmDialogComponent } from './shared/confirm-dialog.component';
+import { ToastContainerComponent } from './shared/toast-container.component';
 import { EasterEggService } from './easter-egg/easter-egg.service';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, CommonModule, FormsModule, QueueSidebarComponent, ScanComponent, ConfirmDialogComponent],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, CommonModule, FormsModule, QueueSidebarComponent, ScanComponent, ConfirmDialogComponent, ToastContainerComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'
 })
