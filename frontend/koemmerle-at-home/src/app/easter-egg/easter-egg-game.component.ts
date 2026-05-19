@@ -30,6 +30,10 @@ interface Runner {
    * the same way (we don't render them running backwards).
    */
   speed: number;
+  /** Original (unsigned) speed magnitude — restored when a scare wears off. */
+  baseSpeedMag: number;
+  /** Milliseconds remaining of the "scared by van" state; 0 = calm. */
+  scareTimer: number;
   phase: number;          // bob phase offset
   caught: boolean;
   // For the reel-in animation when caught.
@@ -90,6 +94,14 @@ export class EasterEggGameComponent implements OnInit, AfterViewInit, OnDestroy 
   private introBannerTimer: ReturnType<typeof setTimeout> | null = null;
   /** Holds the timeout that hands control from the fanfare to the celebration loop. */
   private victoryHandoffTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /** Player-driven van offset, applied on top of the default parked position. */
+  private vanOffsetX = 0;
+  private vanOffsetY = 0;
+  /** Pixel-per-second van move speed when an arrow key is held. */
+  private readonly vanMoveSpeed = 240;
+  /** Arrow keys currently held down — sampled in update() for smooth motion. */
+  private keysDown = new Set<string>();
 
   // Debug: per-voice audio mute toggles. Off by default; not persisted.
   // Flip showAudioDebug to true to expose the 🎛 toggle (and the panel it
@@ -192,6 +204,10 @@ export class EasterEggGameComponent implements OnInit, AfterViewInit, OnDestroy 
     this.lastFrameMs = this.startMs;
     this.rafId = requestAnimationFrame(this.loop);
 
+    // If the default van position from the config sits outside the road
+    // clamp, snap it back inside on the first frame.
+    this.clampVanOffsets();
+
     // Banner sticks around for 5s regardless of when the intro hops finish.
     this.introBannerTimer = setTimeout(() => { this.showIntroBanner = false; }, 5000);
   }
@@ -223,6 +239,17 @@ export class EasterEggGameComponent implements OnInit, AfterViewInit, OnDestroy 
   @HostListener('document:keydown', ['$event'])
   onKey(event: KeyboardEvent) {
     if (event.key === 'Escape') return; // handled above
+    // Arrow keys steer the van. Only intercept during play so we don't fight
+    // the success card's focus. preventDefault stops the page from scrolling
+    // when the user holds Up/Down.
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowRight'
+        || event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+      if (this.phase === 'play') {
+        this.keysDown.add(event.key);
+        event.preventDefault();
+      }
+      return;
+    }
     if (event.key === 'Enter') {
       const barcode = this.scanBuffer.trim();
       this.clearScanBuffer();
@@ -244,6 +271,18 @@ export class EasterEggGameComponent implements OnInit, AfterViewInit, OnDestroy 
   private clearScanBuffer() {
     this.scanBuffer = '';
     if (this.scanBufferTimer) { clearTimeout(this.scanBufferTimer); this.scanBufferTimer = null; }
+  }
+
+  @HostListener('document:keyup', ['$event'])
+  onKeyUp(event: KeyboardEvent) {
+    this.keysDown.delete(event.key);
+  }
+
+  @HostListener('window:blur')
+  onWindowBlur() {
+    // Releases all keys when the window loses focus — otherwise the van could
+    // keep coasting because we never received the keyup.
+    this.keysDown.clear();
   }
 
   exit() { this.close.emit(); }
@@ -365,6 +404,8 @@ export class EasterEggGameComponent implements OnInit, AfterViewInit, OnDestroy 
       x: 0,
       baseY: 0,
       speed,
+      baseSpeedMag: mag,
+      scareTimer: 0,
       phase: Math.random() * Math.PI * 2,
       caught: false,
       introDelayMs: idx * INTRO_STAGGER_MS,
@@ -504,8 +545,29 @@ export class EasterEggGameComponent implements OnInit, AfterViewInit, OnDestroy 
     }
 
     if (this.phase === 'play') {
+      // Drive the van — held arrow keys translate into a per-frame offset
+      // applied on top of the parked default position. Clamped to the canvas
+      // horizontally and to the road surface vertically.
+      const dx = (this.keysDown.has('ArrowRight') ? 1 : 0) - (this.keysDown.has('ArrowLeft') ? 1 : 0);
+      const dy = (this.keysDown.has('ArrowDown')  ? 1 : 0) - (this.keysDown.has('ArrowUp')   ? 1 : 0);
+      if (dx !== 0 || dy !== 0) {
+        this.vanOffsetX += dx * this.vanMoveSpeed * dt;
+        this.vanOffsetY += dy * this.vanMoveSpeed * dt;
+        this.clampVanOffsets();
+      }
+
       const leftBound = RUNNER_LEFT_MARGIN;
       const rightBound = GAME_CONFIG.width - RUNNER_RIGHT_MARGIN;
+      // Scare parameters: any runner inside this radius around the van centre
+      // sprints away at SCARE_SPEED_MUL × its normal speed. The cooldown keeps
+      // the boost active for a beat after the van leaves so the herd
+      // genuinely scatters instead of snapping back as soon as it can.
+      const SCARE_RADIUS = 120;
+      const SCARE_SPEED_MUL = 2.6;
+      const SCARE_COOLDOWN_MS = 900;
+      const vanCenterX = this.vanLeft() + this.vanWidth() / 2;
+      const vanCenterY = this.vanTop() + this.vanHeight() / 2;
+
       for (const r of this.runners) {
         if (r.caught) {
           // Reel-in animation: lerp from netStart to van.
@@ -513,6 +575,27 @@ export class EasterEggGameComponent implements OnInit, AfterViewInit, OnDestroy 
           r.netT = Math.min(1, r.netT + dt / (GAME_CONFIG.netReelMs / 1000));
           continue;
         }
+
+        // ── Scare check ──
+        const ddx = r.x - vanCenterX;
+        const ddy = r.baseY - vanCenterY;
+        const dist = Math.hypot(ddx, ddy);
+        if (dist < SCARE_RADIUS) {
+          // Inside the van's panic radius — flee in the direction that points
+          // away from the van centre (signX from ddx). Speed magnitude boosted.
+          r.scareTimer = SCARE_COOLDOWN_MS;
+          const signX = ddx >= 0 ? 1 : -1;
+          r.speed = signX * r.baseSpeedMag * SCARE_SPEED_MUL;
+        } else if (r.scareTimer > 0) {
+          r.scareTimer = Math.max(0, r.scareTimer - dt * 1000);
+          if (r.scareTimer === 0) {
+            // Settle back to a normal pace, preserving current direction so
+            // the runner doesn't snap-flip when calming down.
+            const dir = Math.sign(r.speed) || 1;
+            r.speed = dir * r.baseSpeedMag;
+          }
+        }
+
         r.x += r.speed * dt;
         // Soft bounce at both edges. The runner stays on screen at all times,
         // but a runner near the right edge reverses to "fall behind" the van,
@@ -629,11 +712,43 @@ export class EasterEggGameComponent implements OnInit, AfterViewInit, OnDestroy 
   /**
    * The depth line where the van "sits". Runners with baseY below this are
    * further away (behind the van), at or above are closer (in front).
-   * Placed between lane 0 and lane 1 so the front lane reads as in front
-   * of the van and back lanes read as behind.
+   * Tracks the van's current bottom so the depth sort stays correct when
+   * the player drives the van up/down the road.
    */
   private vanDepthY(): number {
-    return GAME_CONFIG.height - GAME_CONFIG.vanBottomPad - 12;
+    return this.vanTop() + this.vanHeight() - 12;
+  }
+
+  /**
+   * Vertical bounds for the van's *bottom* (wheels), as fractions of canvas
+   * height. Constrain to the paved area of street.png — anything above the
+   * top ratio puts the van on the upper sidewalk, anything below the bottom
+   * ratio puts it on the bottom curb. Tweak these here if the road artwork
+   * is ever swapped out.
+   */
+  private readonly vanRoadTopRatio    = 0.61;
+  private readonly vanRoadBottomRatio = 0.89;
+
+  /**
+   * Clamp the player's van offsets so the van never leaves the canvas and
+   * never drives off the road. Horizontally the bounds are simply the canvas
+   * edges; vertically the van's wheels are kept inside the paved strip of
+   * the street artwork (see {@link vanRoadTopRatio}, {@link vanRoadBottomRatio}).
+   */
+  private clampVanOffsets() {
+    const vw = this.vanWidth();
+    const vh = this.vanHeight();
+    // Horizontal: vanLeft in [0, canvas.width - vw].
+    const minX = -GAME_CONFIG.vanLeftPad;
+    const maxX = GAME_CONFIG.width - vw - GAME_CONFIG.vanLeftPad;
+    this.vanOffsetX = Math.max(minX, Math.min(maxX, this.vanOffsetX));
+    // Vertical: van *bottom* (wheels) constrained to the paved road area.
+    const defaultTop = GAME_CONFIG.height - GAME_CONFIG.vanBottomPad - vh;
+    const minBottom = GAME_CONFIG.height * this.vanRoadTopRatio;
+    const maxBottom = GAME_CONFIG.height * this.vanRoadBottomRatio;
+    const minOffsetY = (minBottom - vh) - defaultTop;
+    const maxOffsetY = (maxBottom - vh) - defaultTop;
+    this.vanOffsetY = Math.max(minOffsetY, Math.min(maxOffsetY, this.vanOffsetY));
   }
 
   private drawSky(ctx: CanvasRenderingContext2D) {
@@ -675,8 +790,10 @@ export class EasterEggGameComponent implements OnInit, AfterViewInit, OnDestroy 
     if (!img) return 130;
     return img.naturalHeight * GAME_CONFIG.vanScale;
   }
-  private vanLeft() { return GAME_CONFIG.vanLeftPad; }
-  private vanTop()  { return GAME_CONFIG.height - GAME_CONFIG.vanBottomPad - this.vanHeight(); }
+  private vanLeft() { return GAME_CONFIG.vanLeftPad + this.vanOffsetX; }
+  private vanTop()  {
+    return GAME_CONFIG.height - GAME_CONFIG.vanBottomPad - this.vanHeight() + this.vanOffsetY;
+  }
 
   private drawVan(ctx: CanvasRenderingContext2D) {
     const img = this.vanImg;
