@@ -74,8 +74,14 @@ export class EasterEggGameComponent implements OnInit, AfterViewInit, OnDestroy 
   elapsedMs = 0;
   totalItems = 0;
   finalScore = 0;
-  scoreBreakdown: { itemPoints: number; timePenalty: number; hintPenalty: number; total: number } =
-    { itemPoints: 0, timePenalty: 0, hintPenalty: 0, total: 0 };
+  scoreBreakdown: {
+    itemPoints: number;
+    timePenalty: number;
+    hintPenalty: number;
+    missedCount: number;
+    missedPenalty: number;
+    total: number;
+  } = { itemPoints: 0, timePenalty: 0, hintPenalty: 0, missedCount: 0, missedPenalty: 0, total: 0 };
   totalHintClicks = 0;
   finalSeconds = 0;
   musicMuted = !GAME_CONFIG.musicEnabledDefault;
@@ -521,29 +527,62 @@ export class EasterEggGameComponent implements OnInit, AfterViewInit, OnDestroy 
       }
 
       if (this.runners.every(r => r.caught && (r.netT ?? 0) >= 1)) {
-        this.phase = 'success';
-        const score = this.computeScore();
-        this.scoreBreakdown = {
-          itemPoints:  score.itemPoints,
-          timePenalty: score.timePenalty,
-          hintPenalty: score.hintPenalty,
-          total:       score.total,
-        };
-        this.finalScore = score.total;
-        this.totalHintClicks = score.hints;
-        this.finalSeconds = score.seconds;
-        // Cleanly hand the audio off in three steps so the fanfare reads:
-        //   1. pause the dense game music so the channel is clear,
-        //   2. play the one-shot fanfare loud and solo,
-        //   3. once it finishes, start the slower celebration loop.
-        this.chiptune.pauseLoop();
-        this.chiptune.victoryFanfare();
-        if (this.victoryHandoffTimer) clearTimeout(this.victoryHandoffTimer);
-        this.victoryHandoffTimer = setTimeout(() => {
-          if (!this.destroyed) this.chiptune.playVictoryLoop();
-        }, this.chiptune.victoryFanfareMs);
+        this.transitionToSuccess();
       }
     }
+  }
+
+  /**
+   * Move the game into the success phase. Shared between the natural finish
+   * (all items caught) and the user-triggered "Beenden" button. The success
+   * card and music handoff are identical; only `computeScore()` differs in
+   * what it sees (caught vs. uncaught counts).
+   */
+  private transitionToSuccess() {
+    if (this.phase === 'success') return;
+    this.phase = 'success';
+    const score = this.computeScore();
+    this.scoreBreakdown = {
+      itemPoints:    score.itemPoints,
+      timePenalty:   score.timePenalty,
+      hintPenalty:   score.hintPenalty,
+      missedCount:   score.missedCount,
+      missedPenalty: score.missedPenalty,
+      total:         score.total,
+    };
+    this.finalScore = score.total;
+    this.totalHintClicks = score.hints;
+    this.finalSeconds = score.seconds;
+    // Cleanly hand the audio off in three steps so the fanfare reads:
+    //   1. pause the dense game music so the channel is clear,
+    //   2. play the one-shot fanfare loud and solo — bright if everything
+    //      was caught, the descending "wah wah wah" if anything was missed,
+    //   3. once it finishes, start the slower celebration loop.
+    this.chiptune.pauseLoop();
+    const failed = score.missedCount > 0;
+    const handoffMs = failed
+      ? (this.chiptune.failFanfare(), this.chiptune.failFanfareMs)
+      : (this.chiptune.victoryFanfare(), this.chiptune.victoryFanfareMs);
+    if (this.victoryHandoffTimer) clearTimeout(this.victoryHandoffTimer);
+    this.victoryHandoffTimer = setTimeout(() => {
+      if (!this.destroyed) this.chiptune.playVictoryLoop();
+    }, handoffMs);
+  }
+
+  /** User-triggered early finish — applies the same success flow as a natural win. */
+  finishEarly() {
+    if (this.phase !== 'play') return;
+    this.transitionToSuccess();
+  }
+
+  /** Heading shown on the success card — adapts to how many packages got away. */
+  get successTitle(): string {
+    const missed = this.scoreBreakdown.missedCount;
+    if (missed === 0) return '🎉 Alle Pakete gerettet!';
+    if (missed >= this.totalItems) return '📦 Alle Pakete entwischt!';
+    return missed === 1
+      ? '📦 1 Paket ist entwischt'
+      : `📦 ${missed} Pakete sind entwischt`;
   }
 
   /**
@@ -551,15 +590,22 @@ export class EasterEggGameComponent implements OnInit, AfterViewInit, OnDestroy 
    *   +15 per caught item
    *   −1 per elapsed second (rounded)
    *   −1 per hint click summed across all runners
-   * Total clamped to a minimum of 0 so the score never goes negative.
+   *   −15 per uncaught item (applies when the player finishes early)
+   * Total can go negative — a bad run earns a deservedly bad number.
    */
   private computeScore() {
-    const itemPoints   = this.caughtCount * 15;
-    const seconds      = Math.round(this.elapsedMs / 1000);
-    const timePenalty  = seconds;
-    const hintPenalty  = this.runners.reduce((sum, r) => sum + r.hintClicks, 0);
-    const total = Math.max(0, itemPoints - timePenalty - hintPenalty);
-    return { itemPoints, timePenalty, hintPenalty, total, seconds, hints: hintPenalty };
+    const itemPoints    = this.caughtCount * 15;
+    const seconds       = Math.round(this.elapsedMs / 1000);
+    const timePenalty   = seconds;
+    const hintPenalty   = this.runners.reduce((sum, r) => sum + r.hintClicks, 0);
+    const missedCount   = Math.max(0, this.totalItems - this.caughtCount);
+    const missedPenalty = missedCount * 15;
+    const total = itemPoints - timePenalty - hintPenalty - missedPenalty;
+    return {
+      itemPoints, timePenalty, hintPenalty,
+      missedCount, missedPenalty,
+      total, seconds, hints: hintPenalty,
+    };
   }
 
   // ── Rendering ────────────────────────────────────────────────────────────

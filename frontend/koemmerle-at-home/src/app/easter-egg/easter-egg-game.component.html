@@ -11,6 +11,10 @@
           <button class="ee-btn" type="button" (click)="toggleAudioDebug()"
             [attr.aria-pressed]="audioDebugOpen" title="Audio-Debug">🎛</button>
         }
+        @if (phase === 'play') {
+          <button class="ee-btn ee-btn--finish" type="button" (click)="finishEarly()"
+            title="Trotzdem beenden (Minuspunkte für verpasste Produkte)">Beenden</button>
+        }
         <button class="ee-btn" type="button" (click)="toggleMute()" [attr.aria-pressed]="musicMuted">
           {{ musicMuted ? '🔇' : '🔊' }}
         </button>
@@ -55,7 +59,7 @@
     @if (phase === 'success') {
       <div class="ee-success">
         <div class="ee-success-card">
-          <h2>🎉 Alle Pakete gerettet!</h2>
+          <h2>{{ successTitle }}</h2>
           <table class="ee-score-table">
             <tr>
               <td>Eingefangen</td>
@@ -72,6 +76,13 @@
               <td>{{ totalHintClicks }} × 1</td>
               <td class="ee-score-minus">−{{ scoreBreakdown.hintPenalty }}</td>
             </tr>
+            @if (scoreBreakdown.missedCount > 0) {
+              <tr>
+                <td>Verpasst</td>
+                <td>{{ scoreBreakdown.missedCount }} × 15</td>
+                <td class="ee-score-minus">−{{ scoreBreakdown.missedPenalty }}</td>
+              </tr>
+            }
             <tr class="ee-score-total">
               <td>Total</td>
               <td></td>

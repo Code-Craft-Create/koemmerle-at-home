@@ -177,6 +177,28 @@ export class Chiptune {
   readonly victoryFanfareMs = 1150;
 
   /**
+   * "Wah wah wah" fail fanfare — three descending heavy notes for runs that
+   * end with packages still missing. Each beat stacks a sawtooth lead with
+   * a sub-octave triangle so it lands as a thudding "baam" rather than the
+   * bright sparkle of the victory fanfare.
+   */
+  failFanfare() {
+    if (!this.ctx || !this.master) return;
+    const t = this.ctx.currentTime;
+    // High → mid → low, descending major sixth → minor seventh shape.
+    const semis = [12, 5, -3];
+    semis.forEach((semi, i) => {
+      const when = t + i * 0.30;
+      const midi = this.leadBase + semi;
+      this.tone('sawtooth', midi,      when, 0.32, 0.32);
+      this.tone('triangle', midi - 12, when, 0.36, 0.28);
+    });
+  }
+
+  /** 3 notes × 0.30 s spacing + ~0.36 s tail on the last note ≈ 1.25 s. */
+  readonly failFanfareMs = 1250;
+
+  /**
    * Pause the main music loop without tearing down the AudioContext. Used to
    * make room for the one-shot victoryFanfare to land cleanly before the
    * celebration loop kicks in.
