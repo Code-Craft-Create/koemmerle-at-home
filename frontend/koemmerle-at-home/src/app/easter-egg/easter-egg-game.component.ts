@@ -118,6 +118,21 @@ export class EasterEggGameComponent implements OnInit, AfterViewInit, OnDestroy 
     bass: false, arp: false, lead: false, drums: false,
   };
 
+  // Lead melody A/B tester.
+  // `leadSelection` mirrors the combobox state — either 'auto' (rotate through
+  // favourites every 4 passes) or a specific 0-based variation index.
+  // `currentPlayingVariation` is the variation actually sounding right now;
+  // in auto mode it changes every few seconds.
+  leadSelection: string = 'auto';
+  currentPlayingVariation = 0;
+  get leadVariationIndices(): number[] {
+    return Array.from({ length: this.chiptune.leadVariationCount }, (_, i) => i);
+  }
+  /** Pretty label for a variation index — defers to Chiptune so #100 maps correctly. */
+  leadVariationLabel(idx: number): string {
+    return this.chiptune.getLeadVariationLabel(idx);
+  }
+
   // Debug: live mask tuning sliders. Hidden by default — flip this to true
   // to expose the brightness/chroma sliders in the debug panel for tuning.
   readonly showMaskSliders = false;
@@ -300,6 +315,17 @@ export class EasterEggGameComponent implements OnInit, AfterViewInit, OnDestroy 
     this.chiptune.setVoiceMuted(voice, this.voiceMuted[voice]);
   }
 
+  onLeadVariationChange(event: Event) {
+    const value = (event.target as HTMLSelectElement).value;
+    this.leadSelection = value;
+    if (value === 'auto') {
+      this.chiptune.setLeadAutoRotate(true);
+    } else {
+      const idx = parseInt(value, 10);
+      if (Number.isFinite(idx)) this.chiptune.setLeadVariation(idx);
+    }
+  }
+
   // ── Hint mechanic (click to reveal letters of a product name) ────────────
 
   onCanvasClick(event: MouseEvent) {
@@ -307,9 +333,22 @@ export class EasterEggGameComponent implements OnInit, AfterViewInit, OnDestroy 
     const world = this.eventToWorld(event);
     const target = this.findRunnerAt(world.x, world.y);
     if (!target) return;
-    // First click activates the hover tooltip (no letter yet); each further
-    // click reveals one more letter. Cap at name.length + 1 so over-clicking
-    // doesn't keep racking up score penalty past full reveal.
+    // Cheat (testing only): shift-click on a product fires the same path as
+    // a successful barcode scan for that item — handy for verifying catch
+    // animations and end-screen logic without a physical scanner. Uses the
+    // runner's primary barcode; onBarcode handles the rest.
+    if (event.shiftKey) {
+      const code = target.item.barcode;
+      if (code) {
+        console.debug('[easter-egg] cheat shift-click → simulating scan', code);
+        this.onBarcode(code);
+      }
+      return;
+    }
+    // Normal click: reveal one more letter of the name. First click activates
+    // the hover tooltip (no letter yet); each further click reveals one more
+    // letter. Cap at name.length + 1 so over-clicking doesn't keep racking up
+    // score penalty past full reveal.
     const cap = target.item.name.length + 1;
     if (target.hintClicks < cap) target.hintClicks++;
   }
@@ -498,6 +537,9 @@ export class EasterEggGameComponent implements OnInit, AfterViewInit, OnDestroy 
     // the final time, not keep ticking.
     if (this.phase !== 'success') this.elapsedMs = now - this.startMs;
     this.frame++;
+    // Mirror the chiptune's current lead variation into a template-bound
+    // field so the debug panel reflects auto-rotate switches.
+    this.currentPlayingVariation = this.chiptune.currentLeadVariation;
 
     this.update(dt);
     this.render();

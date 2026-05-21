@@ -31,6 +31,20 @@
             <span>{{ v.label }}</span>
           </label>
         }
+
+        <div class="ee-audio-debug-title">Lead melody</div>
+        <label class="ee-audio-debug-row ee-audio-debug-row--block">
+          <span>Variante</span>
+          <select class="ee-debug-select"
+            [value]="leadSelection"
+            (change)="onLeadVariationChange($event)">
+            <option value="auto">Auto (Rotation)</option>
+            @for (i of leadVariationIndices; track i) {
+              <option [value]="i">{{ leadVariationLabel(i) }}</option>
+            }
+          </select>
+          <span class="ee-debug-current">Aktiv: {{ leadVariationLabel(currentPlayingVariation) }}</span>
+        </label>
         @if (showMaskSliders) {
           <div class="ee-audio-debug-title">Mask</div>
           <label class="ee-debug-slider">

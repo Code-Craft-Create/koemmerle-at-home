@@ -70,21 +70,295 @@ export class Chiptune {
   // Lead lives a fifth below the previous C5 anchor — with the +7..+21 pattern
   // offsets that places the melody between C5 and D6 instead of the piercing
   // A5–A6 it previously occupied. Still safely above the arp's top (C5).
-  private readonly leadBase = 65;  // MIDI F4
+  private readonly leadBase = 53;  // MIDI F4
 
-  // 32-step lead melody (semitones from leadBase, null = rest). Climbs through
-  // the progression with the high point on the C chord and a tense descent on
-  // the V (G) to set up the loop back to Am — gives the line a clear arc.
-  private readonly leadPattern: ReadonlyArray<number | null> = [
-    // Am: A5–C6–E6 around the chord
-     9, null, 12,   16,    12,   9,   7,    9,
-    // F: F6 / A5 / C6 — chord tones with a 16th lift
-    17, null, 12,    9,    14,  12,   9,   12,
-    // C: rising to the climax on G6
-    12, null, 16,   19,    21,  19,  16,   12,
-    // G: tense step-down with a leading-tone push back to A
-    14, null, 11,    7,     9,  11,  14, null,
+  /**
+   * Lead-melody variations, all 32 steps long and pitched in A minor over the
+   * existing Am–F–C–G progression (8 steps per chord). Offsets are semitones
+   * from {@link leadBase}; `null` is a rest. The active variation is selected
+   * at runtime via {@link setLeadVariation}.
+   *
+   * Each entry tries to *be a motif* — recognisable rhythmic shape, mix of
+   * short and long notes, real use of register (sometimes the line dips low,
+   * sometimes it leaps high). Variation 1 is the original line the loop
+   * shipped with; the rest are written-by-hand hooks. Test them in-game with
+   * the combobox in the audio debug panel and we'll promote the keepers.
+   */
+  private readonly leadVariations: ReadonlyArray<ReadonlyArray<number | null>> = [
+    // 1 — original climbing arc (kept as reference)
+    [  9, null, 12,  16,    12,   9,   7,    9,
+      17, null, 12,   9,    14,  12,   9,   12,
+      12, null, 16,  19,    21,  19,  16,   12,
+      14, null, 11,   7,     9,  11,  14, null ],
+
+    // 2 — "Falling sigh": a long held high note that gives way to a slow
+    //     descending lament. Stark register drop, repeats with each chord.
+    [ 28, null, null, null,   23, null, 19, null,
+      24, null, null, null,   19, null, 17, null,
+      26, null, null, null,   19, null, 14, null,
+      26, null, null, null,   18, null, 14, null ],
+
+    // 3 — "Hopping bunny": tight off-beat hop, then a sudden octave leap,
+    //     then space. Bouncy and memorable.
+    [  4, 11, null, 23,   11, null,  4, null,
+       0,  7, null, 24,    7, null,  0, null,
+       7, 11, null, 26,   11, null,  7, null,
+       2,  9, null, 26,    9, null,  2, null ],
+
+    // 4 — Anthem: bold held opening, then a quick stepwise run-down to land
+    //     on the resolution. Mix of one whole-note + four 16ths.
+    [ 16, null, null, null,   14, 12, 11, null,
+      17, null, null, null,   16, 14, 12, null,
+      19, null, null, null,   16, 14, 12, null,
+      18, null, null, null,   14, 12,  9, null ],
+
+    // 5 — "Tetris sigh": classic descending three-note sigh, twice per chord
+    //     with the second pass leaping up before falling.
+    [ 23, 19, 11, null,   23, 19, 11, null,
+      19, 16, 12, null,   24, 19, 12, null,
+      23, 19, 14, null,   26, 23, 19, null,
+      21, 18, 14, null,   26, 21, 14, null ],
+
+    // 6 — "Mario short-short-long": two pickups into a long landing, twice
+    //     with the second landing leaping an octave up.
+    [ 11, 11, 16, null,   11, 11, 23, null,
+      12, 12, 17, null,   12, 12, 24, null,
+      14, 14, 19, null,   14, 14, 26, null,
+      14, 14, 18, null,   14, 14, 26, null ],
+
+    // 7 — "Star Wars opening leap": two repeated low chord tones, then a
+    //     huge octave-plus leap to a held high note. Big, dramatic.
+    [  4, null,  4, null,   16, null, null, null,
+       0, null,  0, null,   17, null, null, null,
+       7, null,  7, null,   19, null, null, null,
+       2, null,  2, null,   18, null, null, null ],
+
+    // 8 — "Imperial dotted": long-short-short marching rhythm, each beat
+    //     resolving a step lower than the last.
+    [ 16, null, null, 14,   12, null, null, 11,
+      17, null, null, 16,   14, null, null, 12,
+      19, null, null, 16,   14, null, null, 12,
+      18, null, null, 14,   11, null, null,  6 ],
+
+    // 9 — Punchy riff: stab on the down, rest, stab again, walk to top.
+    [ 11, null, 16, 11,   23, null, 16, 11,
+      12, null, 17, 12,   24, null, 17, 12,
+      14, null, 19, 14,   26, null, 19, 14,
+      14, null, 18, 14,   26, null, 18, 14 ],
+
+    // 10 — Aggressive descent: stepwise drop with rest spaces between, like
+    //      a chromatic-feel chase line.
+    [ 16, null, 14, null,   12, null, 11, null,
+      17, null, 14, null,   12, null,  9, null,
+      19, null, 16, null,   14, null, 11, null,
+      18, null, 14, null,   11, null,  9, null ],
+
+    // 11 — Sneak-then-pounce: three soft low notes, then a sudden high
+    //      surprise on the last 16th. Lots of dynamic range.
+    [  4, null,  7, null,   11, null, null, 23,
+       0, null,  4, null,    7, null, null, 24,
+       7, null, 11, null,   14, null, null, 26,
+       2, null,  6, null,    9, null, null, 26 ],
+
+    // 12 — Pop chorus hook: high note, hold, then a chord-tone run down
+    //      with rests carving the rhythm.
+    [ 23, null, null, 16,   14, 12, 11, null,
+      24, null, null, 17,   16, 14, 12, null,
+      26, null, null, 19,   16, 14, 12, null,
+      26, null, null, 18,   14, 11,  9, null ],
+
+    // 13 — Pickup-and-land: 2 short pickups on the last beat of the bar
+    //      lead into a held high downbeat. Strong forward motion.
+    [ null, null, 11, 14,   23, null, null, null,
+      null, null, 12, 17,   24, null, null, null,
+      null, null, 14, 19,   26, null, null, null,
+      null, null,  9, 14,   26, null, null, null ],
+
+    // 14 — Stair-step climb with rests: 3 ascending notes evenly spaced,
+    //      each chord climbing higher than the last.
+    [  4, null, 11, null,   16, null, 23, null,
+       0, null,  7, null,   12, null, 24, null,
+       7, null, 11, null,   19, null, 26, null,
+       2, null,  9, null,   18, null, 26, null ],
+
+    // 15 — Sparse hum: two memorable notes per bar with empty space — the
+    //      sort of line you'd find yourself whistling.
+    [ 16, null, 23, null,   16, null, null, null,
+      17, null, 24, null,   17, null, null, null,
+      26, null, 23, null,   19, null, null, null,
+      18, null, 26, null,   14, null, null, null ],
+
+    // 16 — Triumphant walk-up: clear ascending phrase per chord, each
+    //      landing on a higher target note. Stadium-anthem feel.
+    [ 11, null, 14, null,   16, null, null, null,
+      12, null, 16, null,   19, null, null, null,
+      14, null, 19, null,   23, null, null, null,
+      14, null, 21, null,   26, null, null, null ],
+
+    // 17 (displayed as #100) — "The Yellow Van Ballad". A proper hook:
+    // a repeating "la-la-LONG" motif over Am and F, lifted into a soaring
+    // climax on C (reaching A6, the highest note in the set), then a
+    // tumbling descent over G that runs straight back into the loop's
+    // downbeat. Mix of 16th-note pickups, held landings, and rests so the
+    // line breathes. This is the one that should sound like an actual tune.
+    [ 11, 14, 16, null,    14, 16, 23, null,
+      12, 14, 17, null,    14, 17, 24, null,
+      14, 16, 19, null,    19, 23, 28, null,
+      21, 18, 14, 11,       9, null, null, null ],
+
+    // 18 (displayed as #101) — "Klaxon Klimb". A single quick two-note tag
+    // at the top of bars 1-3 (a chord tone followed by its octave-and-fifth
+    // a beat later) is just enough to flag the bar; the rest of the line is
+    // simple stepwise scale motion. Bars 1-3 each begin with that one tag
+    // then walk through the A-minor scale (descending in bar 1, ascending
+    // through bars 2-3 to peak on C7); bar 4 drops the tag entirely and is
+    // pure stepwise tumble all the way down to low A — strong identity
+    // break right before the loop point.
+    [ 16, 23, null, null,    19, 16, 14, 11,
+      17, 24, null, null,    14, 16, 19, 21,
+      19, 26, null, null,    23, 26, 28, 31,
+      26, 21, 18, 14,        11,  9,  6,    4 ],
+
+    // 19 (displayed as #102) — "Skippy". A compact, cartoon-like skipping
+    // motif. Every bar uses the same "hop-hop-REST-LONG" rhythm so it feels
+    // like a little character bouncing along — bars 1-3 only swap the
+    // landing note to match each chord, bar 4 then breaks the pattern with a
+    // tumble of quick repeats and a long held B (the leading tone over G)
+    // for a comic "ta-da!" ending. Stays within a single octave (E5-C6 plus
+    // one B5/D5) — deliberately no register fireworks, just play.
+    [ 11, 14, null, 16,    14, 11, null, 14,
+      12, 14, null, 17,    14, 12, null, 14,
+      14, 16, null, 19,    16, 14, 16, null,
+      11, 14, 11, 14,      18, 14, 11, null ],
+
+    // 20 (displayed as #200) — "Egg Hop Hook". A bright answer to #1:
+    // same singable arc, but cleaner chord tones and a tiny pause after
+    // every hop so the hook has room to stick. The last bar walks down the
+    // G chord, then winks back up into the loop.
+    [ 16, null, 19, 23,    19, 16, 14, null,
+      12, null, 16, 19,    16, 12, 14, null,
+      19, null, 23, 26,    23, 19, 16, null,
+      21, 18, 14, 11,      14, null, 16, null ],
+
+    // 21 (displayed as #201) — "Rubber Duck". A deliberately goofy
+    // call-and-squawk rhythm: three little notes, one held chirp, repeat.
+    // It stays friendly and round, mostly avoiding the top octave fireworks.
+    [ 16, 19, 16, null,    23, null, 19, 16,
+      12, 16, 12, null,    24, null, 19, 16,
+      19, 23, 19, null,    26, null, 23, 19,
+      14, 18, 21, null,    18, 14, 11, null ],
+
+    // 22 (displayed as #202) — "Candy Steps". A sugar-rush scale climb:
+    // low-to-high motion over the first three chords, then a neat little
+    // staircase down on G. Less anthem, more arcade bonus room.
+    [  4,  7,  9, 11,      14, null, 16, null,
+      12, 14, 16, 19,      21, null, 19, null,
+      19, 21, 23, 26,      28, null, 26, null,
+      26, 24, 21, 18,      14, 11,  9, null ],
+
+    // 23 (displayed as #203) — "Calliope Wink". High-low call response,
+    // almost like a tiny circus organ: every bar starts with a shiny bell,
+    // then answers with a compact falling tag.
+    [ 23, null, 16, null,    19, 16, 11, null,
+      24, null, 16, null,    19, 16, 12, null,
+      26, null, 19, null,    23, 19, 14, null,
+      26, null, 18, null,    21, 18, 14, null ],
+
+    // 24 (displayed as #204) — "Pocket Carnival". Triads as a chant:
+    // short, stacked, and rhythmically obvious. It is busier than #200 but
+    // should still read as one hummable phrase, not noodling.
+    [ 11, 16, 19, null,    16, 19, 23, null,
+      12, 16, 19, null,    16, 19, 24, null,
+      14, 19, 23, null,    19, 23, 26, null,
+      14, 18, 21, null,    18, 21, 26, null ],
+
+    // 25 (displayed as #205) — "Bubble Bounce". A playful neighbor-note
+    // loop: bounce, bounce, tumble. The repeated turns make it sticky while
+    // the fourth bar gives it a little slapstick landing.
+    [ 16, 14, 16, null,    19, 16, 14, 11,
+      12, 14, 16, null,    19, 16, 14, 12,
+      19, 16, 19, null,    23, 19, 16, 14,
+      21, 18, 21, null,    26, 21, 18, 14 ],
+
+    // 26 (displayed as #206) — "Wink and Sprint". Starts low and sneaky,
+    // flashes high at the end of each half-bar, then sprints down into the
+    // loop point. Good candidate if the lead should feel like a character.
+    [  4, null,  7, 11,    16, null, 23, null,
+       0, null,  4,  7,    12, null, 24, null,
+       7, null, 11, 14,    19, null, 26, 28,
+      21, 18, 14, 11,       9, 11, 14, null ],
+
+    // 27 (displayed as #207) — "Confetti Ladder". Big upward ladders with
+    // tidy rests after each peak. The final bar refuses to fully resolve,
+    // giving the restart a little extra pull.
+    [ 11, 14, 16, 19,      16, null, 14, null,
+      12, 16, 19, 24,      19, null, 16, null,
+      14, 16, 19, 23,      26, null, 23, null,
+      21, 18, 16, 14,      18, null, 21, null ],
   ];
+
+  /**
+   * Optional display labels. Any index missing here renders as `#${idx + 1}`.
+   * Indices 16..18 and 19..26 are shown as #100..#102 and #200..#207 for
+   * curated melody batches.
+   */
+  private readonly leadVariationLabels: Record<number, string> = {
+    16: '#100',
+    17: '#101',
+    18: '#102',
+    19: '#200',
+    20: '#201',
+    21: '#202',
+    22: '#203',
+    23: '#204',
+    24: '#205',
+    25: '#206',
+    26: '#207',
+  };
+
+  /** Label for a variation index, used by the debug combobox + status line. */
+  getLeadVariationLabel(idx: number): string {
+    return this.leadVariationLabels[idx] ?? `#${idx + 1}`;
+  }
+
+  /** Index into {@link leadVariations}; 0 is the original line. */
+  private leadVariationIdx = 0;
+  /** Number of available variations — exposed for the UI combobox. */
+  get leadVariationCount(): number { return this.leadVariations.length; }
+
+  /**
+   * 0-based indices of the player-curated favourite variations to cycle
+   * through when {@link leadAutoRotate} is on. Current rotation favours the
+   * new #200 batch plus #102 as the previous best compact hook.
+   * Edit this array to add/remove favourites — labels come from the combobox.
+   */
+  private readonly favoriteLeadIndices = [24];
+  /** Full 32-step passes played before the auto-rotate picks a new favourite. */
+  private readonly passesPerVariation = 4;
+  /** Auto-rotate state — on by default; a manual setLeadVariation() turns it off. */
+  private leadAutoRotate = true;
+  private leadPassesPlayed = 0;
+  /** Active lead pattern — recomputed via getter so changes take effect immediately. */
+  private get leadPattern(): ReadonlyArray<number | null> {
+    return this.leadVariations[this.leadVariationIdx];
+  }
+
+  /**
+   * Extra upper lead for #205 / index 24 only. It plays a quieter square-wave
+   * harmony above the selected "Bubble Bounce" motif, mostly on chord tones,
+   * with a tiny delay so it reads as a second chip voice instead of a louder
+   * single note.
+   */
+  private readonly bubbleBounceSecondLead: ReadonlyArray<number | null> = [
+    23, null, 19, 23,    23, null, 19, null,
+    19, null, 16, 19,    24, null, 19, null,
+    26, null, 23, 26,    26, null, 23, null,
+    26, null, 21, 26,    30, null, 26, null,
+  ];
+
+  private get secondLeadPattern(): ReadonlyArray<number | null> | null {
+    return this.leadVariationIdx === 24 ? this.bubbleBounceSecondLead : null;
+  }
 
   // ── Victory loop ─────────────────────────────────────────────────────────
   // 16-step major-key fanfare looped after the player wins. Major progression
@@ -120,6 +394,9 @@ export class Chiptune {
       this.buses[v] = g;
     }
     this.step = 0;
+    this.leadPassesPlayed = 0;
+    // Start with a random favourite when in auto mode so each run feels fresh.
+    if (this.leadAutoRotate) this.pickRandomFavoriteLead();
     this.timer = window.setInterval(() => this.tick(), this.stepMs);
   }
 
@@ -144,6 +421,44 @@ export class Chiptune {
   }
 
   isVoiceMuted(voice: ChiptuneVoice): boolean { return this.voiceMuted[voice]; }
+
+  /**
+   * Switch to a specific lead-melody variation (0-based index). Disables
+   * auto-rotate — the player explicitly picked something, so we shouldn't
+   * surprise them by changing it.
+   */
+  setLeadVariation(idx: number) {
+    const clamped = Math.max(0, Math.min(this.leadVariations.length - 1, idx | 0));
+    this.leadAutoRotate = false;
+    this.leadPassesPlayed = 0;
+    this.leadVariationIdx = clamped;
+  }
+
+  /**
+   * Enable / disable auto-rotation through {@link favoriteLeadIndices}. Each
+   * pass through the 32-step lead pattern counts as one "pass"; after
+   * {@link passesPerVariation} passes the loop randomises to a different
+   * favourite.
+   */
+  setLeadAutoRotate(enabled: boolean) {
+    if (enabled === this.leadAutoRotate) return;
+    this.leadAutoRotate = enabled;
+    this.leadPassesPlayed = 0;
+    if (enabled) this.pickRandomFavoriteLead();
+  }
+
+  /** True when the loop is auto-rotating through the favourites list. */
+  get isLeadAutoRotate(): boolean { return this.leadAutoRotate; }
+
+  /** Current playing variation (0-based). */
+  get currentLeadVariation(): number { return this.leadVariationIdx; }
+
+  /** Pick a random favourite that isn't the one currently playing. */
+  private pickRandomFavoriteLead() {
+    const others = this.favoriteLeadIndices.filter(i => i !== this.leadVariationIdx);
+    const pool = others.length > 0 ? others : this.favoriteLeadIndices;
+    this.leadVariationIdx = pool[Math.floor(Math.random() * pool.length)];
+  }
 
   setMuted(muted: boolean) {
     this.muted = muted;
@@ -313,6 +628,12 @@ export class Chiptune {
         this.tone('square', lead,        now, 0.20, 0.15, this.buses.lead);
         this.tone('square', lead + 0.07, now, 0.20, 0.12, this.buses.lead);
       }
+
+      const secondLeadOffset = this.secondLeadPattern?.[s];
+      if (secondLeadOffset != null) {
+        const secondLead = this.leadBase + this.leadStageShift + secondLeadOffset;
+        this.tone('square', secondLead + 0.04, now + 0.006, 0.16, 0.065, this.buses.lead);
+      }
     }
 
     // Drums — busier groove:
@@ -327,6 +648,16 @@ export class Chiptune {
     }
 
     this.step++;
+    // After every full 32-step pass, count it; once we've played the
+    // configured number of passes on the current variation, switch to a
+    // random other favourite. Only happens in auto-rotate mode.
+    if (this.leadAutoRotate && this.step % this.steps === 0) {
+      this.leadPassesPlayed++;
+      if (this.leadPassesPlayed >= this.passesPerVariation) {
+        this.leadPassesPlayed = 0;
+        this.pickRandomFavoriteLead();
+      }
+    }
   }
 
   /**

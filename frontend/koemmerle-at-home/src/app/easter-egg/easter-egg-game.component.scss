@@ -125,6 +125,33 @@
   user-select: none;
 
   input { accent-color: #ffd24a; }
+
+  &.ee-audio-debug-row--block {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.25rem;
+    cursor: default;
+  }
+}
+
+.ee-debug-select {
+  background: #1a1a1a;
+  color: #ffd24a;
+  border: 1px solid #ffd24a;
+  border-radius: 3px;
+  padding: 0.2rem 0.4rem;
+  font-family: "Courier New", monospace;
+  font-size: 0.8rem;
+  cursor: pointer;
+
+  option { background: #1a1a1a; color: #fff; }
+}
+
+.ee-debug-current {
+  font-size: 0.72rem;
+  color: #ffd24a;
+  margin-top: 0.2rem;
+  font-variant-numeric: tabular-nums;
 }
 
 .ee-debug-slider {
