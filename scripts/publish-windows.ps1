@@ -90,10 +90,12 @@ cd /d "%~dp0"
 set "DOTNET_BUNDLE_EXTRACT_BASE_DIR=%CD%\.dotnet-bundle"
 if not exist "%DOTNET_BUNDLE_EXTRACT_BASE_DIR%" mkdir "%DOTNET_BUNDLE_EXTRACT_BASE_DIR%"
 
-set "PLAYWRIGHT_CACHE=%LOCALAPPDATA%\ms-playwright"
-if not exist "%PLAYWRIGHT_CACHE%" (
-  echo Installing Playwright Chromium for the Migros login window...
-  KoemmerleAtHome.Api.exe --install-playwright
+echo Ensuring Playwright Chromium is installed for the Migros login window...
+KoemmerleAtHome.Api.exe --install-playwright
+if errorlevel 1 (
+  echo Failed to install Playwright Chromium.
+  pause
+  exit /b 1
 )
 
 echo Starting KOEMMERLE At Home...

@@ -92,10 +92,8 @@ cd "\$(dirname "\$0")"
 export DOTNET_BUNDLE_EXTRACT_BASE_DIR="\$PWD/.dotnet-bundle"
 mkdir -p "\$DOTNET_BUNDLE_EXTRACT_BASE_DIR"
 
-if [ ! -d "\$HOME/Library/Caches/ms-playwright" ]; then
-  echo "Installing Playwright Chromium for the Migros login window..."
-  ./KoemmerleAtHome.Api --install-playwright
-fi
+echo "Ensuring Playwright Chromium is installed for the Migros login window..."
+./KoemmerleAtHome.Api --install-playwright
 
 echo "Starting KÖMMERLE At Home..."
 echo "Open $url in your browser."

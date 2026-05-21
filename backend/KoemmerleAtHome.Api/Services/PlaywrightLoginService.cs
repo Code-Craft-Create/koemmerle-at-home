@@ -287,16 +287,16 @@ public class PlaywrightLoginService(
             try { File.Delete(Path.Combine(appData.PlaywrightSessionDirectory, lockFile)); } catch { }
         }
 
-        _context = await playwright.Chromium.LaunchPersistentContextAsync(appData.PlaywrightSessionDirectory, new()
+        try
         {
-            Headless = false,
-            ViewportSize = new ViewportSize { Width = BrowserViewportWidth, Height = BrowserViewportHeight },
-            Args =
-            [
-                $"--window-position={BrowserWindowLeft},0",
-                $"--window-size={BrowserViewportWidth},{BrowserViewportHeight}"
-            ],
-        });
+            _context = await LaunchPersistentChromiumAsync(playwright);
+        }
+        catch (PlaywrightException ex) when (IsMissingBrowserExecutable(ex))
+        {
+            logger.LogWarning("Playwright Chromium is missing or outdated; installing the required browser and retrying launch");
+            InstallPlaywrightChromium();
+            _context = await LaunchPersistentChromiumAsync(playwright);
+        }
 
         // Capture bearer token from every migros.ch page load (silent OAuth flow).
         _context.Response += async (_, response) =>
@@ -326,6 +326,29 @@ public class PlaywrightLoginService(
         }
 
         logger.LogInformation("Playwright browser launched. Session stored at: {Dir}", appData.PlaywrightSessionDirectory);
+    }
+
+    private Task<IBrowserContext> LaunchPersistentChromiumAsync(IPlaywright playwright) =>
+        playwright.Chromium.LaunchPersistentContextAsync(appData.PlaywrightSessionDirectory, new()
+        {
+            Headless = false,
+            ViewportSize = new ViewportSize { Width = BrowserViewportWidth, Height = BrowserViewportHeight },
+            Args =
+            [
+                $"--window-position={BrowserWindowLeft},0",
+                $"--window-size={BrowserViewportWidth},{BrowserViewportHeight}"
+            ],
+        });
+
+    private static bool IsMissingBrowserExecutable(PlaywrightException ex) =>
+        ex.Message.Contains("Executable doesn't exist", StringComparison.OrdinalIgnoreCase) ||
+        ex.Message.Contains("Please run the following command to download new browsers", StringComparison.OrdinalIgnoreCase);
+
+    private static void InstallPlaywrightChromium()
+    {
+        var exitCode = Microsoft.Playwright.Program.Main(["install", "chromium"]);
+        if (exitCode != 0)
+            throw new InvalidOperationException($"Playwright Chromium install failed with exit code {exitCode}.");
     }
 
     private async Task NavigateAndWaitForLoginAsync(CancellationToken ct)
