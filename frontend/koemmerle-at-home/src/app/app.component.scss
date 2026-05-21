@@ -235,6 +235,17 @@
   opacity: 0.38;
   pointer-events: none;
   user-select: none;
+
+  &.clickable {
+    pointer-events: auto;
+    cursor: pointer;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+
+    &:hover {
+      opacity: 0.85;
+      transform: scale(1.05);
+    }
+  }
 }
 
 .order-import-modal {

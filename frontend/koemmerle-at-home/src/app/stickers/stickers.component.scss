@@ -770,3 +770,9 @@ header {
   display: flex;
   gap: 0.4rem;
 }
+
+.export-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}

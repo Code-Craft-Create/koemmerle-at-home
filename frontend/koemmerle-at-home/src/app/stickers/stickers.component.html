@@ -86,15 +86,21 @@
             }
           </div>
 
-          <button class="btn primary" (click)="downloadPdf()" [disabled]="!selectedItems.length || generatingPdf">
-            @if (generatingPdf) { ⏳ Generiere… }
-            @else { <img src="assets/icons/Download.png" class="btn-icon" alt="" />PDF herunterladen }
-          </button>
+          <div class="export-actions">
+            <button class="btn primary" (click)="downloadPdf()" [disabled]="!selectedItems.length || generatingPdf">
+              @if (generatingPdf) { ⏳ Generiere… }
+              @else { <img src="assets/icons/Download.png" class="btn-icon" alt="" />PDF herunterladen }
+            </button>
+            <button class="btn" (click)="saveCurrentSelection()" [disabled]="!selectedItems.length || savingExport">
+              @if (savingExport) { ⏳ Speichere… }
+              @else { Auswahl speichern }
+            </button>
+          </div>
 
           @if (stickerExports.length > 0) {
             <div class="export-history">
               <span class="slider-title">Gespeicherte Exporte</span>
-              <select class="export-select" [(ngModel)]="selectedExportId">
+              <select class="export-select" [(ngModel)]="selectedExportId" (ngModelChange)="onExportSelectionChange()">
                 <option [ngValue]="null">— Export wählen —</option>
                 @for (exp of stickerExports; track exp.id) {
                   <option [ngValue]="exp.id">
@@ -182,7 +188,10 @@
 
     <aside class="chooser-panel">
       <div class="filter-bar">
-        <input [ngModel]="searchRaw" (ngModelChange)="onTextInput($event)" placeholder="Name suchen…" class="filter-text" />
+        <input [ngModel]="searchRaw" (ngModelChange)="onTextInput($event)"
+               (keydown)="onSearchKeydown($event)"
+               (focus)="onSearchFocus()" (blur)="onSearchBlur()"
+               placeholder="Name oder GTIN suchen…" class="filter-text" />
         <app-category-filter [items]="allItems" [(value)]="categoryFilter" (valueChange)="resetPage()" />
         <label class="checkbox-row">
           <input type="checkbox" [(ngModel)]="showUnavailable" (ngModelChange)="resetPage()" />
@@ -290,6 +299,10 @@
     </aside>
   </div>
 </div>
+
+@if (easterEggOpen) {
+  <app-easter-egg-game [items]="easterEggItems" (close)="closeEasterEgg()" />
+}
 
 @if (showPrintedConfirm) {
   <div class="modal-backdrop" (click)="confirmSave(false)">

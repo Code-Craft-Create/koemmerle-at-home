@@ -10,10 +10,12 @@ import { OrderImportService, OrderImportState } from './services/order-import.se
 import { QueueSidebarComponent } from './shared/queue-sidebar.component';
 import { ScanComponent } from './scan/scan.component';
 import { ConfirmDialogComponent } from './shared/confirm-dialog.component';
+import { ToastContainerComponent } from './shared/toast-container.component';
+import { EasterEggService } from './easter-egg/easter-egg.service';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, CommonModule, FormsModule, QueueSidebarComponent, ScanComponent, ConfirmDialogComponent],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, CommonModule, FormsModule, QueueSidebarComponent, ScanComponent, ConfirmDialogComponent, ToastContainerComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'
 })
@@ -22,6 +24,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
   isScanRoute = false;
   isOrdersRoute = false;
+  isStickersRoute = false;
   navBarcode = '';
   queueOpen = false;
   settingsOpen = false;
@@ -109,8 +112,14 @@ export class AppComponent implements OnInit, OnDestroy {
     private router: Router,
     private bridge: ScanBridgeService,
     private api: ScanApiService,
-    private orderImport: OrderImportService
+    private orderImport: OrderImportService,
+    private easterEgg: EasterEggService,
   ) {}
+
+  onVersionWatermarkClick() {
+    if (!this.isStickersRoute) return;
+    this.easterEgg.request();
+  }
 
   get showLoginOverlay() {
     return this.sessionStatus !== null && !this.sessionStatus.isLoggedIn;
@@ -198,6 +207,7 @@ export class AppComponent implements OnInit, OnDestroy {
     const wasOrdersRoute = this.isOrdersRoute;
     this.isScanRoute = url === '/scan';
     this.isOrdersRoute = url === '/orders';
+    this.isStickersRoute = url === '/stickers';
 
     if (!wasOrdersRoute && this.isOrdersRoute) {
       if (this.orderImportTrackerCollapsed) {

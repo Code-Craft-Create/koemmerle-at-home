@@ -82,9 +82,14 @@
 
 <app-queue-sidebar [open]="queueOpen" (closePanel)="queueOpen = false" />
 <app-confirm-dialog />
+<app-toast-container />
 
 @if (appVersion) {
-  <div class="app-version-watermark">v{{ appVersion }}</div>
+  <div class="app-version-watermark"
+    [class.clickable]="isStickersRoute"
+    [attr.role]="isStickersRoute ? 'button' : null"
+    [attr.title]="isStickersRoute ? 'Hmm… was passiert, wenn man hier klickt?' : null"
+    (click)="onVersionWatermarkClick()">v{{ appVersion }}</div>
 }
 
 @if (showOrderImportPrompt && !orderImportState.active && !showLoginOverlay) {
