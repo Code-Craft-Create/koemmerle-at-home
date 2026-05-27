@@ -140,7 +140,13 @@
         @if (recipe.items.length > 0) {
           <table class="items-table">
             <thead>
-              <tr><th>Bild</th><th>Produkt</th><th>Menge</th><th></th></tr>
+              <tr>
+                <th>Bild</th>
+                <th>Produkt</th>
+                <th>Menge</th>
+                <th>Total</th>
+                <th class="action-col">Aktion</th>
+              </tr>
             </thead>
             <tbody>
               @for (item of recipe.items; track item.id) {
@@ -150,10 +156,35 @@
                       <span class="image-badge-wrap">
                         <img [src]="item.imageData || item.imageUrl" [alt]="item.productName" class="thumb" />
                         @if (item.multiplier > 1) { <span class="multiplier-badge">{{ item.multiplier }}x</span> }
+                        @if (item.migrosUrl) {
+                          <a
+                            class="item-product-link"
+                            [href]="item.migrosUrl"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title="Auf migros.ch öffnen"
+                            [attr.aria-label]="productLinkLabel(item)"
+                          >
+                            <svg viewBox="0 0 16 16" aria-hidden="true">
+                              <path d="M9.5 2.75h3.75V6.5" />
+                              <path d="M7.25 8.75l5.75-5.75" />
+                              <path d="M6.5 3.75H4.25a1.5 1.5 0 0 0-1.5 1.5v6.5a1.5 1.5 0 0 0 1.5 1.5h6.5a1.5 1.5 0 0 0 1.5-1.5V9.5" />
+                            </svg>
+                          </a>
+                        }
                       </span>
                     }
                   </td>
-                  <td>{{ item.productName }}</td>
+                  <td>
+                    <span class="product-name">{{ item.productName }}</span>
+                    @if (item.weightText || item.price != null || item.multiplier > 1) {
+                      <div class="product-item-meta">
+                        @if (item.weightText) { <span class="usage-badge">{{ item.weightText }}</span> }
+                        @if (item.price != null) { <span class="usage-badge price-badge">{{ item.price | number:'1.2-2' }} CHF</span> }
+                        @if (item.multiplier > 1) { <span class="usage-badge">{{ item.multiplier }}x</span> }
+                      </div>
+                    }
+                  </td>
                   <td>
                     <input type="number"
                            [value]="item.quantity"
@@ -161,13 +192,34 @@
                            class="qty-input"
                            (change)="updateItemQty(item.id, +($any($event.target).value))" />
                   </td>
-                  <td>
-                    <button class="btn-sm danger" (click)="removeItem(item.id)">✕</button>
+                  <td class="price-cell total-cell">
+                    {{ item.price != null ? (itemTotalPrice(item) | number:'1.2-2') + ' CHF' : '–' }}
+                  </td>
+                  <td class="action-cell">
+                    <button
+                      type="button"
+                      class="btn-sm danger remove-item-btn"
+                      (click)="removeItem(item.id)"
+                      [attr.aria-label]="'Produkt ' + item.productName + ' entfernen'"
+                      title="Produkt entfernen"
+                    >✕</button>
                   </td>
                 </tr>
               }
             </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="3">Rezept total</td>
+                <td class="price-cell total-cell">
+                  {{ knownTotalPrice() | number:'1.2-2' }} CHF @if (hasMissingPrices()) { <span class="missing-price-note">+</span> }
+                </td>
+                <td></td>
+              </tr>
+            </tfoot>
           </table>
+          @if (hasMissingPrices()) {
+            <p class="price-note">+ Einige Produkte haben noch keinen Preis.</p>
+          }
         } @else {
           <p class="empty-hint">Noch keine Produkte im Rezept.</p>
         }

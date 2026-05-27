@@ -53,10 +53,11 @@
                 (change)="toggleAll($any($event.target).checked)"
                 aria-label="Alle Rezepte auswählen" />
             </th>
-            <th>Rezept</th>
-            <th>Barcode</th>
-            <th>Produkte</th>
-            <th class="actions-col"></th>
+            <th class="recipe-name-col">Rezept</th>
+            <th class="barcode-col">Barcode</th>
+            <th class="count-col">Produkte</th>
+            <th class="price-col">Total</th>
+            <th class="actions-col">Aktion</th>
           </tr>
         </thead>
         <tbody>
@@ -77,7 +78,20 @@
               </td>
               <td><span class="recipe-barcode mono">{{ r.barcode }}</span></td>
               <td class="recipe-count">{{ r.items.length }}</td>
+              <td class="recipe-price">
+                {{ recipeTotalPrice(r) | number:'1.2-2' }} CHF @if (recipeHasMissingPrices(r)) { <span class="missing-price-note">+</span> }
+              </td>
               <td class="actions-col" (click)="$event.stopPropagation()">
+                <button
+                  type="button"
+                  class="btn-sm primary"
+                  (click)="addRecipe($event, r)"
+                  [disabled]="addingRecipeIds.has(r.id)"
+                  title="Rezept hinzufügen"
+                  [attr.aria-label]="'Rezept ' + r.name + ' hinzufügen'"
+                >
+                  {{ addingRecipeIds.has(r.id) ? '…' : '+' }}
+                </button>
                 <button class="btn-sm danger" (click)="delete($event, r.id, r.name)">✕</button>
               </td>
             </tr>

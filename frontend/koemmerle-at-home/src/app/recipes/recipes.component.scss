@@ -148,9 +148,30 @@ header {
   }
 }
 
+.recipe-name-col {
+  width: auto;
+}
+
+.barcode-col {
+  width: 170px;
+}
+
+.count-col {
+  width: 72px;
+  text-align: center !important;
+}
+
+.price-col {
+  width: 110px;
+}
+
 .actions-col {
-  width: 58px;
-  text-align: right !important;
+  width: 96px;
+  text-align: center !important;
+
+  .btn-sm + .btn-sm {
+    margin-left: 0.35rem;
+  }
 }
 
 .recipe-cell {
@@ -190,6 +211,20 @@ header {
 .recipe-count {
   font-size: 0.8rem;
   color: #9ca3af;
+  text-align: center !important;
+}
+
+.recipe-price {
+  color: #111827;
+  font-size: 0.85rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.missing-price-note {
+  color: #9ca3af;
+  margin-left: 0.15rem;
 }
 
 // ── Shared ──────────────────────────────────────────────────────────────────

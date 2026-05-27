@@ -35,10 +35,13 @@ export interface RecipeItemDto {
   id: number;
   productId: number;
   productName: string;
+  migrosUrl?: string;
   imageUrl?: string;
   imageData?: string;
   quantity: number;
   multiplier: number;
+  weightText?: string;
+  price?: number;
   migrosId?: string;
   migrosOnlineId?: number;
   migrosUid?: number;

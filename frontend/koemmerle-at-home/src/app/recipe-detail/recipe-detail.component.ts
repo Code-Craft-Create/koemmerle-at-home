@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import Fuse, { type IFuseOptions } from 'fuse.js';
-import { ScanApiService, RecipeDto, Product, ScanChoice } from '../services/scan-api.service';
+import { ScanApiService, RecipeDto, RecipeItemDto, Product, ScanChoice } from '../services/scan-api.service';
 import { ScanBridgeService } from '../services/scan-bridge.service';
 
 const FUSE_OPTIONS: IFuseOptions<Product> = {
@@ -85,6 +85,22 @@ export class RecipeDetailComponent implements OnInit {
       next: r => { this.recipe = r; this.loading = false; },
       error: () => { this.notFound = true; this.loading = false; }
     });
+  }
+
+  knownTotalPrice(): number {
+    return this.recipe?.items.reduce((sum, item) => sum + this.itemTotalPrice(item), 0) ?? 0;
+  }
+
+  hasMissingPrices(): boolean {
+    return this.recipe?.items.some(item => item.price == null) ?? false;
+  }
+
+  itemTotalPrice(item: RecipeItemDto): number {
+    return item.price == null ? 0 : item.price * item.quantity;
+  }
+
+  productLinkLabel(item: RecipeItemDto): string {
+    return item.migrosUrl ? `${item.productName} auf migros.ch öffnen` : item.productName;
   }
 
   // ── Header editing ─────────────────────────────────────────────────────────

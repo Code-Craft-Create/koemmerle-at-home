@@ -146,6 +146,7 @@
   min-width: 0;
   position: relative;
   z-index: 1;
+  overflow-x: auto;
 
   h2 {
     font-size: 1.1rem;
@@ -162,6 +163,7 @@
 
 .items-table {
   width: 100%;
+  min-width: 0;
   border-collapse: collapse;
   font-size: 0.9rem;
 
@@ -179,6 +181,71 @@
     color: #6b7280;
     font-weight: 600;
   }
+
+  tfoot td {
+    padding-top: 0.75rem;
+    border-bottom: 0;
+    color: #111827;
+    font-weight: 700;
+  }
+}
+
+.product-name {
+  color: #111827;
+  font-weight: 600;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.product-item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
+}
+
+.usage-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.1rem;
+  font-size: 0.75rem;
+  color: #6b7280;
+  background: #f3f4f6;
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+}
+
+.price-badge {
+  color: #2563eb;
+  background: #eff6ff;
+}
+
+.price-cell {
+  white-space: nowrap;
+  color: #374151;
+  font-variant-numeric: tabular-nums;
+}
+
+.total-cell {
+  font-weight: 700;
+  color: #111827;
+}
+
+.action-col,
+.action-cell {
+  width: 4rem;
+  text-align: center !important;
+}
+
+.missing-price-note {
+  color: #9ca3af;
+  margin-left: 0.15rem;
+}
+
+.price-note {
+  margin: 0.5rem 0 0;
+  color: #6b7280;
+  font-size: 0.82rem;
 }
 
 .search-wrapper {
@@ -256,19 +323,6 @@
     gap: 0.25rem;
   }
 
-  .usage-badge {
-    font-size: 0.75rem;
-    color: #9ca3af;
-    background: #f3f4f6;
-    padding: 0.1rem 0.4rem;
-    border-radius: 3px;
-    flex-shrink: 0;
-  }
-
-  .price-badge {
-    color: #2563eb;
-    background: #eff6ff;
-  }
 }
 
 .thumb-xs {
@@ -308,6 +362,54 @@
   object-fit: contain;
   border-radius: 4px;
   background: white;
+}
+
+.item-product-link {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  z-index: 3;
+  width: 1rem;
+  height: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border, #d1d5db);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--text, #374151);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.88), 0 1px 4px rgba(0, 0, 0, 0.12);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-0.15rem) scale(0.8);
+  transition: opacity 120ms ease, transform 140ms ease, border-color 120ms ease, background 120ms ease;
+
+  svg {
+    width: 70%;
+    height: 70%;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  &:hover {
+    background: white;
+    border-color: #9ca3af;
+  }
+}
+
+.image-badge-wrap:hover > .item-product-link,
+.item-product-link:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+}
+
+.remove-item-btn {
+  min-width: 1.75rem;
+  padding-inline: 0.45rem;
 }
 
 .multiplier-badge {

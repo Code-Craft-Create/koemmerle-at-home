@@ -16,6 +16,7 @@ export class RecipesComponent implements OnInit {
   message = '';
   error = '';
   busy = false;
+  addingRecipeIds = new Set<number>();
 
   newBarcode = '';
   newName = '';
@@ -61,6 +62,36 @@ export class RecipesComponent implements OnInit {
     if (!this.newBarcode.trim() || !this.newName.trim()) return;
     this.api.createRecipe(this.newBarcode.trim(), this.newName.trim()).subscribe(r => {
       this.router.navigate(['/recipes', r.id]);
+    });
+  }
+
+  recipeTotalPrice(recipe: RecipeDto): number {
+    return recipe.items.reduce((sum, item) => sum + (item.price == null ? 0 : item.price * item.quantity), 0);
+  }
+
+  recipeHasMissingPrices(recipe: RecipeDto): boolean {
+    return recipe.items.some(item => item.price == null);
+  }
+
+  addRecipe(event: Event, recipe: RecipeDto) {
+    event.stopPropagation();
+    if (this.addingRecipeIds.has(recipe.id)) return;
+
+    this.message = '';
+    this.error = '';
+    this.addingRecipeIds.add(recipe.id);
+
+    this.api.enqueue(recipe.barcode, 1).subscribe({
+      next: ids => {
+        this.addingRecipeIds.delete(recipe.id);
+        this.message = ids.length
+          ? `"${recipe.name}" hinzugefügt (${ids.length} Produkt${ids.length === 1 ? '' : 'e'}).`
+          : `"${recipe.name}" konnte nicht hinzugefügt werden.`;
+      },
+      error: () => {
+        this.addingRecipeIds.delete(recipe.id);
+        this.error = `"${recipe.name}" konnte nicht hinzugefügt werden.`;
+      }
     });
   }
 
