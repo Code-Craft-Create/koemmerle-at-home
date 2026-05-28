@@ -1,18 +1,10 @@
 import { Component, HostListener, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import Fuse, { type IFuseOptions } from 'fuse.js';
-import { BringMatch, BringSuggestion, Product, ScanApiService } from '../services/scan-api.service';
+import { BringMatch, BringSuggestion, ScanApiService } from '../services/scan-api.service';
 import { ConfirmationService } from '../shared/confirmation.service';
 
 const SEARCH_RESULT_LIMIT = 50;
-const FUSE_OPTIONS: IFuseOptions<Product> = {
-  keys: ['name'],
-  threshold: 0.35,
-  ignoreLocation: true,
-  minMatchCharLength: 2,
-  includeScore: true,
-};
 
 @Component({
   selector: 'app-bring',
@@ -33,8 +25,7 @@ export class BringComponent implements OnInit {
   customSearch: Record<number, string> = {};
   customResults: Record<number, BringSuggestion[]> = {};
   customBusy: Record<number, boolean> = {};
-  products: Product[] = [];
-  private fuse = new Fuse<Product>([], FUSE_OPTIONS);
+  customFallback: Record<number, CustomFallbackNotice | null> = {};
   private customSearchTimer: any = null;
   private readonly storageKey = 'bring-sync-review-state-v1';
   readonly pieR = 9;
@@ -63,10 +54,6 @@ export class BringComponent implements OnInit {
 
   ngOnInit() {
     this.restoreState();
-    this.api.getProducts().subscribe(products => {
-      this.products = products;
-      this.fuse = new Fuse(products, FUSE_OPTIONS);
-    });
   }
 
   startSync() {
@@ -98,6 +85,7 @@ export class BringComponent implements OnInit {
         this.customSearch = {};
         this.customResults = {};
         this.customBusy = {};
+        this.customFallback = {};
         for (const item of this.items) {
           this.selectedUid[item.index] = item.suggestions[0]?.migrosUid ?? null;
           this.quantities[item.index] = 1;
@@ -195,6 +183,7 @@ export class BringComponent implements OnInit {
     this.customSearch = {};
     this.customResults = {};
     this.customBusy = {};
+    this.customFallback = {};
     this.message = message;
     this.error = error;
     localStorage.removeItem(this.storageKey);
@@ -209,8 +198,14 @@ export class BringComponent implements OnInit {
     this.persistState();
   }
 
+  closeCustomSearch() {
+    this.customSearchIndex = null;
+    this.persistState();
+  }
+
   onCustomSearchInput(item: BringMatch, value: string) {
     this.customSearch[item.index] = value;
+    this.customFallback[item.index] = null;
     this.persistState();
     clearTimeout(this.customSearchTimer);
     this.customSearchTimer = setTimeout(() => this.runCustomSearch(item), 250);
@@ -218,41 +213,29 @@ export class BringComponent implements OnInit {
 
   runCustomSearch(item: BringMatch) {
     const query = (this.customSearch[item.index] ?? '').trim();
+    this.customFallback[item.index] = null;
     if (query.length < 2) {
       this.customResults[item.index] = [];
       this.customBusy[item.index] = false;
+      this.persistState();
       return;
     }
 
     this.customBusy[item.index] = true;
-    this.customResults[item.index] = this.localSearchResults(query);
-    this.api.getScanAlternatives(query, 0, SEARCH_RESULT_LIMIT).subscribe({
+    this.api.searchBringProducts(query, SEARCH_RESULT_LIMIT).subscribe({
       next: response => {
         if ((this.customSearch[item.index] ?? '').trim() !== query) return;
-        this.customResults[item.index] = this.mergeSearchResults(
-          query,
-          this.localSearchResults(query),
-          response.choices.map(choice => ({
-            migrosUid: choice.migrosUid,
-            name: choice.name,
-            imageUrl: choice.imageUrl,
-            weightText: choice.weightText,
-            price: choice.price,
-            multiplier: choice.multiplier,
-            relevance: 0.9,
-            orderCount: 0,
-            matchedQuery: query
-          }))
-        );
+        this.customResults[item.index] = response.suggestions;
+        this.customFallback[item.index] = this.fallbackNoticeFromResults(query, response.suggestions);
         this.customBusy[item.index] = false;
         this.persistState();
       },
       error: () => {
-        if ((this.customSearch[item.index] ?? '').trim() === query) {
-          this.customResults[item.index] = [];
-          this.customBusy[item.index] = false;
-          this.persistState();
-        }
+        if ((this.customSearch[item.index] ?? '').trim() !== query) return;
+        this.customResults[item.index] = [];
+        this.customFallback[item.index] = null;
+        this.customBusy[item.index] = false;
+        this.persistState();
       }
     });
   }
@@ -271,63 +254,22 @@ export class BringComponent implements OnInit {
     return item.specification ? `${item.name} ${item.specification}` : item.name;
   }
 
-  private localSearchResults(query: string): BringSuggestion[] {
-    const q = query.trim();
-    const results = q
-      ? this.fuse.search(q)
-          .sort((a, b) =>
-            this.directProductMatchRank(b.item, q) - this.directProductMatchRank(a.item, q)
-            || Math.floor((a.score ?? 1) * 5) - Math.floor((b.score ?? 1) * 5)
-            || this.compareRelevanceDesc(a.item, b.item))
-          .map(r => r.item)
-      : [...this.products].sort((a, b) => this.compareRelevanceDesc(a, b));
+  private fallbackNoticeFromResults(query: string, suggestions: BringSuggestion[]): CustomFallbackNotice | null {
+    if (suggestions.length === 0) return null;
 
-    return results
-      .filter(product => product.migrosUid != null)
-      .slice(0, SEARCH_RESULT_LIMIT)
-      .map(product => ({
-        migrosUid: product.migrosUid!,
-        name: product.name,
-        imageUrl: product.imageData || product.imageUrl,
-        weightText: product.weightText,
-        price: product.price,
-        multiplier: product.multiplier,
-        relevance: product.relevance,
-        orderCount: product.orderCount,
-        matchedQuery: q
-      }));
-  }
+    const exactQuery = this.normalizedSearchText(query);
+    const matchedQueries = suggestions
+      .map(s => s.matchedQuery?.trim())
+      .filter((matchedQuery): matchedQuery is string => !!matchedQuery);
 
-  private mergeSearchResults(query: string, local: BringSuggestion[], remote: BringSuggestion[]): BringSuggestion[] {
-    const byUid = new Map<number, BringSuggestion>();
-    for (const suggestion of [...local, ...remote]) {
-      const existing = byUid.get(suggestion.migrosUid);
-      if (!existing || suggestion.relevance > existing.relevance) byUid.set(suggestion.migrosUid, suggestion);
+    if (matchedQueries.some(matchedQuery => this.normalizedSearchText(matchedQuery) === exactQuery)) {
+      return null;
     }
 
-    return [...byUid.values()]
-      .sort((a, b) =>
-        this.directSuggestionMatchRank(b, query) - this.directSuggestionMatchRank(a, query)
-        || b.relevance - a.relevance
-        || b.orderCount - a.orderCount
-        || a.name.localeCompare(b.name))
-      .slice(0, SEARCH_RESULT_LIMIT);
-  }
+    const fallbackQuery = matchedQueries
+      .sort((a, b) => this.normalizedSearchText(b).length - this.normalizedSearchText(a).length)[0];
 
-  private compareRelevanceDesc(a: Product, b: Product): number {
-    return b.relevance - a.relevance || b.orderCount - a.orderCount;
-  }
-
-  private directProductMatchRank(product: Product, query: string): number {
-    const q = this.normalizedSearchText(query);
-    if (!q) return 0;
-    return this.normalizedSearchText(`${product.name} ${product.barcodes}`).includes(q) ? 1 : 0;
-  }
-
-  private directSuggestionMatchRank(suggestion: BringSuggestion, query: string): number {
-    const q = this.normalizedSearchText(query);
-    if (!q) return 0;
-    return this.normalizedSearchText(suggestion.name).includes(q) ? 1 : 0;
+    return fallbackQuery ? { originalQuery: query, fallbackQuery } : null;
   }
 
   private normalizedSearchText(value: string): string {
@@ -356,6 +298,7 @@ export class BringComponent implements OnInit {
         customSearchIndex: this.customSearchIndex,
         customSearch: this.customSearch,
         customResults: this.customResults,
+        customFallback: this.customFallback,
         message: this.message,
         error: this.error,
         savedAt: new Date().toISOString()
@@ -380,6 +323,7 @@ export class BringComponent implements OnInit {
       this.customSearchIndex = typeof state.customSearchIndex === 'number' ? state.customSearchIndex : null;
       this.customSearch = this.cleanStringRecord(state.customSearch);
       this.customResults = this.cleanSuggestionRecord(state.customResults);
+      this.customFallback = this.cleanFallbackRecord(state.customFallback);
       this.customBusy = {};
       this.message = typeof state.message === 'string' ? state.message : '';
       this.error = typeof state.error === 'string' ? state.error : '';
@@ -434,6 +378,33 @@ export class BringComponent implements OnInit {
     }
     return result;
   }
+
+  private cleanFallbackRecord(value: unknown): Record<number, CustomFallbackNotice | null> {
+    if (!value || typeof value !== 'object') return {};
+    const result: Record<number, CustomFallbackNotice | null> = {};
+    for (const [key, raw] of Object.entries(value)) {
+      const index = Number(key);
+      if (!Number.isInteger(index)) continue;
+      if (raw === null) {
+        result[index] = null;
+        continue;
+      }
+      if (!raw || typeof raw !== 'object') continue;
+      const notice = raw as Partial<CustomFallbackNotice>;
+      if (typeof notice.originalQuery === 'string' && typeof notice.fallbackQuery === 'string') {
+        result[index] = {
+          originalQuery: notice.originalQuery,
+          fallbackQuery: notice.fallbackQuery
+        };
+      }
+    }
+    return result;
+  }
+}
+
+interface CustomFallbackNotice {
+  originalQuery: string;
+  fallbackQuery: string;
 }
 
 interface BringReviewState {
@@ -443,6 +414,7 @@ interface BringReviewState {
   customSearchIndex: number | null;
   customSearch: Record<number, string>;
   customResults: Record<number, BringSuggestion[]>;
+  customFallback: Record<number, CustomFallbackNotice | null>;
   message: string;
   error: string;
   savedAt: string;

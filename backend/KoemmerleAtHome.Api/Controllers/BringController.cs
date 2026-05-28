@@ -53,12 +53,13 @@ public class BringController(
     }
 
     [HttpGet("search")]
-    public async Task<ActionResult<BringSearchResponse>> Search([FromQuery] string query, CancellationToken ct)
+    public async Task<ActionResult<BringSearchResponse>> Search([FromQuery] string query, [FromQuery] int limit = 50, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(query))
             return BadRequest("query is required");
 
-        var suggestions = await SearchSuggestionsAsync(new BringListItem(query.Trim(), null), ct);
+        var safeLimit = Math.Clamp(limit, 1, 50);
+        var suggestions = await SearchSuggestionsAsync(new BringListItem(query.Trim(), null), ct, safeLimit);
         return Ok(new BringSearchResponse(suggestions));
     }
 
@@ -96,7 +97,10 @@ public class BringController(
         return Ok(new BringEnqueueResponse(queueIds.Count, skipped, queueIds));
     }
 
-    private async Task<List<BringSuggestionDto>> SearchSuggestionsAsync(BringListItem item, CancellationToken ct)
+    private async Task<List<BringSuggestionDto>> SearchSuggestionsAsync(
+        BringListItem item,
+        CancellationToken ct,
+        int suggestionLimit = SuggestionLimit)
     {
         var candidates = new Dictionary<long, Candidate>();
         var products = await db.Products
@@ -108,6 +112,10 @@ public class BringController(
             .Where(p => p.MigrosUid.HasValue)
             .GroupBy(p => p.MigrosUid!.Value)
             .ToDictionary(g => g.Key, g => g.First());
+        var searchLimitPerQuery = Math.Clamp(
+            Math.Max(SearchLimitPerQuery, suggestionLimit),
+            SearchLimitPerQuery,
+            100);
 
         var queryIndex = 0;
         var queried = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -119,7 +127,7 @@ public class BringController(
                 var queryUids = new HashSet<long>();
 
                 var localMatches = SearchLocalProducts(products, query, relevanceByProductId)
-                    .Take(SearchLimitPerQuery)
+                    .Take(searchLimitPerQuery)
                     .ToList();
                 for (var rank = 0; rank < localMatches.Count; rank++)
                 {
@@ -145,7 +153,7 @@ public class BringController(
                         OrderCount: orderCount));
                 }
 
-                var (cards, _) = await productSync.SyncBySearchAsync(query, limit: SearchLimitPerQuery, ct: ct);
+                var (cards, _) = await productSync.SyncBySearchAsync(query, limit: searchLimitPerQuery, ct: ct);
                 for (var rank = 0; rank < cards.Count; rank++)
                 {
                     var card = cards[rank];
@@ -184,20 +192,22 @@ public class BringController(
             .Select(c =>
                 new RankedSuggestion(
                     DirectMatchRank(c.Name, c.WeightText, item),
+                    FirstWordMatchRank(c.Name, c.WeightText, item),
                     c.QueryIndex,
                     c.Rank,
                     c.SourceRank,
                     c.Relevance,
                     c.OrderCount,
                     ToDto(c)))
-            .OrderByDescending(s => s.Relevance)
+            .OrderByDescending(s => s.DirectRank)
+            .ThenByDescending(s => s.FirstWordRank)
+            .ThenByDescending(s => s.Relevance)
             .ThenByDescending(s => s.OrderCount)
-            .ThenByDescending(s => s.DirectRank)
             .ThenBy(s => s.SourceRank)
             .ThenBy(s => s.QueryIndex)
             .ThenBy(s => s.Rank)
             .ThenBy(s => s.Dto.Name)
-            .Take(SuggestionLimit)
+            .Take(suggestionLimit)
             .Select(s => s.Dto)
             .ToList();
     }
@@ -327,10 +337,11 @@ public class BringController(
         if (string.IsNullOrWhiteSpace(q)) return 0;
 
         var haystack = Normalize($"{product.Name} {product.Barcodes} {product.WeightText}");
-        if (haystack.Contains(q, StringComparison.Ordinal)) return 4;
+        if (haystack.Contains(q, StringComparison.Ordinal)) return 5;
 
         var words = q.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        if (words.Length > 1 && words.All(w => haystack.Contains(w, StringComparison.Ordinal))) return 2;
+        if (words.Length > 1 && words.All(w => haystack.Contains(w, StringComparison.Ordinal))) return 4;
+        if (words.FirstOrDefault() is { Length: >= 3 } firstWord && haystack.Contains(firstWord, StringComparison.Ordinal)) return 3;
         if (words.Any(w => w.Length >= 3 && haystack.Contains(w, StringComparison.Ordinal))) return 1;
         return 0;
     }
@@ -344,6 +355,20 @@ public class BringController(
         if (!string.IsNullOrWhiteSpace(full) && haystack.Contains(full, StringComparison.Ordinal)) return 2;
         if (!string.IsNullOrWhiteSpace(itemName) && haystack.Contains(itemName, StringComparison.Ordinal)) return 1;
         return 0;
+    }
+
+    private static int FirstWordMatchRank(string productName, string? weightText, BringListItem item)
+    {
+        var firstWord = Normalize(item.Name)
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .FirstOrDefault();
+        if (string.IsNullOrWhiteSpace(firstWord) || firstWord.Length < 3) return 0;
+
+        var normalizedName = Normalize(productName);
+        if (normalizedName.StartsWith(firstWord, StringComparison.Ordinal)) return 2;
+
+        var haystack = Normalize($"{productName} {weightText}");
+        return haystack.Contains(firstWord, StringComparison.Ordinal) ? 1 : 0;
     }
 
     private static string Normalize(string value)
@@ -374,7 +399,7 @@ public class BringController(
         int? ProductId,
         double Relevance,
         int OrderCount);
-    private record RankedSuggestion(int DirectRank, int QueryIndex, int Rank, int SourceRank, double Relevance, int OrderCount, BringSuggestionDto Dto);
+    private record RankedSuggestion(int DirectRank, int FirstWordRank, int QueryIndex, int Rank, int SourceRank, double Relevance, int OrderCount, BringSuggestionDto Dto);
     private record ProductRelevance(double Relevance, int OrderCount);
 }
 

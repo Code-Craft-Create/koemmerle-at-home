@@ -540,8 +540,8 @@ export class ScanApiService {
   extractBringList(): Observable<BringExtractResponse> {
     return this.http.post<BringExtractResponse>(`${this.base}/bring/extract`, {});
   }
-  searchBringProducts(query: string): Observable<BringSearchResponse> {
-    return this.http.get<BringSearchResponse>(`${this.base}/bring/search`, { params: { query } });
+  searchBringProducts(query: string, limit = 50): Observable<BringSearchResponse> {
+    return this.http.get<BringSearchResponse>(`${this.base}/bring/search`, { params: { query, limit } });
   }
   enqueueBringItems(items: { index: number; name: string; specification?: string; migrosUid: number; quantity: number }[]): Observable<BringEnqueueResponse> {
     return this.http.post<BringEnqueueResponse>(`${this.base}/bring/enqueue`, { items });

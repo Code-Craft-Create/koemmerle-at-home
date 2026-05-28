@@ -98,47 +98,64 @@
                 </button>
 
                 @if (customSearchIndex === item.index) {
-                  <div class="custom-search">
-                    <input
-                      [ngModel]="customSearch[item.index]"
-                      (ngModelChange)="onCustomSearchInput(item, $event)"
-                      placeholder="Migros-Artikel suchen..."
-                      autofocus
-                    />
-                    <div class="custom-results">
-                      @if (customBusy[item.index]) {
-                        <div class="custom-empty">Sucht...</div>
-                      } @else {
-                        @for (suggestion of customResults[item.index] ?? []; track suggestion.migrosUid) {
-                          <button type="button" class="product-option" (click)="pickCustomSuggestion(item, suggestion)">
-                            @if (suggestion.imageUrl) {
+                  <div class="custom-search" role="dialog" aria-modal="true" aria-label="Migros-Artikel suchen" (click)="closeCustomSearch()">
+                    <div class="custom-search-panel" (click)="$event.stopPropagation()">
+                      <div class="custom-search-head">
+                        <div>
+                          <p class="custom-search-kicker">Migros-Artikel für</p>
+                          <h3>{{ itemLabel(item) }}</h3>
+                        </div>
+                        <button type="button" class="custom-search-close" (click)="closeCustomSearch()" aria-label="Suche schliessen">×</button>
+                      </div>
+                      <input
+                        [ngModel]="customSearch[item.index]"
+                        (ngModelChange)="onCustomSearchInput(item, $event)"
+                        placeholder="Migros-Artikel suchen..."
+                        autofocus
+                      />
+                      @if (customFallback[item.index]; as fallback) {
+                        <div class="custom-search-fallback">
+                          <span>Keine Treffer für "{{ fallback.originalQuery }}"</span>
+                          <strong>Treffer für "{{ fallback.fallbackQuery }}"</strong>
+                        </div>
+                      }
+                      <div class="custom-results">
+                        @if (customBusy[item.index]) {
+                          <div class="custom-empty">Sucht...</div>
+                        } @else {
+                          @for (suggestion of customResults[item.index] ?? []; track suggestion.migrosUid) {
+                            <button type="button" class="product-option" (click)="pickCustomSuggestion(item, suggestion)">
                               <span class="image-badge-wrap">
-                                <img [src]="suggestion.imageUrl" class="thumb-xs" [alt]="suggestion.name" />
+                                @if (suggestion.imageUrl) {
+                                  <img [src]="suggestion.imageUrl" class="thumb-xs" [alt]="suggestion.name" />
+                                } @else {
+                                  <span class="image-placeholder thumb-xs"></span>
+                                }
                                 @if (suggestion.multiplier > 1) { <span class="multiplier-badge">{{ suggestion.multiplier }}x</span> }
                               </span>
-                            }
-                            <span class="product-option-main">
-                              <span class="product-option-name">{{ suggestion.name }}</span>
-                              @if (suggestion.weightText || suggestion.price != null) {
-                                <span class="product-option-meta">
-                                  @if (suggestion.weightText) { <span class="usage-badge">{{ suggestion.weightText }}</span> }
-                                  @if (suggestion.price != null) { <span class="usage-badge price-badge">{{ suggestion.price | number:'1.2-2' }} CHF</span> }
-                                </span>
+                              <span class="product-option-main">
+                                <span class="product-option-name">{{ suggestion.name }}</span>
+                                @if (suggestion.weightText || suggestion.price != null) {
+                                  <span class="product-option-meta">
+                                    @if (suggestion.weightText) { <span class="usage-badge">{{ suggestion.weightText }}</span> }
+                                    @if (suggestion.price != null) { <span class="usage-badge price-badge">{{ suggestion.price | number:'1.2-2' }} CHF</span> }
+                                  </span>
+                                }
+                              </span>
+                              @if (suggestion.relevance > 0) {
+                                <svg width="20" height="20" viewBox="0 0 24 24" class="dropdown-relevance">
+                                  <circle cx="12" cy="12" [attr.r]="pieR" fill="none" stroke="#e5e7eb" stroke-width="3"/>
+                                  <circle cx="12" cy="12" [attr.r]="pieR" fill="none" [attr.stroke]="relevanceColor(suggestion.relevance)" stroke-width="3"
+                                    [attr.stroke-dasharray]="relevanceDash(suggestion.relevance)"
+                                    transform="rotate(-90 12 12)"/>
+                                </svg>
                               }
-                            </span>
-                            @if (suggestion.relevance > 0) {
-                              <svg width="20" height="20" viewBox="0 0 24 24" class="dropdown-relevance">
-                                <circle cx="12" cy="12" [attr.r]="pieR" fill="none" stroke="#e5e7eb" stroke-width="3"/>
-                                <circle cx="12" cy="12" [attr.r]="pieR" fill="none" [attr.stroke]="relevanceColor(suggestion.relevance)" stroke-width="3"
-                                  [attr.stroke-dasharray]="relevanceDash(suggestion.relevance)"
-                                  transform="rotate(-90 12 12)"/>
-                              </svg>
-                            }
-                          </button>
-                        } @empty {
-                          <div class="custom-empty">Keine Treffer</div>
+                            </button>
+                          } @empty {
+                            <div class="custom-empty">Keine Treffer</div>
+                          }
                         }
-                      }
+                      </div>
                     </div>
                   </div>
                 }
