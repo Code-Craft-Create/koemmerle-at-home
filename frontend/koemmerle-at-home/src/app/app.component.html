@@ -67,7 +67,11 @@
     <!-- <a routerLink="/scan" routerLinkActive="active">Scannen</a> -->
     <a routerLink="/basket" routerLinkActive="active">Warenkorb</a>
     <a routerLink="/products" routerLinkActive="active">Meine Produkte</a>
-    <a routerLink="/recipes" routerLinkActive="active">Rezepte</a>
+    <a routerLink="/promotions" routerLinkActive="active">Aktionen</a>
+    <a routerLink="/recipes" routerLinkActive="active">
+      <span>Rezepte</span>
+      @if (hasRecipePromotions) { <span class="nav-promo-badge" aria-label="Rezepte mit Aktionen">%</span> }
+    </a>
     <a routerLink="/stickers" routerLinkActive="active">Sticker</a>
     <a routerLink="/bring" routerLinkActive="active">Bring-App</a>
   </div>
@@ -96,15 +100,16 @@
   <div class="order-import-modal" role="dialog" aria-modal="true" aria-labelledby="order-import-title">
     <div class="order-import-panel">
       <button class="order-import-close" type="button" (click)="closeOrderImportPrompt()" aria-label="Schliessen">×</button>
-      <h1 id="order-import-title">Bestellungen importieren?</h1>
+      <h1 id="order-import-title">Migros-Sync starten?</h1>
       <p>
         Mit deinen bisherigen Migros-Bestellungen findet KÖMMERLE At Home viel schneller deine Lieblingsprodukte,
         schlägt passendere Produkte für Sticker vor und macht das Anlegen von Rezepten spürbar einfacher.
+        Danach werden die aktuellen Aktionen sichtbar aktualisiert.
       </p>
       <div class="order-import-setting">
         <div>
           <strong>Auto-Update</strong>
-          <span>Empfohlen: hält neue Bestellungen automatisch synchron.</span>
+          <span>Empfohlen: hält Bestellungen und Aktionen automatisch synchron.</span>
         </div>
         <label class="switch">
           <input
@@ -118,7 +123,7 @@
       </div>
       <div class="order-import-actions">
         <button type="button" class="order-import-secondary" (click)="closeOrderImportPrompt()">Später</button>
-        <button type="button" class="order-import-primary" (click)="startOrderImportFromPrompt()">Import starten</button>
+        <button type="button" class="order-import-primary" (click)="startOrderImportFromPrompt()">Migros-Sync starten</button>
       </div>
     </div>
   </div>
@@ -157,7 +162,7 @@
       <span class="order-import-peek-progress">
         <span [style.height.%]="orderImportProgressPercent()"></span>
       </span>
-      <span class="order-import-peek-label">Import</span>
+      <span class="order-import-peek-label">Migros-Sync</span>
     </button>
   </div>
 }

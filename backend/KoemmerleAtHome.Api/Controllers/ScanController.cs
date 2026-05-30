@@ -130,7 +130,9 @@ public class ScanController(
             c.EffectiveImageUrl,
             c.EffectiveWeightText,
             c.EffectivePrice,
-            c.EffectiveMultiplier
+            c.EffectiveMultiplier,
+            c.EffectivePromotionPrice,
+            c.EffectivePromotionBadge
         )).ToArray();
 }
 

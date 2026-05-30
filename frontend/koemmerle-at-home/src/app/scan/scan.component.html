@@ -106,12 +106,23 @@
             }
             <div class="alt-details">
               <p class="alt-name">{{ alt.name }}</p>
-              @if (alt.weightText || alt.price) {
-                <p class="alt-meta">
-                  {{ alt.weightText }}
-                  @if (alt.weightText && alt.price) { | }
-                  {{ alt.price ? 'CHF ' + (alt.price | number:'1.2-2') : '' }}
-                </p>
+              @if (alt.promotionBadgeDescription || alt.weightText || alternativeEffectivePrice(alt) != null) {
+                <div class="alt-meta">
+                  @if (alt.promotionBadgeDescription) {
+                    <span class="promo-badge">{{ alt.promotionBadgeDescription }}</span>
+                  }
+                  @if (alt.weightText) {
+                    <span class="quantity-tag">{{ alt.weightText }}</span>
+                  }
+                  @if (alternativeHasPromotion(alt) && alt.price != null) {
+                    <span class="old-price">{{ alt.price | number:'1.2-2' }}</span>
+                  }
+                  @if (alternativeEffectivePrice(alt) != null) {
+                    <span class="price-tag" [class.promotion-price]="alternativeHasPromotion(alt)">
+                      {{ alternativeEffectivePrice(alt) | number:'1.2-2' }}
+                    </span>
+                  }
+                </div>
               }
             </div>
           </div>

@@ -37,6 +37,37 @@
   gap: 0.75rem;
 }
 
+.basket-total {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  padding: 0.28rem 0.55rem;
+  border-radius: 7px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  font-family: sans-serif;
+  white-space: nowrap;
+
+  span {
+    color: var(--text-2, #6b7280);
+    font-size: 0.78rem;
+    font-weight: 700;
+  }
+
+  strong {
+    color: var(--text, #111111);
+    font-size: 0.95rem;
+    font-weight: 900;
+    line-height: 1;
+  }
+}
+
+.missing-price-note {
+  color: var(--orange, #f97316);
+  font-size: 0.9rem;
+  font-weight: 900;
+}
+
 .size-slider {
   display: flex;
   align-items: center;
@@ -132,6 +163,34 @@
 
 .actions-dropdown-btn--primary {
   color: var(--orange, #f97316);
+}
+
+.actions-separator {
+  height: 1px;
+  background: #e5e7eb;
+  margin: 0.15rem 0;
+}
+
+.actions-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.38rem 0.45rem;
+  border-radius: 7px;
+  color: var(--text, #111);
+  font-size: 0.84rem;
+  font-weight: 600;
+  font-family: sans-serif;
+  cursor: pointer;
+
+  &:hover {
+    background: #f3f4f6;
+  }
+
+  input {
+    accent-color: var(--orange, #f97316);
+    cursor: pointer;
+  }
 }
 
 // ── Swimlanes container ───────────────────────────────────────────────────────
@@ -350,6 +409,13 @@
   position: relative;
 }
 
+.image-badge-wrap > .multiplier-badge {
+  min-width: calc(1.3rem * var(--card-size, 1));
+  height: calc(0.98rem * var(--card-size, 1));
+  padding: 0 calc(0.28rem * var(--card-size, 1));
+  font-size: calc(0.58rem * var(--card-size, 1));
+}
+
 .item-img-placeholder {
   position: relative;
   width: calc(52px * var(--card-size, 1));
@@ -367,6 +433,21 @@
   flex-direction: column;
   align-items: center;
   width: 100%;
+  gap: calc(0.14rem * var(--card-size, 1));
+}
+
+.item-promo-price-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(0.42rem * var(--card-size, 1));
+  width: 100%;
+  padding: 0 calc(0.12rem * var(--card-size, 1));
+  min-width: 0;
+
+  &.has-price {
+    justify-content: space-between;
+  }
 }
 
 .item-name {
@@ -387,6 +468,78 @@
   font-size: 0.62rem;
   color: #9ca3af;
   font-family: sans-serif;
+}
+
+.promo-tag,
+.quantity-tag,
+.old-price {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: calc(0.82rem * var(--card-size, 1));
+  padding: calc(0.06rem * var(--card-size, 1)) calc(0.24rem * var(--card-size, 1));
+  border-radius: 3px;
+  font-family: sans-serif;
+  font-size: calc(0.48rem * var(--card-size, 1));
+  font-weight: 800;
+  line-height: 1.05;
+  white-space: nowrap;
+}
+
+.price-stack {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: calc(0.06rem * var(--card-size, 1));
+  min-width: 0;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.old-price {
+  min-height: auto;
+  padding: 0;
+  color: #777777;
+  background: transparent;
+  text-decoration: line-through;
+  font-weight: 800;
+}
+
+.promo-tag {
+  align-self: center;
+  min-width: calc(1.75rem * var(--card-size, 1));
+  flex-shrink: 0;
+  border-radius: 0;
+  background: var(--orange, #f97316);
+  color: #ffffff;
+  font-size: calc(0.58rem * var(--card-size, 1));
+}
+
+.quantity-tag {
+  background: #f3f4f6;
+  color: #9ca3af;
+}
+
+.price-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: auto;
+  padding: 0;
+  color: var(--orange, #f97316);
+  background: transparent;
+  border-radius: 0;
+  font-family: sans-serif;
+  font-size: calc(0.72rem * var(--card-size, 1));
+  font-weight: 900;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.price-tag--regular {
+  color: var(--text, #111111);
 }
 
 .item-card--active {

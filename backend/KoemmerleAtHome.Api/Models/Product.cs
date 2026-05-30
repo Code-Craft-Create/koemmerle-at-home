@@ -22,4 +22,5 @@ public class Product
     public string? Categories { get; set; }                 // pipe-separated breadcrumb
     public string? AdditionalInfo { get; set; }            // JSON: {"available": true/false, ...}
     public DateTime? StickerPrintedAt { get; set; }        // set when user confirms sticker was printed
+    public bool IsPromotionOnly { get; set; }              // true until the product is seen via orders/search/manual sync
 }

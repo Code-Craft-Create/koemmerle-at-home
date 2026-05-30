@@ -6,7 +6,9 @@
         <button class="btn primary" disabled>
           ⏳
           @if (syncAllPhase === 'headers') {
-            Bestellungen importieren…
+            Bestellungen suchen…
+          } @else if (syncAllPhase === 'promotions') {
+            Aktionen aktualisieren…
           } @else {
             {{ syncAllPhase === 'details' ? 'Details' : 'Produkte' }} {{ syncAllCurrent }}/{{ syncAllTotal }}
           }
@@ -14,7 +16,7 @@
         <button class="btn danger" (click)="stopSyncAll()">⏹ Stopp</button>
       } @else {
         <button class="btn primary" (click)="syncAll()" [disabled]="syncingHeadersInProgress">
-          <img src="assets/icons/Download.png" class="btn-icon" alt="" />Bestellungen importieren
+          <img src="assets/icons/Download.png" class="btn-icon" alt="" />Migros-Sync starten
         </button>
       }
     </div>
@@ -26,8 +28,8 @@
 
   <section class="orders-setting">
     <div>
-      <h2>Bestellungen automatisch aktualisieren</h2>
-      <p>Beim App-Start werden neue Migros-Bestellungen importiert.</p>
+      <h2>Migros-Sync automatisch starten</h2>
+      <p>Beim App-Start werden neue Migros-Bestellungen importiert und danach Aktionen aktualisiert.</p>
     </div>
     <label class="switch">
       <input
@@ -41,7 +43,7 @@
   </section>
 
   @if (orders.length === 0) {
-    <div class="empty">Noch keine Bestellungen. Klicke auf "Bestellungen importieren".</div>
+    <div class="empty">Noch keine Bestellungen. Klicke auf "Migros-Sync starten".</div>
   }
 
   <div class="order-list">

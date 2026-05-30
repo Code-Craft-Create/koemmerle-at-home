@@ -84,10 +84,16 @@
                   }
                   <span class="product-option-main">
                     <span class="product-option-name">{{ option.name }}</span>
-                    @if (option.weightText || option.price != null) {
+                    @if (option.promotionBadgeDescription || option.weightText || optionEffectivePrice(option) != null) {
                       <span class="product-option-meta">
+                        @if (option.promotionBadgeDescription) { <span class="promo-badge">{{ option.promotionBadgeDescription }}</span> }
                         @if (option.weightText) { <span class="usage-badge">{{ option.weightText }}</span> }
-                        @if (option.price != null) { <span class="usage-badge price-badge">{{ option.price | number:'1.2-2' }} CHF</span> }
+                        @if (optionHasPromotion(option) && option.price != null) { <span class="old-price">{{ option.price | number:'1.2-2' }}</span> }
+                        @if (optionEffectivePrice(option) != null) {
+                          <span class="usage-badge price-badge" [class.promotion-price]="optionHasPromotion(option)">
+                            {{ optionEffectivePrice(option) | number:'1.2-2' }}
+                          </span>
+                        }
                       </span>
                     }
                   </span>
@@ -177,10 +183,16 @@
                   </td>
                   <td>
                     <span class="product-name">{{ item.productName }}</span>
-                    @if (item.weightText || item.price != null || item.multiplier > 1) {
+                    @if (item.promotionBadgeDescription || item.weightText || itemEffectivePrice(item) != null || item.multiplier > 1) {
                       <div class="product-item-meta">
+                        @if (item.promotionBadgeDescription) { <span class="promo-badge">{{ item.promotionBadgeDescription }}</span> }
                         @if (item.weightText) { <span class="usage-badge">{{ item.weightText }}</span> }
-                        @if (item.price != null) { <span class="usage-badge price-badge">{{ item.price | number:'1.2-2' }} CHF</span> }
+                        @if (itemHasPromotion(item) && item.price != null) { <span class="old-price">{{ item.price | number:'1.2-2' }}</span> }
+                        @if (itemEffectivePrice(item) != null) {
+                          <span class="usage-badge price-badge" [class.promotion-price]="itemHasPromotion(item)">
+                            {{ itemEffectivePrice(item) | number:'1.2-2' }}
+                          </span>
+                        }
                         @if (item.multiplier > 1) { <span class="usage-badge">{{ item.multiplier }}x</span> }
                       </div>
                     }
@@ -193,7 +205,16 @@
                            (change)="updateItemQty(item.id, +($any($event.target).value))" />
                   </td>
                   <td class="price-cell total-cell">
-                    {{ item.price != null ? (itemTotalPrice(item) | number:'1.2-2') + ' CHF' : '–' }}
+                    @if (itemEffectivePrice(item) != null) {
+                      <span class="total-price-stack">
+                        @if (itemHasPromotion(item) && item.price != null) {
+                          <span class="old-price">{{ itemOriginalTotalPrice(item) | number:'1.2-2' }} CHF</span>
+                        }
+                        <span [class.promotion-total]="itemHasPromotion(item)">{{ itemTotalPrice(item) | number:'1.2-2' }} CHF</span>
+                      </span>
+                    } @else {
+                      –
+                    }
                   </td>
                   <td class="action-cell">
                     <button
@@ -211,7 +232,15 @@
               <tr>
                 <td colspan="3">Rezept total</td>
                 <td class="price-cell total-cell">
-                  {{ knownTotalPrice() | number:'1.2-2' }} CHF @if (hasMissingPrices()) { <span class="missing-price-note">+</span> }
+                  <span class="total-price-stack">
+                    @if (hasPromotionSavings()) {
+                      <span class="old-price">{{ knownOriginalTotalPrice() | number:'1.2-2' }} CHF</span>
+                    }
+                    <span [class.promotion-total]="hasPromotionSavings()">{{ knownTotalPrice() | number:'1.2-2' }} CHF @if (hasMissingPrices()) { <span class="missing-price-note">+</span> }</span>
+                    @if (hasPromotionSavings()) {
+                      <span class="savings-badge">Ersparnis {{ promotionSavingsTotal() | number:'1.2-2' }} CHF</span>
+                    }
+                  </span>
                 </td>
                 <td></td>
               </tr>

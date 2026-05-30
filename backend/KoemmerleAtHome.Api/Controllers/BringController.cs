@@ -108,6 +108,9 @@ public class BringController(
             .ToListAsync(ct);
         var productIds = products.Select(p => p.Id).ToList();
         var relevanceByProductId = await GetProductRelevanceAsync(productIds, ct);
+        var promotionsByProductId = await db.ProductPromotions
+            .Where(p => productIds.Contains(p.ProductId))
+            .ToDictionaryAsync(p => p.ProductId, ct);
         var productByUid = products
             .Where(p => p.MigrosUid.HasValue)
             .GroupBy(p => p.MigrosUid!.Value)
@@ -137,6 +140,7 @@ public class BringController(
                     queryUids.Add(product.MigrosUid.Value);
                     var relevance = relevanceByProductId.TryGetValue(product.Id, out var rel) ? rel.Relevance : 0.0;
                     var orderCount = relevanceByProductId.TryGetValue(product.Id, out rel) ? rel.OrderCount : 0;
+                    promotionsByProductId.TryGetValue(product.Id, out var promotion);
                     AddCandidate(candidates, new Candidate(
                         product.MigrosUid.Value,
                         product.Name,
@@ -150,7 +154,9 @@ public class BringController(
                         SourceRank: 0,
                         ProductId: product.Id,
                         Relevance: relevance,
-                        OrderCount: orderCount));
+                        OrderCount: orderCount,
+                        PromotionPrice: promotion?.PromotionPrice,
+                        PromotionBadgeDescription: promotion?.BadgeDescription));
                 }
 
                 var (cards, _) = await productSync.SyncBySearchAsync(query, limit: searchLimitPerQuery, ct: ct);
@@ -177,7 +183,9 @@ public class BringController(
                         SourceRank: product is null ? 1 : 0,
                         ProductId: product?.Id,
                         Relevance: relevance,
-                        OrderCount: orderCount));
+                        OrderCount: orderCount,
+                        PromotionPrice: card.EffectivePromotionPrice,
+                        PromotionBadgeDescription: card.EffectivePromotionBadge));
                 }
 
                 logger.LogInformation("Bring search query '{Query}' found {FoundCount} candidate(s)", query, queryUids.Count);
@@ -242,7 +250,9 @@ public class BringController(
                 SourceRank = Math.Min(existing.SourceRank, candidate.SourceRank),
                 ProductId = candidate.ProductId ?? existing.ProductId,
                 Relevance = Math.Max(existing.Relevance, candidate.Relevance),
-                OrderCount = Math.Max(existing.OrderCount, candidate.OrderCount)
+                OrderCount = Math.Max(existing.OrderCount, candidate.OrderCount),
+                PromotionPrice = candidate.PromotionPrice ?? existing.PromotionPrice,
+                PromotionBadgeDescription = candidate.PromotionBadgeDescription ?? existing.PromotionBadgeDescription
             };
     }
 
@@ -255,7 +265,9 @@ public class BringController(
         candidate.Multiplier,
         candidate.Relevance,
         candidate.OrderCount,
-        candidate.Query);
+        candidate.Query,
+        candidate.PromotionPrice,
+        candidate.PromotionBadgeDescription);
 
     private async Task<Dictionary<int, ProductRelevance>> GetProductRelevanceAsync(List<int> productIds, CancellationToken ct)
     {
@@ -398,7 +410,9 @@ public class BringController(
         int SourceRank,
         int? ProductId,
         double Relevance,
-        int OrderCount);
+        int OrderCount,
+        decimal? PromotionPrice,
+        string? PromotionBadgeDescription);
     private record RankedSuggestion(int DirectRank, int FirstWordRank, int QueryIndex, int Rank, int SourceRank, double Relevance, int OrderCount, BringSuggestionDto Dto);
     private record ProductRelevance(double Relevance, int OrderCount);
 }
@@ -415,7 +429,9 @@ public record BringSuggestionDto(
     int Multiplier,
     double Relevance,
     int OrderCount,
-    string MatchedQuery);
+    string MatchedQuery,
+    decimal? PromotionPrice,
+    string? PromotionBadgeDescription);
 public record BringEnqueueRequest(List<BringEnqueueItem> Items);
 public record BringEnqueueItem(int Index, string Name, string? Specification, long MigrosUid, int Quantity = 1);
 public record BringEnqueueResponse(int Enqueued, int Skipped, List<int> QueueItemIds);

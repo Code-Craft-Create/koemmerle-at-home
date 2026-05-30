@@ -1,0 +1,143 @@
+POST /product-display/public/v4/product-cards
+
+Request: {
+    "offerFilter": {
+        "storeType": "ONLINE",
+        "warehouseId": 1,
+        "ongoingOfferDate": "2026-05-29T00:00:00"
+    },
+    "productFilter": {
+        "uids": [
+            100026084
+        ]
+    },
+    "cumulusCoupons": "<deleted>"
+}
+
+Response: [
+    {
+        "uid": 100026084,
+        "migrosId": "241102801700",
+        "migrosOnlineId": "4073157",
+        "name": "Pouletgeschnetzeltes",
+        "brand": "Optigal",
+        "title": "Optigal · Pouletgeschnetzeltes",
+        "description": "Optigal · Pouletgeschnetzeltes",
+        "productRange": "STANDARD",
+        "productAvailability": "ONLINE_AND_INSTORE",
+        "gtins": [
+            "7613269959281"
+        ],
+        "images": [
+            {
+                "cdn": "rokka",
+                "url": "https://image.migros.ch/d/{stack}/o-af-1-t.clr-fff/def5204b188ef2bb700bdf8551d9c9bfeb950908/optigal-pouletgeschnetzeltes.jpg"
+            },
+            {
+                "cdn": "rokka",
+                "url": "https://image.migros.ch/d/{stack}/015543176691cb41b699ef0cbfe4a46bc973ada2.jpg"
+            },
+            {
+                "cdn": "rokka",
+                "url": "https://image.migros.ch/d/{stack}/4264ac80fbee70a317973b0b5cbc74b00f27bd76.jpg"
+            },
+            {
+                "cdn": "rokka",
+                "url": "https://image.migros.ch/d/{stack}/11aecc163e6fa78f4c82632d4bc8b08d7e102313.jpg"
+            }
+        ],
+        "imageTransparent": {
+            "cdn": "rokka",
+            "url": "https://image.migros.ch/d/{stack}/def5204b188ef2bb700bdf8551d9c9bfeb950908/optigal-pouletgeschnetzeltes.png"
+        },
+        "breadcrumb": [
+            {
+                "id": "7494730",
+                "name": "Fleisch & Fisch",
+                "slugs": [
+                    "fleisch-fisch"
+                ]
+            },
+            {
+                "id": "7494747",
+                "name": "Fleisch & Geflügel",
+                "slugs": [
+                    "fleisch-fisch",
+                    "fleisch-geflugel"
+                ]
+            },
+            {
+                "id": "7494845",
+                "name": "Poulet, Trute & Ente",
+                "slugs": [
+                    "fleisch-fisch",
+                    "fleisch-geflugel",
+                    "poulet-trute-ente"
+                ]
+            }
+        ],
+        "productUrls": "https://www.migros.ch/de/product/241102801700",
+        "isMgbCompatible": true,
+        "isConsignmentProduct": false,
+        "offer": {
+            "price": {
+                "displayUnitPrice": true,
+                "advertisedDisplayValue": "23.45",
+                "effectiveDisplayValue": "23.45",
+                "multiplier": 1,
+                "effectiveValue": 23.45,
+                "advertisedValue": 23.45,
+                "unitPrice": {
+                    "value": 3.35,
+                    "unit": "100g"
+                }
+            },
+            "promotionPrice": {
+                "displayUnitPrice": true,
+                "advertisedDisplayValue": "15.70",
+                "effectiveDisplayValue": "15.70",
+                "multiplier": 1,
+                "effectiveValue": 15.70,
+                "advertisedValue": 15.70,
+                "unitPrice": {
+                    "value": 2.24,
+                    "unit": "100g"
+                }
+            },
+            "priceInsteadOfLabel": "statt",
+            "quantity": "2 × 350 g",
+            "quantityPrice": "2.24/100g",
+            "isVariableWeight": false,
+            "channel": {
+                "offerType": "ONLINE",
+                "warehouseId": 1
+            },
+            "maxOrderableQuantity": 96,
+            "maxOrderableQuantityV2": 96,
+            "pictos": [
+                {
+                    "type": "REGION",
+                    "imagePath": "https://www-leshop-ch-cld-res.cloudinary.com/image/upload/{stack}/v1679482984/labels/suisse",
+                    "description": "Schweiz"
+                },
+                {
+                    "type": "FRESHNESS",
+                    "imagePath": "https://www-leshop-ch-cld-res.cloudinary.com/image/upload/{stack}/v1679483166/labels/fresh",
+                    "description": "cold"
+                }
+            ],
+            "badges": [
+                {
+                    "type": "PERCENTAGE_PROMOTION",
+                    "description": "33%",
+                    "enrichedDescription": "33%",
+                    "rawDescription": "33%"
+                }
+            ],
+            "isNewOffer": false,
+            "isNotMorningDeliverable": false,
+            "displayPrice": true,
+            "type": "STANDARD"
+        }
+    }
+]

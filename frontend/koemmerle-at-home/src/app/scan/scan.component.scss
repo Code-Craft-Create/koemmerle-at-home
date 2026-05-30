@@ -635,10 +635,67 @@
 }
 
 .alt-meta {
-  font-size: 0.75rem;
-  color: var(--text-2, #666);
-  font-family: sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.25rem;
   margin: 0;
+}
+
+.promo-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.1rem;
+  padding: 0.1rem 0.42rem;
+  border-radius: 0;
+  background: var(--orange, #f97316);
+  color: white;
+  font-family: sans-serif;
+  font-size: 0.75rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.quantity-tag,
+.price-tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.1rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  font-family: sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.quantity-tag {
+  color: #6b7280;
+  background: #f3f4f6;
+}
+
+.price-tag {
+  color: #2563eb;
+  background: #eff6ff;
+
+  &.promotion-price {
+    color: var(--orange, #f97316);
+    background: #fff7ed;
+  }
+}
+
+.old-price {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.1rem;
+  color: #8b8f99;
+  font-family: sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
 }
 
 .load-more-row {

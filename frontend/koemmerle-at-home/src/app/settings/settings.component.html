@@ -23,13 +23,13 @@
     @if (tokenMessage) { <div class="msg">{{ tokenMessage }}</div> }
   </div>
 
-  <!-- Order Sync -->
+  <!-- Migros data sync -->
   <div class="settings-card">
-    <h2>Bestellungen</h2>
+    <h2>Migros-Daten</h2>
     <div class="action-row">
       <div class="action-info">
-        <h3>Auto-Update</h3>
-        <p>Importiert nach dem App-Start automatisch neue Migros-Bestellungen, sobald die Verbindung aktiv ist.</p>
+        <h3>Auto-Sync</h3>
+        <p>Startet nach dem App-Start den Migros-Sync: neue Bestellungen importieren und danach Aktionen sichtbar aktualisieren.</p>
       </div>
       <label class="switch">
         <input
@@ -72,6 +72,16 @@
         <p>Löscht alle erfassten Produkte. Bestellungen behalten ihre Items, verlieren aber die Verknüpfung zu den Produkten.</p>
       </div>
       <button class="btn danger" (click)="deleteAllProducts()">Produkte löschen</button>
+    </div>
+
+    <div class="action-row">
+      <div class="action-info">
+        <h3>Aktionen leeren</h3>
+        <p>Entfernt alle aktuell synchronisierten Migros-Aktionen. Produkte, Bestellungen und Rezepte bleiben erhalten.</p>
+      </div>
+      <button class="btn danger" (click)="deletePromotions()" [disabled]="promotionDeleting">
+        {{ promotionDeleting ? 'Löscht…' : 'Aktionen löschen' }}
+      </button>
     </div>
 
     <div class="action-row">

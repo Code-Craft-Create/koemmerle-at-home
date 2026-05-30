@@ -29,6 +29,10 @@ export interface Product {
   orderCount: number;
   lastOrderDate?: string;
   stickerPrintedAt?: string;
+  promotionPrice?: number;
+  promotionBadgeDescription?: string;
+  promotionStartDate?: string;
+  promotionEndDate?: string;
 }
 
 export interface RecipeItemDto {
@@ -42,6 +46,10 @@ export interface RecipeItemDto {
   multiplier: number;
   weightText?: string;
   price?: number;
+  promotionPrice?: number;
+  promotionBadgeDescription?: string;
+  promotionStartDate?: string;
+  promotionEndDate?: string;
   migrosId?: string;
   migrosOnlineId?: number;
   migrosUid?: number;
@@ -143,7 +151,10 @@ export interface BasketItem {
   imageUrl: string | null;
   quantity: number;
   multiplier: number;
+  weightText?: string | null;
   price: number | null;
+  promotionPrice?: number | null;
+  promotionBadgeDescription?: string | null;
   category: string;
   migrosProductUrl: string | null;
 }
@@ -161,6 +172,8 @@ export interface ScanChoice {
   weightText?: string;
   price?: number;
   multiplier: number;
+  promotionPrice?: number;
+  promotionBadgeDescription?: string;
 }
 
 export interface ScanResult {
@@ -183,6 +196,15 @@ export interface OrderProductSyncProgress {
   total: number;
   currentProduct?: string;
   linkedProductUrl?: string;
+}
+
+export interface PromotionSyncProgress {
+  stage: string;
+  done: number;
+  total: number;
+  productCards: number;
+  promotionsStored: number;
+  message?: string;
 }
 
 export interface OrderStat {
@@ -238,6 +260,8 @@ export interface BringSuggestion {
   relevance: number;
   orderCount: number;
   matchedQuery: string;
+  promotionPrice?: number;
+  promotionBadgeDescription?: string;
 }
 
 export interface BringMatch {
@@ -332,6 +356,7 @@ export class ScanApiService {
   private hub: signalR.HubConnection;
   private scanResult$ = new Subject<ScanResult>();
   private orderSyncProgress$ = new Subject<OrderProductSyncProgress>();
+  private promotionSyncProgress$ = new Subject<PromotionSyncProgress>();
   private queueUpdated$ = new Subject<ScanQueueItem[]>();
   private migrosSessionUpdated$ = new Subject<MigrosSessionStatus>();
 
@@ -343,6 +368,7 @@ export class ScanApiService {
 
     this.hub.on('ScanResult',              (r) => this.zone.run(() => this.scanResult$.next(r)));
     this.hub.on('OrderProductSyncProgress',(p) => this.zone.run(() => this.orderSyncProgress$.next(p)));
+    this.hub.on('PromotionSyncProgress',(p) => this.zone.run(() => this.promotionSyncProgress$.next(p)));
     this.hub.on('MigrosSessionUpdated', (s: MigrosSessionStatus) =>
       this.zone.run(() => this.migrosSessionUpdated$.next(s)));
     this.hub.on('QueueUpdated', (q: ScanQueueItem[]) => this.zone.run(() => {
@@ -356,6 +382,7 @@ export class ScanApiService {
 
   get scanResults$(): Observable<ScanResult> { return this.scanResult$.asObservable(); }
   get orderSyncProgress$Obs(): Observable<OrderProductSyncProgress> { return this.orderSyncProgress$.asObservable(); }
+  get promotionSyncProgress$Obs(): Observable<PromotionSyncProgress> { return this.promotionSyncProgress$.asObservable(); }
   get queueUpdated$Obs(): Observable<ScanQueueItem[]> { return this.queueUpdated$.asObservable(); }
   get migrosSessionUpdated$Obs(): Observable<MigrosSessionStatus> { return this.migrosSessionUpdated$.asObservable(); }
 
@@ -366,6 +393,15 @@ export class ScanApiService {
   // ── Products ───────────────────────────────────────────────────────────────
   getProducts(): Observable<Product[]> {
     return this.http.get<Product[]>(`${this.base}/products`);
+  }
+  getPromotions(): Observable<Product[]> {
+    return this.http.get<Product[]>(`${this.base}/promotions`);
+  }
+  syncPromotions(): Observable<{ promotionUids: number; productCards: number; promotionsStored: number; alreadyRunning: boolean }> {
+    return this.http.post<{ promotionUids: number; productCards: number; promotionsStored: number; alreadyRunning: boolean }>(`${this.base}/promotions/sync`, {});
+  }
+  deletePromotions(): Observable<{ deleted: number }> {
+    return this.http.delete<{ deleted: number }>(`${this.base}/promotions`);
   }
   getProduct(id: number): Observable<Product> {
     return this.http.get<Product>(`${this.base}/products/${id}`);

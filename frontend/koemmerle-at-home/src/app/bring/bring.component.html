@@ -75,8 +75,14 @@
                   <span class="suggestion-body">
                     <span class="suggestion-title">{{ primary.name }}</span>
                     <span class="suggestion-meta">
+                      @if (primary.promotionBadgeDescription) { <span class="promo-badge">{{ primary.promotionBadgeDescription }}</span> }
                       @if (primary.weightText) { <span class="usage-badge">{{ primary.weightText }}</span> }
-                      @if (primary.price != null) { <span class="usage-badge price-badge">{{ primary.price | number:'1.2-2' }} CHF</span> }
+                      @if (suggestionHasPromotion(primary) && primary.price != null) { <span class="old-price">{{ primary.price | number:'1.2-2' }}</span> }
+                      @if (suggestionEffectivePrice(primary) != null) {
+                        <span class="usage-badge price-badge" [class.promotion-price]="suggestionHasPromotion(primary)">
+                          {{ suggestionEffectivePrice(primary) | number:'1.2-2' }}
+                        </span>
+                      }
                     </span>
                   </span>
                 </button>
@@ -135,10 +141,16 @@
                               </span>
                               <span class="product-option-main">
                                 <span class="product-option-name">{{ suggestion.name }}</span>
-                                @if (suggestion.weightText || suggestion.price != null) {
+                                @if (suggestion.promotionBadgeDescription || suggestion.weightText || suggestionEffectivePrice(suggestion) != null) {
                                   <span class="product-option-meta">
+                                    @if (suggestion.promotionBadgeDescription) { <span class="promo-badge">{{ suggestion.promotionBadgeDescription }}</span> }
                                     @if (suggestion.weightText) { <span class="usage-badge">{{ suggestion.weightText }}</span> }
-                                    @if (suggestion.price != null) { <span class="usage-badge price-badge">{{ suggestion.price | number:'1.2-2' }} CHF</span> }
+                                    @if (suggestionHasPromotion(suggestion) && suggestion.price != null) { <span class="old-price">{{ suggestion.price | number:'1.2-2' }}</span> }
+                                    @if (suggestionEffectivePrice(suggestion) != null) {
+                                      <span class="usage-badge price-badge" [class.promotion-price]="suggestionHasPromotion(suggestion)">
+                                        {{ suggestionEffectivePrice(suggestion) | number:'1.2-2' }}
+                                      </span>
+                                    }
                                   </span>
                                 }
                               </span>
@@ -187,8 +199,14 @@
                     <span class="suggestion-body">
                       <span class="suggestion-title">{{ suggestion.name }}</span>
                       <span class="suggestion-meta">
+                        @if (suggestion.promotionBadgeDescription) { <span class="promo-badge">{{ suggestion.promotionBadgeDescription }}</span> }
                         @if (suggestion.weightText) { <span class="usage-badge">{{ suggestion.weightText }}</span> }
-                        @if (suggestion.price != null) { <span class="usage-badge price-badge">{{ suggestion.price | number:'1.2-2' }} CHF</span> }
+                        @if (suggestionHasPromotion(suggestion) && suggestion.price != null) { <span class="old-price">{{ suggestion.price | number:'1.2-2' }}</span> }
+                        @if (suggestionEffectivePrice(suggestion) != null) {
+                          <span class="usage-badge price-badge" [class.promotion-price]="suggestionHasPromotion(suggestion)">
+                            {{ suggestionEffectivePrice(suggestion) | number:'1.2-2' }}
+                          </span>
+                        }
                       </span>
                     </span>
                   </button>

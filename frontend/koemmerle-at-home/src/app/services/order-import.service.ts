@@ -1,9 +1,9 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, EMPTY, Subscription, from, of } from 'rxjs';
 import { concatMap, finalize, switchMap, tap, toArray } from 'rxjs/operators';
-import { Order, OrderProductSyncProgress, ScanApiService } from './scan-api.service';
+import { Order, OrderProductSyncProgress, PromotionSyncProgress, ScanApiService } from './scan-api.service';
 
-export type OrderImportPhase = 'headers' | 'details' | 'products' | null;
+export type OrderImportPhase = 'headers' | 'details' | 'products' | 'promotions' | null;
 
 export interface OrderImportState {
   active: boolean;
@@ -12,6 +12,7 @@ export interface OrderImportState {
   total: number;
   message: string;
   progress: { [orderId: number]: OrderProductSyncProgress };
+  promotionProgress?: PromotionSyncProgress | null;
 }
 
 const initialState: OrderImportState = {
@@ -20,7 +21,8 @@ const initialState: OrderImportState = {
   current: 0,
   total: 0,
   message: '',
-  progress: {}
+  progress: {},
+  promotionProgress: null
 };
 
 @Injectable({ providedIn: 'root' })
@@ -36,10 +38,12 @@ export class OrderImportService {
 
   private syncAllSub?: Subscription;
   private progressSub: Subscription;
+  private promotionProgressSub: Subscription;
   private stopRequested = false;
 
   constructor(private api: ScanApiService) {
     this.progressSub = this.api.orderSyncProgress$Obs.subscribe(p => this.applyProductProgress(p));
+    this.promotionProgressSub = this.api.promotionSyncProgress$Obs.subscribe(p => this.applyPromotionProgress(p));
   }
 
   get state() {
@@ -64,8 +68,9 @@ export class OrderImportService {
       phase: 'headers',
       current: 0,
       total: 0,
-      message: 'Bestellungen werden importiert...',
-      progress: {}
+      message: 'Migros-Sync läuft...',
+      progress: {},
+      promotionProgress: null
     });
 
     this.syncAllSub = this.api.getOrders().pipe(
@@ -154,12 +159,43 @@ export class OrderImportService {
           })
         );
       }),
+      switchMap(() => {
+        if (this.stopRequested) return EMPTY;
+
+        this.update({
+          phase: 'promotions',
+          current: 0,
+          total: 0,
+          message: 'Bestehende Aktionen werden entfernt.',
+          promotionProgress: null
+        });
+
+        return this.api.syncPromotions().pipe(
+          tap(result => {
+            if (this.stopRequested) return;
+            this.update({
+              current: 1,
+              total: 1,
+              message: result.alreadyRunning
+                ? 'Aktions-Sync läuft bereits.'
+                : `${result.promotionsStored} Aktionen aktualisiert.`,
+              promotionProgress: {
+                stage: 'complete',
+                done: result.promotionUids,
+                total: result.promotionUids,
+                productCards: result.productCards,
+                promotionsStored: result.promotionsStored
+              }
+            });
+          })
+        );
+      }),
       finalize(() => {
         this.update({ active: false, phase: null, current: 0, total: 0 });
       })
     ).subscribe({
-      complete: () => this.finish(this.stopRequested ? 'Import gestoppt' : 'Alle Bestellungen synchronisiert'),
-      error: () => this.finish(this.stopRequested ? 'Import gestoppt' : 'Fehler beim Sync aller Bestellungen')
+      complete: () => this.finish(this.stopRequested ? 'Migros-Sync gestoppt' : 'Migros-Sync abgeschlossen'),
+      error: () => this.finish(this.stopRequested ? 'Migros-Sync gestoppt' : 'Fehler beim Migros-Sync')
     });
   }
 
@@ -175,7 +211,8 @@ export class OrderImportService {
       current: 0,
       total: 0,
       progress: {},
-      message: 'Import gestoppt'
+      promotionProgress: null,
+      message: 'Migros-Sync gestoppt'
     });
     this.loadOrders();
   }
@@ -216,6 +253,54 @@ export class OrderImportService {
         this.update({ progress: nextProgress });
         this.api.getOrder(p.orderId).subscribe(o => this.replaceOrder(o));
       }, 800);
+    }
+  }
+
+  private applyPromotionProgress(p: PromotionSyncProgress) {
+    if (!this.state.active || this.state.phase !== 'promotions') return;
+
+    const rawTotal = Math.max(p.total, 0);
+    const rawProgress = rawTotal > 0
+      ? Math.min(Math.max(p.done / rawTotal, 0), 1)
+      : 0;
+    const weightedProgress = this.weightedPromotionProgress(p.stage, rawProgress);
+    const total = 1000;
+    const current = Math.round(total * weightedProgress);
+    this.update({
+      current,
+      total,
+      message: this.promotionStageMessage(p),
+      promotionProgress: p
+    });
+  }
+
+  private promotionStageMessage(progress: PromotionSyncProgress): string {
+    switch (progress.stage) {
+      case 'clear':
+        return 'Bestehende Aktionen werden entfernt.';
+      case 'search':
+        return 'Aktuelle Migros-Aktionen werden gesucht.';
+      case 'cards':
+        return 'Aktions-Produkte werden aktualisiert.';
+      case 'complete':
+        return `${progress.promotionsStored} Aktionen aktualisiert.`;
+      default:
+        return this.state.message;
+    }
+  }
+
+  private weightedPromotionProgress(stage: string, rawProgress: number): number {
+    switch (stage) {
+      case 'clear':
+        return 0;
+      case 'search':
+        return rawProgress * 0.25;
+      case 'cards':
+        return 0.25 + rawProgress * 0.70;
+      case 'complete':
+        return 1;
+      default:
+        return rawProgress;
     }
   }
 

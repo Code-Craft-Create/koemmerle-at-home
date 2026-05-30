@@ -37,8 +37,10 @@ public record MgbBreadcrumb(
 
 public record MgbOffer(
     [property: JsonPropertyName("price")] MgbPrice? Price,
+    [property: JsonPropertyName("promotionPrice")] ProductCardOfferPrice? PromotionPrice,
     [property: JsonPropertyName("quantity")] string? Quantity,
-    [property: JsonPropertyName("hints")] List<MgbHint>? Hints
+    [property: JsonPropertyName("hints")] List<MgbHint>? Hints,
+    [property: JsonPropertyName("badges")] List<ProductCardBadge>? Badges
 );
 
 public record MgbHint(
@@ -135,12 +137,42 @@ public record ProductCardImage(
 
 public record ProductCardOfferPrice(
     [property: JsonPropertyName("effectiveValue")] decimal? EffectiveValue,
+    [property: JsonPropertyName("advertisedValue")] decimal? AdvertisedValue,
     [property: JsonPropertyName("multiplier")] int? Multiplier
-);
+)
+{
+    public decimal? Value => EffectiveValue ?? AdvertisedValue;
+}
+
+public record ProductCardBadge(
+    [property: JsonPropertyName("type")] string? Type,
+    [property: JsonPropertyName("description")] string? Description,
+    [property: JsonPropertyName("enrichedDescription")] string? EnrichedDescription,
+    [property: JsonPropertyName("rawDescription")] string? RawDescription
+)
+{
+    public string? EffectiveDescription => Description ?? EnrichedDescription ?? RawDescription;
+    public bool IsPromotionBadge
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(Type)) return false;
+            if (Type.Contains("PARTNER", StringComparison.OrdinalIgnoreCase)) return false;
+            return Type.Equals("PERCENTAGE_PROMOTION", StringComparison.OrdinalIgnoreCase)
+                || Type.Equals("PRICE_PROMOTION", StringComparison.OrdinalIgnoreCase)
+                || Type.Equals("AMOUNT_PROMOTION", StringComparison.OrdinalIgnoreCase)
+                || Type.Equals("MULTIBUY_PROMOTION", StringComparison.OrdinalIgnoreCase)
+                || Type.Equals("PROMOTION", StringComparison.OrdinalIgnoreCase)
+                || Type.EndsWith("_PROMOTION", StringComparison.OrdinalIgnoreCase);
+        }
+    }
+}
 
 public record ProductCardOffer(
     [property: JsonPropertyName("price")] ProductCardOfferPrice? Price,
-    [property: JsonPropertyName("quantity")] string? Quantity
+    [property: JsonPropertyName("promotionPrice")] ProductCardOfferPrice? PromotionPrice,
+    [property: JsonPropertyName("quantity")] string? Quantity,
+    [property: JsonPropertyName("badges")] List<ProductCardBadge>? Badges
 );
 
 public record ProductCardResponse(
@@ -164,11 +196,48 @@ public record ProductCardResponse(
         .Select(i => i.Url)
         .FirstOrDefault(u => !string.IsNullOrEmpty(u))
     );
-    public decimal? EffectivePrice => Offer?.Price?.EffectiveValue;
+    public decimal? EffectivePrice => Offer?.Price?.Value;
+    public decimal? EffectivePromotionPrice => Offer?.PromotionPrice?.Value;
+    public string? EffectivePromotionBadge => Offer?.Badges?
+        .Where(b => b.IsPromotionBadge)
+        .Select(b => b.EffectiveDescription)
+        .FirstOrDefault(d => !string.IsNullOrWhiteSpace(d));
     public string? EffectiveWeightText => Offer?.Quantity;
     public int EffectiveMultiplier => Math.Max(Offer?.Price?.Multiplier ?? 1, 1);
     public long? EffectiveMigrosOnlineId => long.TryParse(MigrosOnlineId, out var id) ? id : null;
 };
+
+// ── Promotions (POST /product-display/public/web/v3/products/promotion/search) ─
+
+public record PromotionSearchRequest(
+    [property: JsonPropertyName("storeType")] string StoreType = "ONLINE",
+    [property: JsonPropertyName("period")] string Period = "CURRENT",
+    [property: JsonPropertyName("language")] string Language = "de",
+    [property: JsonPropertyName("filters")] Dictionary<string, string>? Filters = null,
+    [property: JsonPropertyName("sortFields")] List<string>? SortFields = null,
+    [property: JsonPropertyName("sortOrder")] string SortOrder = "asc",
+    [property: JsonPropertyName("from")] int From = 0,
+    [property: JsonPropertyName("until")] int Until = 100,
+    [property: JsonPropertyName("region")] string Region = "gmaa",
+    [property: JsonPropertyName("warehouse")] string Warehouse = "1",
+    [property: JsonPropertyName("enabledSponsoredProducts")] bool EnabledSponsoredProducts = true
+)
+{
+    public Dictionary<string, string> EffectiveFilters => Filters ?? [];
+    public List<string> EffectiveSortFields => SortFields ?? ["categoryLevel"];
+}
+
+public record PromotionSearchResponse(
+    [property: JsonPropertyName("items")] List<PromotionSearchItem>? Items,
+    [property: JsonPropertyName("numberOfItems")] int NumberOfItems,
+    [property: JsonPropertyName("startDate")] DateTime? StartDate,
+    [property: JsonPropertyName("endDate")] DateTime? EndDate
+);
+
+public record PromotionSearchItem(
+    [property: JsonPropertyName("id")] long Id,
+    [property: JsonPropertyName("type")] string? Type
+);
 
 internal static class MigrosImageUrl
 {

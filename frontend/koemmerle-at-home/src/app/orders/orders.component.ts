@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { ScanApiService, Order, OrderProductSyncProgress } from '../services/scan-api.service';
-import { OrderImportService } from '../services/order-import.service';
+import { OrderImportPhase, OrderImportService } from '../services/order-import.service';
 
 @Component({
   selector: 'app-orders',
@@ -18,7 +18,7 @@ export class OrdersComponent implements OnInit, OnDestroy {
   syncingDetailId: number | null = null;
   syncingProductsId: number | null = null;
   syncingAll = false;
-  syncAllPhase: 'headers' | 'details' | 'products' | null = null;
+  syncAllPhase: OrderImportPhase = null;
   syncAllCurrent = 0;
   syncAllTotal = 0;
   syncProgress: { [orderId: number]: OrderProductSyncProgress } = {};

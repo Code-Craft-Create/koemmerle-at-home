@@ -91,12 +91,51 @@ export class RecipeDetailComponent implements OnInit {
     return this.recipe?.items.reduce((sum, item) => sum + this.itemTotalPrice(item), 0) ?? 0;
   }
 
+  knownOriginalTotalPrice(): number {
+    return this.recipe?.items.reduce((sum, item) => sum + this.itemOriginalTotalPrice(item), 0) ?? 0;
+  }
+
+  promotionSavingsTotal(): number {
+    return this.recipe?.items.reduce((sum, item) => sum + this.itemPromotionSavings(item), 0) ?? 0;
+  }
+
+  hasPromotionSavings(): boolean {
+    return this.promotionSavingsTotal() > 0;
+  }
+
   hasMissingPrices(): boolean {
-    return this.recipe?.items.some(item => item.price == null) ?? false;
+    return this.recipe?.items.some(item => this.itemEffectivePrice(item) == null) ?? false;
+  }
+
+  itemEffectivePrice(item: RecipeItemDto): number | null {
+    return item.promotionPrice ?? item.price ?? null;
   }
 
   itemTotalPrice(item: RecipeItemDto): number {
+    const price = this.itemEffectivePrice(item);
+    return price == null ? 0 : price * item.quantity;
+  }
+
+  itemOriginalTotalPrice(item: RecipeItemDto): number {
     return item.price == null ? 0 : item.price * item.quantity;
+  }
+
+  itemHasPromotion(item: RecipeItemDto): boolean {
+    return item.promotionPrice != null && (item.price == null || item.promotionPrice < item.price);
+  }
+
+  itemPromotionSavings(item: RecipeItemDto): number {
+    return this.itemHasPromotion(item) && item.price != null && item.promotionPrice != null
+      ? (item.price - item.promotionPrice) * item.quantity
+      : 0;
+  }
+
+  optionEffectivePrice(option: ProductSearchOption): number | null {
+    return option.promotionPrice ?? option.price ?? null;
+  }
+
+  optionHasPromotion(option: ProductSearchOption): boolean {
+    return option.promotionPrice != null && (option.price == null || option.promotionPrice < option.price);
   }
 
   productLinkLabel(item: RecipeItemDto): string {
@@ -149,7 +188,7 @@ export class RecipeDetailComponent implements OnInit {
     if (!this.recipe) return;
     this.api.updateRecipeItem(this.recipe.id, itemId, qty).subscribe(updated => {
       const idx = this.recipe!.items.findIndex(i => i.id === itemId);
-      if (idx >= 0) this.recipe!.items[idx].quantity = updated.quantity;
+      if (idx >= 0) this.recipe!.items[idx] = updated;
     });
   }
 
@@ -193,6 +232,8 @@ export class RecipeDetailComponent implements OnInit {
       imageUrl: p.imageData || p.imageUrl,
       weightText: p.weightText,
       price: p.price,
+      promotionPrice: p.promotionPrice,
+      promotionBadgeDescription: p.promotionBadgeDescription,
       multiplier: p.multiplier,
       relevance: p.relevance,
       product: p,
@@ -423,6 +464,8 @@ interface ProductSearchOption {
   imageUrl?: string;
   weightText?: string;
   price?: number;
+  promotionPrice?: number;
+  promotionBadgeDescription?: string;
   multiplier: number;
   relevance: number;
   product?: Product;

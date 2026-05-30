@@ -205,6 +205,14 @@ export class ScanComponent implements OnInit, OnDestroy {
     return !!this.confirming?.totalAlternatives && this.alternativesLoaded < this.confirming.totalAlternatives;
   }
 
+  alternativeEffectivePrice(alt: ScanChoice): number | null {
+    return alt.promotionPrice ?? alt.price ?? null;
+  }
+
+  alternativeHasPromotion(alt: ScanChoice): boolean {
+    return alt.promotionPrice != null && (alt.price == null || alt.promotionPrice < alt.price);
+  }
+
   loadMoreAlternatives() {
     if (!this.confirming?.barcode || this.loadingMoreAlternatives || !this.hasMoreAlternatives) return;
 

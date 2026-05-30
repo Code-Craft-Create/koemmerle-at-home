@@ -111,6 +111,14 @@ export class BringComponent implements OnInit {
     return item.suggestions.find(s => s.migrosUid === uid) ?? null;
   }
 
+  suggestionEffectivePrice(suggestion: BringSuggestion): number | null {
+    return suggestion.promotionPrice ?? suggestion.price ?? null;
+  }
+
+  suggestionHasPromotion(suggestion: BringSuggestion): boolean {
+    return suggestion.promotionPrice != null && (suggestion.price == null || suggestion.promotionPrice < suggestion.price);
+  }
+
   otherSuggestions(item: BringMatch): BringSuggestion[] {
     return item.suggestions.slice(1, 5);
   }

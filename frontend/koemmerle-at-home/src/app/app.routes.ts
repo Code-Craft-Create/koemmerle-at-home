@@ -12,6 +12,7 @@ import { StickersComponent } from './stickers/stickers.component';
 import { ForecastComponent } from './forecast/forecast.component';
 import { BasketComponent } from './basket/basket.component';
 import { BringComponent } from './bring/bring.component';
+import { PromotionsComponent } from './promotions/promotions.component';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'basket', pathMatch: 'full' },
@@ -20,6 +21,7 @@ export const routes: Routes = [
   { path: 'basket', component: BasketComponent },
   { path: 'bring', component: BringComponent },
   { path: 'products', component: ProductsComponent },
+  { path: 'promotions', component: PromotionsComponent },
   { path: 'products/:id', component: ProductDetailComponent },
   { path: 'orders', component: OrdersComponent },
   { path: 'statistics', component: StatisticsComponent },

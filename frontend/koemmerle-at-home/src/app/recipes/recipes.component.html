@@ -73,13 +73,21 @@
               <td>
                 <div class="recipe-cell">
                   <img [src]="r.imageData || 'assets/icons/DefaultRecipe.png'" class="recipe-thumb" [alt]="r.name" />
-                  <span class="recipe-name">{{ r.name }}</span>
+                  <span class="recipe-name-wrap">
+                    <span class="recipe-name">{{ r.name }}</span>
+                    @if (recipeHasPromotionSavings(r)) { <span class="recipe-promo-badge" aria-label="Rezept mit Aktion">%</span> }
+                  </span>
                 </div>
               </td>
               <td><span class="recipe-barcode mono">{{ r.barcode }}</span></td>
               <td class="recipe-count">{{ r.items.length }}</td>
               <td class="recipe-price">
-                {{ recipeTotalPrice(r) | number:'1.2-2' }} CHF @if (recipeHasMissingPrices(r)) { <span class="missing-price-note">+</span> }
+                <span class="recipe-price-stack">
+                  @if (recipeHasPromotionSavings(r)) {
+                    <span class="old-price">{{ recipeOriginalTotalPrice(r) | number:'1.2-2' }} CHF</span>
+                  }
+                  <span [class.promotion-total]="recipeHasPromotionSavings(r)">{{ recipeTotalPrice(r) | number:'1.2-2' }} CHF @if (recipeHasMissingPrices(r)) { <span class="missing-price-note">+</span> }</span>
+                </span>
               </td>
               <td class="actions-col" (click)="$event.stopPropagation()">
                 <button

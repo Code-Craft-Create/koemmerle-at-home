@@ -2,7 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { ScanApiService, RecipeDto, RecipeExportDocument } from '../services/scan-api.service';
+import { ScanApiService, RecipeDto, RecipeExportDocument, RecipeItemDto } from '../services/scan-api.service';
 
 @Component({
   selector: 'app-recipes',
@@ -66,11 +66,42 @@ export class RecipesComponent implements OnInit {
   }
 
   recipeTotalPrice(recipe: RecipeDto): number {
-    return recipe.items.reduce((sum, item) => sum + (item.price == null ? 0 : item.price * item.quantity), 0);
+    return recipe.items.reduce((sum, item) => sum + this.itemTotalPrice(item), 0);
+  }
+
+  recipeOriginalTotalPrice(recipe: RecipeDto): number {
+    return recipe.items.reduce((sum, item) => sum + this.itemOriginalTotalPrice(item), 0);
+  }
+
+  recipePromotionSavings(recipe: RecipeDto): number {
+    return recipe.items.reduce((sum, item) => sum + this.itemPromotionSavings(item), 0);
+  }
+
+  recipeHasPromotionSavings(recipe: RecipeDto): boolean {
+    return this.recipePromotionSavings(recipe) > 0;
   }
 
   recipeHasMissingPrices(recipe: RecipeDto): boolean {
-    return recipe.items.some(item => item.price == null);
+    return recipe.items.some(item => this.itemEffectivePrice(item) == null);
+  }
+
+  private itemEffectivePrice(item: RecipeItemDto): number | null {
+    return item.promotionPrice ?? item.price ?? null;
+  }
+
+  private itemTotalPrice(item: RecipeItemDto): number {
+    const price = this.itemEffectivePrice(item);
+    return price == null ? 0 : price * item.quantity;
+  }
+
+  private itemOriginalTotalPrice(item: RecipeItemDto): number {
+    return item.price == null ? 0 : item.price * item.quantity;
+  }
+
+  private itemPromotionSavings(item: RecipeItemDto): number {
+    return item.promotionPrice != null && item.price != null && item.promotionPrice < item.price
+      ? (item.price - item.promotionPrice) * item.quantity
+      : 0;
   }
 
   addRecipe(event: Event, recipe: RecipeDto) {

@@ -3,6 +3,13 @@
   <div class="page-header">
     <h1 class="page-title">Warenkorb</h1>
     <div class="header-right">
+      @if (showPrices && basket.length > 0) {
+        <div class="basket-total" title="Summe der sichtbaren Migros-Preise">
+          <span>Total</span>
+          <strong>{{ basketTotalPrice() | number:'1.2-2' }} CHF</strong>
+          @if (basketHasMissingPrices()) { <span class="missing-price-note">+</span> }
+        </div>
+      }
       <div class="size-slider">
         <span class="size-label">Grösse:</span>
         <input type="range" min="0.5" max="2" step="0.05"
@@ -17,6 +24,23 @@
         </button>
         @if (actionsMenuOpen) {
           <div class="actions-dropdown">
+            <label class="actions-checkbox">
+              <input
+                type="checkbox"
+                [checked]="showPrices"
+                (change)="toggleShowPrices($any($event.target).checked)"
+              />
+              Preise anzeigen
+            </label>
+            <label class="actions-checkbox">
+              <input
+                type="checkbox"
+                [checked]="showQuantity"
+                (change)="toggleShowQuantity($any($event.target).checked)"
+              />
+              Mengen anzeigen
+            </label>
+            <div class="actions-separator"></div>
             <button class="actions-dropdown-btn" (click)="refresh($event)" [disabled]="refreshing">
               {{ refreshing ? 'Lädt...' : 'Refresh' }}
             </button>
@@ -141,7 +165,27 @@
                 </div>
               }
               <div class="item-info">
+                @if (item.promotionBadgeDescription || (showPrices && (item.promotionPrice != null || item.price != null))) {
+                  <div class="item-promo-price-row" [class.has-price]="showPrices && (item.promotionPrice != null || item.price != null)">
+                    @if (item.promotionBadgeDescription) {
+                      <span class="promo-tag">{{ item.promotionBadgeDescription }}</span>
+                    }
+                    @if (showPrices && (item.promotionPrice != null || item.price != null)) {
+                      <span class="price-stack">
+                        @if (item.price != null && item.promotionPrice != null && item.price !== item.promotionPrice) {
+                          <span class="old-price">{{ item.price | number:'1.2-2' }}</span>
+                        }
+                        <span class="price-tag" [class.price-tag--regular]="item.promotionPrice == null">
+                          {{ (item.promotionPrice ?? item.price) | number:'1.2-2' }}
+                        </span>
+                      </span>
+                    }
+                  </div>
+                }
                 <span class="item-name">{{ item.productName }}</span>
+                @if (showQuantity && item.weightText) {
+                  <span class="quantity-tag">{{ item.weightText }}</span>
+                }
               </div>
             </div>
           }
@@ -217,7 +261,27 @@
                 </div>
               }
               <div class="item-info">
+                @if (item.promotionBadgeDescription || (showPrices && (item.promotionPrice != null || item.price != null))) {
+                  <div class="item-promo-price-row" [class.has-price]="showPrices && (item.promotionPrice != null || item.price != null)">
+                    @if (item.promotionBadgeDescription) {
+                      <span class="promo-tag">{{ item.promotionBadgeDescription }}</span>
+                    }
+                    @if (showPrices && (item.promotionPrice != null || item.price != null)) {
+                      <span class="price-stack">
+                        @if (item.price != null && item.promotionPrice != null && item.price !== item.promotionPrice) {
+                          <span class="old-price">{{ item.price | number:'1.2-2' }}</span>
+                        }
+                        <span class="price-tag" [class.price-tag--regular]="item.promotionPrice == null">
+                          {{ (item.promotionPrice ?? item.price) | number:'1.2-2' }}
+                        </span>
+                      </span>
+                    }
+                  </div>
+                }
                 <span class="item-name">{{ item.productName }}</span>
+                @if (showQuantity && item.weightText) {
+                  <span class="quantity-tag">{{ item.weightText }}</span>
+                }
                 <span class="item-cat-label">{{ item.category }}</span>
               </div>
             </div>

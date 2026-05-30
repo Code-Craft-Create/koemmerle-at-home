@@ -17,7 +17,8 @@ public class MappingsController(AppDbContext db, MigrosProductSyncService produc
             .Include(m => m.Items).ThenInclude(i => i.Product)
             .FirstOrDefaultAsync(m => m.Id == id);
         if (mapping is null) return NotFound();
-        return Ok(ToDto(mapping));
+        var promotions = await LoadPromotionsAsync(mapping.Items.Select(i => i.ProductId));
+        return Ok(ToDto(mapping, promotions));
     }
 
     [HttpGet]
@@ -27,7 +28,8 @@ public class MappingsController(AppDbContext db, MigrosProductSyncService produc
             .Include(m => m.Items).ThenInclude(i => i.Product)
             .OrderBy(m => m.Name)
             .ToListAsync();
-        return Ok(mappings.Select(ToDto));
+        var promotions = await LoadPromotionsAsync(mappings.SelectMany(m => m.Items).Select(i => i.ProductId));
+        return Ok(mappings.Select(m => ToDto(m, promotions)));
     }
 
     [HttpPost]
@@ -37,7 +39,7 @@ public class MappingsController(AppDbContext db, MigrosProductSyncService produc
         db.ProductMappings.Add(mapping);
         await db.SaveChangesAsync();
         await db.Entry(mapping).Collection(m => m.Items).LoadAsync();
-        return Ok(ToDto(mapping));
+        return Ok(ToDto(mapping, EmptyPromotions));
     }
 
     [HttpPut("{id:int}")]
@@ -176,7 +178,8 @@ public class MappingsController(AppDbContext db, MigrosProductSyncService produc
         db.ProductMappingItems.Add(item);
         await db.SaveChangesAsync();
 
-        return Ok(ToItemDto(item.Id, product, item.Quantity));
+        var promotion = await db.ProductPromotions.FirstOrDefaultAsync(p => p.ProductId == product.Id);
+        return Ok(ToItemDto(item.Id, product, item.Quantity, promotion));
     }
 
     [HttpPut("{id:int}/items/{itemId:int}")]
@@ -187,7 +190,8 @@ public class MappingsController(AppDbContext db, MigrosProductSyncService produc
         if (item is null) return NotFound();
         item.Quantity = body.Quantity;
         await db.SaveChangesAsync();
-        return Ok(ToItemDto(item.Id, item.Product, item.Quantity));
+        var promotion = await db.ProductPromotions.FirstOrDefaultAsync(p => p.ProductId == item.ProductId);
+        return Ok(ToItemDto(item.Id, item.Product, item.Quantity, promotion));
     }
 
     [HttpDelete("{id:int}/items/{itemId:int}")]
@@ -224,11 +228,33 @@ public class MappingsController(AppDbContext db, MigrosProductSyncService produc
         return await db.Products.FindAsync([product.Id], ct);
     }
 
-    private static MappingDto ToDto(ProductMapping m) => new(
-        m.Id, m.Barcode, m.Name, m.ImageData,
-        m.Items.Select(i => ToItemDto(i.Id, i.Product, i.Quantity)).ToList());
+    private static readonly IReadOnlyDictionary<int, ProductPromotion> EmptyPromotions =
+        new Dictionary<int, ProductPromotion>();
 
-    private static MappingItemDto ToItemDto(int id, Product product, int quantity) => new(
+    private async Task<Dictionary<int, ProductPromotion>> LoadPromotionsAsync(IEnumerable<int> productIds)
+    {
+        var ids = productIds.Distinct().ToList();
+        if (ids.Count == 0) return new Dictionary<int, ProductPromotion>();
+        return await db.ProductPromotions
+            .Where(p => ids.Contains(p.ProductId))
+            .ToDictionaryAsync(p => p.ProductId);
+    }
+
+    private static MappingDto ToDto(
+        ProductMapping m,
+        IReadOnlyDictionary<int, ProductPromotion> promotions) => new(
+        m.Id, m.Barcode, m.Name, m.ImageData,
+        m.Items.Select(i =>
+        {
+            promotions.TryGetValue(i.ProductId, out var promotion);
+            return ToItemDto(i.Id, i.Product, i.Quantity, promotion);
+        }).ToList());
+
+    private static MappingItemDto ToItemDto(
+        int id,
+        Product product,
+        int quantity,
+        ProductPromotion? promotion = null) => new(
         id,
         product.Id,
         product.Name,
@@ -239,6 +265,10 @@ public class MappingsController(AppDbContext db, MigrosProductSyncService produc
         product.Multiplier,
         product.WeightText,
         product.Price,
+        promotion?.PromotionPrice,
+        promotion?.BadgeDescription,
+        promotion?.StartDate,
+        promotion?.EndDate,
         product.MigrosId,
         product.MigrosOnlineId,
         product.MigrosUid);
@@ -268,6 +298,10 @@ public record MappingItemDto(
     int Multiplier,
     string? WeightText,
     decimal? Price,
+    decimal? PromotionPrice,
+    string? PromotionBadgeDescription,
+    DateTime? PromotionStartDate,
+    DateTime? PromotionEndDate,
     string? MigrosId,
     long? MigrosOnlineId,
     long? MigrosUid);

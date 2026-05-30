@@ -675,6 +675,9 @@
   border-bottom: 1px solid #d0d0d0;
 
   a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
     color: var(--text);
     text-decoration: none;
     padding: 0.75rem 1.1rem;
@@ -687,6 +690,21 @@
     &:hover { color: var(--orange); }
     &.active { color: var(--orange); }
   }
+}
+
+.nav-promo-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.05rem;
+  height: 1.05rem;
+  padding: 0 0.2rem;
+  border-radius: 999px;
+  background: var(--orange);
+  color: white;
+  font-size: 0.72rem;
+  font-weight: 900;
+  line-height: 1;
 }
 
 .login-overlay {

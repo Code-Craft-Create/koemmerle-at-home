@@ -18,6 +18,7 @@ export class SettingsComponent implements OnInit {
   autoUpdateOrders = false;
   autoUpdateSaving = false;
   settingsMessage = '';
+  promotionDeleting = false;
   Math = Math;
 
   constructor(private api: ScanApiService) {}
@@ -101,5 +102,20 @@ export class SettingsComponent implements OnInit {
   deleteAllRecipes() {
     if (!confirm('Bist du sicher, dass du ALLE Rezepte und Mappings löschen möchtest? Dies kann nicht rückgängig gemacht werden.')) return;
     this.api.deleteAllRecipes().subscribe(() => alert('Alle Rezepte wurden gelöscht.'));
+  }
+
+  deletePromotions() {
+    if (!confirm('Aktuelle Aktionen aus der Datenbank entfernen? Produkte, Bestellungen und Rezepte bleiben erhalten.')) return;
+    this.promotionDeleting = true;
+    this.api.deletePromotions().subscribe({
+      next: r => {
+        this.promotionDeleting = false;
+        alert(`${r.deleted} Aktionen wurden entfernt.`);
+      },
+      error: () => {
+        this.promotionDeleting = false;
+        alert('Aktionen konnten nicht entfernt werden.');
+      }
+    });
   }
 }

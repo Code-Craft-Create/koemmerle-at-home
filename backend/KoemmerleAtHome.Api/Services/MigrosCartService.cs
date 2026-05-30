@@ -76,6 +76,9 @@ public class MigrosCartService(
             .ToList();
 
         var cards = await productSync.FetchProductCardsAsync(uids, ct);
+        foreach (var card in cards)
+            await productSync.UpsertProductCardAsync(card, ct, isPromotionOnly: false, skipThumbnail: true);
+
         var cardMap = cards
             .Where(c => c.Uid.HasValue)
             .GroupBy(c => c.Uid!.Value.ToString())
@@ -114,7 +117,10 @@ public class MigrosCartService(
                     ImageUrl: card?.EffectiveImageUrl,
                     Quantity: i.qty,
                     Multiplier: multiplier,
+                    WeightText: card?.EffectiveWeightText,
                     Price: card?.EffectivePrice,
+                    PromotionPrice: card?.EffectivePromotionPrice,
+                    PromotionBadgeDescription: card?.EffectivePromotionBadge,
                     Category: TopCategory(card) ?? dbCategory ?? "Sonstige",
                     MigrosProductUrl: ProductUrl(card)
                 );
@@ -136,6 +142,9 @@ public class MigrosCartService(
             throw new InvalidOperationException(
                 $"Shopping-list PUT {resp.StatusCode}: {rb[..Math.Min(200, rb.Length)]}");
         }
+
+        if (quantity > 0)
+            await MaterializeProductCardAsync(uid, ct);
     }
 
     public async Task<int?> GetCartQuantityAsync(string barcode, string? migrosId, CancellationToken ct)
@@ -258,6 +267,8 @@ public class MigrosCartService(
                 $"Shopping-list PUT {resp.StatusCode}: {rb[..Math.Min(200, rb.Length)]}");
         }
 
+        await MaterializeProductCardAsync(uid, ct);
+
         logger.LogInformation("Cart: uid={Uid} qty {Old}→{New} (x{Multiplier})", uid, currentQty, targetQty, multiplier);
     }
 
@@ -328,11 +339,25 @@ public class MigrosCartService(
         if (!long.TryParse(uid, out var uidLong)) return 1;
         var cards = await productSync.FetchProductCardsAsync([uidLong], ct);
         var card = cards.FirstOrDefault(c => c.Uid == uidLong) ?? cards.FirstOrDefault();
+        if (card is not null)
+            await productSync.UpsertProductCardAsync(card, ct, isPromotionOnly: false, skipThumbnail: true);
+
         var multiplier = card?.EffectiveMultiplier ?? 1;
         if (multiplier > 1) return multiplier;
 
         var dbMultipliers = await productSync.GetMultipliersAsync([uid], ct);
         return dbMultipliers.TryGetValue(uid, out var dbMultiplier) ? dbMultiplier : 1;
+    }
+
+    private async Task MaterializeProductCardAsync(string uid, CancellationToken ct)
+    {
+        if (!long.TryParse(uid, out var uidLong)) return;
+
+        var cards = await productSync.FetchProductCardsAsync([uidLong], ct);
+        var card = cards.FirstOrDefault(c => c.Uid == uidLong) ?? cards.FirstOrDefault();
+        if (card is null) return;
+
+        await productSync.UpsertProductCardAsync(card, ct, isPromotionOnly: false, skipThumbnail: true);
     }
 
 }
@@ -343,7 +368,10 @@ public record MigrosBasketItem(
     string? ImageUrl,
     int Quantity,
     int Multiplier,
+    string? WeightText,
     decimal? Price,
+    decimal? PromotionPrice,
+    string? PromotionBadgeDescription,
     string Category,
     string? MigrosProductUrl
 );

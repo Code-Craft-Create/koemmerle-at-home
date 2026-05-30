@@ -218,6 +218,35 @@
 .price-badge {
   color: #2563eb;
   background: #eff6ff;
+
+  &.promotion-price {
+    color: var(--orange);
+    background: #fff7ed;
+  }
+}
+
+.promo-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.1rem;
+  padding: 0.1rem 0.42rem;
+  border-radius: 0;
+  background: var(--orange);
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.old-price {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.1rem;
+  color: #8b8f99;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
 }
 
 .price-cell {
@@ -229,6 +258,31 @@
 .total-cell {
   font-weight: 700;
   color: #111827;
+}
+
+.total-price-stack {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.15rem;
+}
+
+.promotion-total {
+  color: var(--orange);
+}
+
+.savings-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  background: #fff7ed;
+  color: var(--orange);
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1.15;
+  white-space: nowrap;
 }
 
 .action-col,

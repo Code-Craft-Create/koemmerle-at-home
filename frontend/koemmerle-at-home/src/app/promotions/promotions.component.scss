@@ -1,0 +1,129 @@
+@use '../products/products.component.scss';
+
+.promotions-page header {
+  align-items: flex-start;
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.btn {
+  padding: 0.45rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+
+  &.primary {
+    background: var(--orange);
+    color: white;
+    border-color: var(--orange);
+  }
+
+  &.danger {
+    background: #dc2626;
+    color: white;
+    border-color: #dc2626;
+  }
+
+  &:hover:not(:disabled) {
+    filter: brightness(0.95);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.promotion-product-cell {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-width: 18rem;
+}
+
+.promotion-description {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.28rem;
+}
+
+.promotion-name {
+  max-width: 100%;
+  color: #333333;
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1.22;
+  text-decoration: none;
+
+  &:hover {
+    color: var(--orange-dark);
+    text-decoration: underline;
+  }
+}
+
+.promo-tag,
+.quantity-tag,
+.old-price {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 1.1rem;
+  padding: 0.1rem 0.42rem;
+  border-radius: 3px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.promotion-price-block {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 0.18rem;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.old-price {
+  color: #777777;
+  background: transparent;
+  padding: 0;
+  min-height: auto;
+  font-size: 0.94rem;
+  text-decoration: line-through;
+  font-weight: 800;
+}
+
+.promo-tag {
+  align-self: flex-start;
+  min-width: 3rem;
+  background: var(--orange);
+  color: #ffffff;
+  border-radius: 0;
+  font-size: 0.88rem;
+  letter-spacing: 0;
+}
+
+.quantity-tag {
+  background: #f3f4f6;
+  color: #9ca3af;
+}
+
+.promotion-price {
+  color: var(--orange);
+  font-size: 1.16rem;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0;
+}

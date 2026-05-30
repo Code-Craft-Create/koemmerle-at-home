@@ -138,11 +138,15 @@ public class MigrosProductSyncService(
         catch { return null; }
     }
 
-    public async Task<List<ProductCardResponse>> FetchProductCardsAsync(List<long> uids, CancellationToken ct)
+    public async Task<List<ProductCardResponse>> FetchProductCardsAsync(
+        List<long> uids,
+        CancellationToken ct,
+        DateTime? offerDate = null)
     {
         if (uids.Count == 0) return [];
+        var ongoingOfferDate = (offerDate ?? DateTime.UtcNow).ToString("yyyy-MM-ddT00:00:00");
         var request = new ProductCardsRequest(
-            OfferFilter: new ProductCardsOfferFilter(),
+            OfferFilter: new ProductCardsOfferFilter(OngoingOfferDate: ongoingOfferDate),
             ProductFilter: new ProductCardsProductFilter(Uids: uids)
         );
         var resp = await session.PostAuthenticatedAsync(ProductCardsUrl, request, ct);
@@ -220,13 +224,19 @@ public class MigrosProductSyncService(
 
     internal async Task<Product?> SyncFromProductCardAsync(ProductCardResponse card, CancellationToken ct)
     {
+        Product? product = null;
+
         if (!string.IsNullOrWhiteSpace(card.MigrosId))
-            return await SyncAsync(card.MigrosId, card.EffectiveMigrosOnlineId, card.Uid, ct);
+            product = await SyncAsync(card.MigrosId, card.EffectiveMigrosOnlineId, card.Uid, ct);
 
-        if (card.EffectiveMigrosOnlineId.HasValue)
-            return await SyncAsync(null, card.EffectiveMigrosOnlineId.Value, card.Uid, ct);
+        if (product is null && card.EffectiveMigrosOnlineId.HasValue)
+            product = await SyncAsync(null, card.EffectiveMigrosOnlineId.Value, card.Uid, ct);
 
-        return await UpsertProductCardAsync(card, ct);
+        product ??= await UpsertProductCardAsync(card, ct, isPromotionOnly: false);
+        if (product is not null)
+            await ApplyPromotionFromProductCardAsync(product.Id, card, ct);
+
+        return product;
     }
 
     private async Task<Product?> SyncByUidAsync(long migrosUid, CancellationToken ct)
@@ -362,12 +372,33 @@ public class MigrosProductSyncService(
             available: response.Offer?.Price != null && !(response.Offer.Hints?.Any(h => h.Type == "UNKNOWN_AVAILABILITY") ?? false),
             ct);
 
+        if (response.Offer?.PromotionPrice?.Value is decimal promotionPrice)
+        {
+            await UpsertPromotionAsync(
+                product.Id,
+                promotionPrice,
+                EffectivePromotionBadge(response.Offer.Badges),
+                startDate: null,
+                endDate: null,
+                ct);
+        }
+        else
+        {
+            await RemovePromotionAsync(product.Id, ct);
+        }
+
         logger.LogInformation("Synced '{Name}' (gtins: {Barcodes}, uid: {Uid}, mo: {MigrosOnlineId})",
             productName, barcodes, resolvedMigrosUid, resolvedMigrosOnlineId);
         return product;
     }
 
-    private async Task<Product?> UpsertProductCardAsync(ProductCardResponse card, CancellationToken ct)
+    internal async Task<Product?> UpsertProductCardAsync(
+        ProductCardResponse card,
+        CancellationToken ct,
+        bool isPromotionOnly = false,
+        bool skipThumbnail = false,
+        DateTime? promotionStartDate = null,
+        DateTime? promotionEndDate = null)
     {
         if (card.Uid is null && string.IsNullOrWhiteSpace(card.MigrosId) && card.EffectiveMigrosOnlineId is null)
             return null;
@@ -390,6 +421,7 @@ public class MigrosProductSyncService(
                 : card.EffectiveMigrosOnlineId.HasValue ? MoDisplayUrl(card.EffectiveMigrosOnlineId.Value) : null);
 
         var product = await FindProductAsync(card.MigrosId, card.EffectiveMigrosOnlineId, card.Uid, ct) ?? new Product();
+        var shouldRemainPromotionOnly = isPromotionOnly && (product.Id == 0 || product.IsPromotionOnly);
         await ApplyProductFieldsAsync(
             product,
             card.MigrosId,
@@ -407,9 +439,35 @@ public class MigrosProductSyncService(
             multiplier,
             categories,
             available: true,
-            ct);
+            ct,
+            isPromotionOnly: shouldRemainPromotionOnly,
+            skipThumbnail: skipThumbnail);
+
+        await ApplyPromotionFromProductCardAsync(product.Id, card, ct, promotionStartDate, promotionEndDate);
 
         return product;
+    }
+
+    internal async Task ApplyPromotionFromProductCardAsync(
+        int productId,
+        ProductCardResponse card,
+        CancellationToken ct,
+        DateTime? promotionStartDate = null,
+        DateTime? promotionEndDate = null)
+    {
+        if (card.EffectivePromotionPrice is decimal promotionPrice)
+        {
+            await UpsertPromotionAsync(
+                productId,
+                promotionPrice,
+                card.EffectivePromotionBadge,
+                promotionStartDate,
+                promotionEndDate,
+                ct);
+            return;
+        }
+
+        await RemovePromotionAsync(productId, ct);
     }
 
     private async Task<Product?> FindProductAsync(string? migrosId, long? migrosOnlineId, long? migrosUid, CancellationToken ct)
@@ -453,7 +511,9 @@ public class MigrosProductSyncService(
         int multiplier,
         string? categories,
         bool available,
-        CancellationToken ct)
+        CancellationToken ct,
+        bool? isPromotionOnly = false,
+        bool skipThumbnail = false)
     {
         using var scope = scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -468,7 +528,7 @@ public class MigrosProductSyncService(
         product.Name = productName;
         logger.LogDebug("Resolved image for '{Name}' uid={MigrosUid} mo={MigrosOnlineId}: {ImageUrl}",
             productName, migrosUid, migrosOnlineId, imageUrl ?? "(none)");
-        if (imageUrl != null && (product.ImageData == null || product.ImageUrl != imageUrl))
+        if (!skipThumbnail && imageUrl != null && (product.ImageData == null || product.ImageUrl != imageUrl))
         {
             product.ImageData = await thumbnailService.FetchThumbnailAsync(imageUrl, ct);
             if (product.ImageData == null)
@@ -488,10 +548,54 @@ public class MigrosProductSyncService(
         product.LastSyncedAt = DateTime.UtcNow;
         if (categories is not null) product.Categories = categories;
         product.AdditionalInfo = JsonSerializer.Serialize(new { available });
+        if (isPromotionOnly.HasValue)
+            product.IsPromotionOnly = isPromotionOnly.Value;
 
         if (product.Id == 0) db.Products.Add(product);
         await db.SaveChangesAsync(ct);
     }
+
+    private async Task UpsertPromotionAsync(
+        int productId,
+        decimal promotionPrice,
+        string? badgeDescription,
+        DateTime? startDate,
+        DateTime? endDate,
+        CancellationToken ct)
+    {
+        using var scope = scopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var promotion = await db.ProductPromotions.FirstOrDefaultAsync(p => p.ProductId == productId, ct);
+        if (promotion is null)
+        {
+            promotion = new ProductPromotion { ProductId = productId };
+            db.ProductPromotions.Add(promotion);
+        }
+
+        promotion.PromotionPrice = promotionPrice;
+        promotion.BadgeDescription = badgeDescription;
+        promotion.StartDate = startDate;
+        promotion.EndDate = endDate;
+        promotion.SyncedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync(ct);
+    }
+
+    private async Task RemovePromotionAsync(int productId, CancellationToken ct)
+    {
+        using var scope = scopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var promotion = await db.ProductPromotions.FirstOrDefaultAsync(p => p.ProductId == productId, ct);
+        if (promotion is null) return;
+
+        db.ProductPromotions.Remove(promotion);
+        await db.SaveChangesAsync(ct);
+    }
+
+    private static string? EffectivePromotionBadge(IEnumerable<ProductCardBadge>? badges) =>
+        badges?
+            .Where(b => b.IsPromotionBadge)
+            .Select(b => b.EffectiveDescription)
+            .FirstOrDefault(d => !string.IsNullOrWhiteSpace(d));
 
     internal static string MigrosUrlFromId(string migrosId) => $"https://www.migros.ch/de/product/{migrosId}";
     internal static string MoDisplayUrl(long migrosOnlineId) => $"https://www.migros.ch/de/product/mo/{migrosOnlineId}";

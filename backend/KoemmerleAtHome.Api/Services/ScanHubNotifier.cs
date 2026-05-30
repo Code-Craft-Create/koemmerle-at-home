@@ -16,6 +16,9 @@ public class ScanHubNotifier(IHubContext<ScanHub> hubContext) : IScanNotifier
     public Task NotifyOrderSyncProgressAsync(OrderProductSyncProgress progress) =>
         hubContext.Clients.All.SendAsync("OrderProductSyncProgress", progress);
 
+    public Task NotifyPromotionSyncProgressAsync(PromotionSyncProgress progress) =>
+        hubContext.Clients.All.SendAsync("PromotionSyncProgress", progress);
+
     public Task NotifyQueueUpdatedAsync(List<KoemmerleAtHome.Api.Models.ScanQueueItem> queue) =>
         hubContext.Clients.All.SendAsync("QueueUpdated", queue);
 

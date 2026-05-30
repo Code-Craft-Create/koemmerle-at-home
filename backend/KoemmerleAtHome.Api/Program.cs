@@ -75,6 +75,7 @@ builder.Services.AddHostedService(sp => sp.GetRequiredService<PlaywrightLoginSer
 builder.Services.AddSingleton<MigrosHttpSession>();
 builder.Services.AddSingleton<MigrosProductSyncService>();
 builder.Services.AddSingleton<MigrosOrderSyncService>();
+builder.Services.AddSingleton<MigrosPromotionSyncService>();
 builder.Services.AddSingleton<MigrosCartService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<MigrosCartService>());
 
@@ -208,6 +209,10 @@ using (var scope = app.Services.CreateScope())
     if (TableExists("Products") && !HasColumn("Products", "StickerPrintedAt"))
         Exec("""ALTER TABLE "Products" ADD COLUMN "StickerPrintedAt" TEXT""");
 
+    // Promotion sync stores Migros promotion-only products without showing them in "Meine Produkte"
+    if (TableExists("Products") && !HasColumn("Products", "IsPromotionOnly"))
+        Exec("""ALTER TABLE "Products" ADD COLUMN "IsPromotionOnly" INTEGER NOT NULL DEFAULT 0""");
+
     // Create StickerExports table if missing
     if (!TableExists("StickerExports"))
         Exec("""
@@ -218,6 +223,23 @@ using (var scope = app.Services.CreateScope())
                 "ProductsJson" TEXT NOT NULL DEFAULT ''
             )
             """);
+
+    // Current Migros promotions. This table is cleared before every promotion sync.
+    if (!TableExists("ProductPromotions"))
+    {
+        Exec("""
+            CREATE TABLE "ProductPromotions" (
+                "Id"               INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                "ProductId"        INTEGER NOT NULL REFERENCES "Products"("Id") ON DELETE CASCADE,
+                "PromotionPrice"   TEXT NOT NULL,
+                "BadgeDescription" TEXT,
+                "StartDate"        TEXT,
+                "EndDate"          TEXT,
+                "SyncedAt"         TEXT NOT NULL
+            )
+            """);
+        Exec("""CREATE UNIQUE INDEX "IX_ProductPromotions_ProductId" ON "ProductPromotions"("ProductId") """);
+    }
 
     // Migrate ProductMappings from old 1:1 schema to new multi-item schema
     if (TableExists("ProductMappings") && HasColumn("ProductMappings", "ProductId"))

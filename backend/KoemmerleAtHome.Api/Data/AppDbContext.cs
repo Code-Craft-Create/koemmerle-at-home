@@ -13,6 +13,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
     public DbSet<AppSetting> AppSettings => Set<AppSetting>();
     public DbSet<StickerExport> StickerExports => Set<StickerExport>();
+    public DbSet<ProductPromotion> ProductPromotions => Set<ProductPromotion>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -25,6 +26,15 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         modelBuilder.Entity<Product>()
             .HasIndex(p => p.MigrosUid).IsUnique()
             .HasFilter("\"MigrosUid\" IS NOT NULL");
+
+        modelBuilder.Entity<ProductPromotion>()
+            .HasIndex(p => p.ProductId).IsUnique();
+
+        modelBuilder.Entity<ProductPromotion>()
+            .HasOne(p => p.Product)
+            .WithMany()
+            .HasForeignKey(p => p.ProductId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         modelBuilder.Entity<ProductMapping>()
             .HasIndex(m => m.Barcode);

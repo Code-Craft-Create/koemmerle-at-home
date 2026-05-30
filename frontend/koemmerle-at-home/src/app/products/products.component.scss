@@ -170,6 +170,98 @@ h1 { margin: 0; font-size: 1.5rem; font-weight: 700; }
 .mono { font-family: monospace; font-size: 0.8rem; }
 .small { font-size: 0.8rem; color: var(--text-2); }
 
+.product-name-cell {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-width: 18rem;
+}
+
+.product-description {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.28rem;
+}
+
+.product-name-link {
+  max-width: 100%;
+  color: #333333;
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1.22;
+  text-decoration: none;
+
+  &:hover {
+    color: var(--orange-dark);
+    text-decoration: underline;
+  }
+}
+
+.promo-tag,
+.quantity-tag,
+.old-price {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 1.1rem;
+  padding: 0.1rem 0.42rem;
+  border-radius: 3px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.promo-tag {
+  align-self: flex-start;
+  min-width: 3rem;
+  background: var(--orange);
+  color: #ffffff;
+  border-radius: 0;
+  font-size: 0.88rem;
+  letter-spacing: 0;
+}
+
+.quantity-tag {
+  background: #f3f4f6;
+  color: #9ca3af;
+}
+
+.product-price-block {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 0.18rem;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.old-price {
+  min-height: auto;
+  padding: 0;
+  color: #777777;
+  background: transparent;
+  text-decoration: line-through;
+  font-size: 0.94rem;
+  font-weight: 800;
+}
+
+.product-price {
+  color: var(--orange);
+  font-size: 1.16rem;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+.product-price--regular {
+  color: var(--text);
+}
+
 .actions {
   display: flex;
   gap: 0.4rem;

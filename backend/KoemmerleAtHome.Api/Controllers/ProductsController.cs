@@ -14,7 +14,14 @@ public class ProductsController(AppDbContext db, MigrosProductSyncService produc
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
-        var products = await db.Products.OrderBy(p => p.Name).ToListAsync();
+        var products = await db.Products
+            .Where(p => !p.IsPromotionOnly)
+            .OrderBy(p => p.Name)
+            .ToListAsync();
+        var productIds = products.Select(p => p.Id).ToList();
+        var promotions = await db.ProductPromotions
+            .Where(p => productIds.Contains(p.ProductId))
+            .ToDictionaryAsync(p => p.ProductId);
         var mappedIds = (await db.ProductMappingItems.Select(i => i.ProductId).ToListAsync()).ToHashSet();
 
         var orderData = await db.OrderItems
@@ -42,7 +49,8 @@ public class ProductsController(AppDbContext db, MigrosProductSyncService produc
                 var dso = Math.Max((now - od.LastOrderDate!.Value).TotalDays - 30, 0);
                 relevance = oc / (1.0 + dso / 180.0);
             }
-            return ToDto(p, mappedIds.Contains(p.Id), relevance, lastOrderDate, orderCount);
+            promotions.TryGetValue(p.Id, out var promotion);
+            return ToDto(p, mappedIds.Contains(p.Id), relevance, lastOrderDate, orderCount, promotion);
         }));
     }
 
@@ -51,6 +59,7 @@ public class ProductsController(AppDbContext db, MigrosProductSyncService produc
     {
         var p = await db.Products.FirstOrDefaultAsync(p => p.Id == id);
         if (p is null) return NotFound();
+        var promotion = await db.ProductPromotions.FirstOrDefaultAsync(x => x.ProductId == id);
         var hasMapped = await db.ProductMappingItems.AnyAsync(i => i.ProductId == id);
         var lastOrderDate = await db.OrderItems
             .Include(oi => oi.Order)
@@ -59,7 +68,7 @@ public class ProductsController(AppDbContext db, MigrosProductSyncService produc
         var orderCount = await db.OrderItems
             .Where(oi => oi.ProductId == id)
             .SumAsync(oi => (int?)oi.Quantity) ?? 0;
-        return Ok(ToDto(p, hasMapped, lastOrderDate: lastOrderDate, orderCount: orderCount));
+        return Ok(ToDto(p, hasMapped, lastOrderDate: lastOrderDate, orderCount: orderCount, promotion: promotion));
     }
 
     private static bool ParseAvailable(string? json)
@@ -73,12 +82,19 @@ public class ProductsController(AppDbContext db, MigrosProductSyncService produc
         catch { return true; }
     }
 
-    private static ProductDto ToDto(Product p, bool hasMapping, double relevance = 0.0, DateTime? lastOrderDate = null, int orderCount = 0) => new(
+    private static ProductDto ToDto(
+        Product p,
+        bool hasMapping,
+        double relevance = 0.0,
+        DateTime? lastOrderDate = null,
+        int orderCount = 0,
+        ProductPromotion? promotion = null) => new(
         p.Id, p.MigrosUrl, p.Name, p.ImageUrl, p.ImageData, p.Barcodes,
         p.WeightText, p.WeightMinGrams, p.WeightMaxGrams, p.WeightUnit,
         p.Price, p.Multiplier, p.PriceFetchedAt, p.LastSyncedAt, p.Categories, hasMapping,
         ParseAvailable(p.AdditionalInfo), relevance, orderCount, lastOrderDate,
-        p.MigrosId, p.MigrosOnlineId, p.MigrosUid, p.StickerPrintedAt);
+        p.MigrosId, p.MigrosOnlineId, p.MigrosUid, p.StickerPrintedAt,
+        promotion?.PromotionPrice, promotion?.BadgeDescription, promotion?.StartDate, promotion?.EndDate);
 
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int id, [FromBody] UpdateProductRequest req)
@@ -233,7 +249,9 @@ public class ProductsController(AppDbContext db, MigrosProductSyncService produc
             c.EffectiveImageUrl,
             c.EffectiveWeightText,
             c.EffectivePrice,
-            c.EffectiveMultiplier)).ToArray();
+            c.EffectiveMultiplier,
+            c.EffectivePromotionPrice,
+            c.EffectivePromotionBadge)).ToArray();
 
         return Ok(new { type = "candidates", choices });
     }
@@ -275,7 +293,11 @@ public record ProductDto(
     string? MigrosId,
     long? MigrosOnlineId,
     long? MigrosUid,
-    DateTime? StickerPrintedAt);
+    DateTime? StickerPrintedAt,
+    decimal? PromotionPrice,
+    string? PromotionBadgeDescription,
+    DateTime? PromotionStartDate,
+    DateTime? PromotionEndDate);
 
 public record SyncUrlRequest(string MigrosUrl);
 

@@ -162,7 +162,7 @@ header {
 }
 
 .price-col {
-  width: 110px;
+  width: 130px;
 }
 
 .actions-col {
@@ -191,12 +191,36 @@ header {
   border: 1px solid #e5e7eb;
 }
 
+.recipe-name-wrap {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
 .recipe-name {
+  min-width: 0;
   font-weight: 600;
   font-size: 0.95rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.recipe-promo-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.05rem;
+  height: 1.05rem;
+  padding: 0 0.2rem;
+  border-radius: 999px;
+  background: var(--orange);
+  color: white;
+  font-size: 0.72rem;
+  font-weight: 900;
+  line-height: 1;
+  flex: 0 0 auto;
 }
 
 .recipe-barcode {
@@ -220,6 +244,25 @@ header {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+.recipe-price-stack {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.15rem;
+}
+
+.old-price {
+  color: #8b8f99;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+}
+
+.promotion-total {
+  color: var(--orange);
 }
 
 .missing-price-note {

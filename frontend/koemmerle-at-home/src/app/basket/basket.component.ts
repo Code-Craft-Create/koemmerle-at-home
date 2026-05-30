@@ -8,6 +8,8 @@ export type Swimlane = BasketSwimlane;
 
 const STORAGE_KEY = 'basket-swimlanes';
 const SIZE_KEY    = 'basket-card-size';
+const SHOW_PRICES_KEY = 'basket-show-prices';
+const SHOW_QUANTITY_KEY = 'basket-show-quantity';
 
 const DEFAULT_SWIMLANES: Swimlane[] = [
   {
@@ -65,6 +67,8 @@ export class BasketComponent implements OnInit, OnDestroy {
   activeItemUid: string | null = null;
   actionsMenuOpen = false;
   refreshing = false;
+  showPrices = true;
+  showQuantity = true;
 
   private sub!: Subscription;
   private loadingConfig = false;
@@ -73,6 +77,8 @@ export class BasketComponent implements OnInit, OnDestroy {
 
   ngOnInit() {
     this.cardSize = parseFloat(localStorage.getItem(SIZE_KEY) ?? '1') || 1;
+    this.showPrices = localStorage.getItem(SHOW_PRICES_KEY) !== 'false';
+    this.showQuantity = localStorage.getItem(SHOW_QUANTITY_KEY) !== 'false';
     this.loadConfig();
     this.refresh();
     this.sub = this.api.queueUpdated$Obs.subscribe(() => this.refresh());
@@ -96,6 +102,17 @@ export class BasketComponent implements OnInit, OnDestroy {
   get uncategorisedItems(): BasketItem[] {
     const assigned = new Set(this.swimlanes.flatMap(l => l.categories));
     return this.basket.filter(i => !assigned.has(i.category));
+  }
+
+  basketTotalPrice(): number {
+    return this.basket.reduce((sum, item) => {
+      const price = item.promotionPrice ?? item.price;
+      return sum + (price == null ? 0 : price * item.quantity);
+    }, 0);
+  }
+
+  basketHasMissingPrices(): boolean {
+    return this.basket.some(item => (item.promotionPrice ?? item.price) == null);
   }
 
   addLane(event?: MouseEvent) {
@@ -216,6 +233,16 @@ export class BasketComponent implements OnInit, OnDestroy {
 
   onSizeChange() {
     localStorage.setItem(SIZE_KEY, String(this.cardSize));
+  }
+
+  toggleShowPrices(enabled: boolean) {
+    this.showPrices = enabled;
+    localStorage.setItem(SHOW_PRICES_KEY, String(enabled));
+  }
+
+  toggleShowQuantity(enabled: boolean) {
+    this.showQuantity = enabled;
+    localStorage.setItem(SHOW_QUANTITY_KEY, String(enabled));
   }
 
   adjustQuantity(item: BasketItem, delta: number) {

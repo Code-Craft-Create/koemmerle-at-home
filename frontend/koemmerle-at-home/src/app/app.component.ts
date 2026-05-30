@@ -5,7 +5,7 @@ import { CommonModule } from '@angular/common';
 import { Subscription } from 'rxjs';
 import { filter } from 'rxjs/operators';
 import { ScanBridgeService } from './services/scan-bridge.service';
-import { LatestRelease, MigrosSessionStatus, ScanApiService } from './services/scan-api.service';
+import { LatestRelease, MigrosSessionStatus, RecipeDto, ScanApiService } from './services/scan-api.service';
 import { OrderImportService, OrderImportState } from './services/order-import.service';
 import { QueueSidebarComponent } from './shared/queue-sidebar.component';
 import { ScanComponent } from './scan/scan.component';
@@ -24,6 +24,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
   isScanRoute = false;
   isOrdersRoute = false;
+  isPromotionsRoute = false;
   isStickersRoute = false;
   navBarcode = '';
   queueOpen = false;
@@ -40,6 +41,7 @@ export class AppComponent implements OnInit, OnDestroy {
   promptAutoUpdateOrders = true;
   autoUpdateSaving = false;
   showOrderImportPrompt = false;
+  hasRecipePromotions = false;
   orderImportTrackerCollapsed = false;
   orderImportState: OrderImportState = {
     active: false,
@@ -55,8 +57,10 @@ export class AppComponent implements OnInit, OnDestroy {
   private sessionTimer: ReturnType<typeof setInterval> | null = null;
   private startupOrderCheckDone = false;
   private settingsLoaded = false;
-  private orderImportCollapsedByOrdersRoute = false;
-  private orderImportCollapsePendingForOrdersRoute = false;
+  private orderImportCollapsedByStowRoute = false;
+  private orderImportCollapsePendingForStowRoute = false;
+  private lastOrderImportProgress = 0;
+  private wasOrderImportActive = false;
   private readonly orderImportSnoozeMs = 10 * 60 * 1000;
   private readonly orderImportSnoozeUntilKey = 'orderImportSnoozeUntil';
   private readonly releaseStorageVersionKey = 'availableNewerRelease';
@@ -130,10 +134,12 @@ export class AppComponent implements OnInit, OnDestroy {
       filter(e => e instanceof NavigationEnd)
     ).subscribe((e: any) => {
       this.applyRouteState(e.urlAfterRedirects);
+      this.refreshRecipePromotionFlag();
       if (this.isScanRoute) setTimeout(() => this.focusNav(), 100);
     });
     this.focusSub = this.bridge.focusRequest$.subscribe(() => this.focusNav());
     this.applyRouteState(this.router.url);
+    this.refreshRecipePromotionFlag();
     if (this.isScanRoute) setTimeout(() => this.focusNav(), 100);
 
     // Drive badges from SignalR pushes; seed with the current queue on load.
@@ -146,9 +152,17 @@ export class AppComponent implements OnInit, OnDestroy {
 
     this.sessionSub = this.api.migrosSessionUpdated$Obs.subscribe(status => this.applySessionStatus(status));
     this.orderImportSub = this.orderImport.state$.subscribe(s => {
+      const wasActive = this.orderImportState.active;
       this.orderImportState = s;
-      if (s.active && this.isOrdersRoute && this.orderImportCollapsePendingForOrdersRoute && !this.orderImportTrackerCollapsed) {
-        this.forceCollapseOrderImportForOrdersRoute();
+      if (!wasActive && s.active) {
+        this.wasOrderImportActive = true;
+        this.lastOrderImportProgress = 0;
+      } else if (!s.active) {
+        this.wasOrderImportActive = false;
+        this.lastOrderImportProgress = 0;
+      }
+      if (s.active && this.isOrderImportStowRoute() && this.orderImportCollapsePendingForStowRoute && !this.orderImportTrackerCollapsed) {
+        this.forceCollapseOrderImportForStowRoute();
       }
     });
     this.refreshSessionStatus();
@@ -204,27 +218,33 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   private applyRouteState(url: string) {
-    const wasOrdersRoute = this.isOrdersRoute;
+    const wasStowRoute = this.isOrderImportStowRoute();
     this.isScanRoute = url === '/scan';
     this.isOrdersRoute = url === '/orders';
+    this.isPromotionsRoute = url === '/promotions';
     this.isStickersRoute = url === '/stickers';
+    const isStowRoute = this.isOrderImportStowRoute();
 
-    if (!wasOrdersRoute && this.isOrdersRoute) {
+    if (!wasStowRoute && isStowRoute) {
       if (this.orderImportTrackerCollapsed) {
-        this.orderImportCollapsePendingForOrdersRoute = false;
-        this.orderImportCollapsedByOrdersRoute = false;
+        this.orderImportCollapsePendingForStowRoute = false;
+        this.orderImportCollapsedByStowRoute = false;
       } else if (this.orderImportState.active) {
-        this.forceCollapseOrderImportForOrdersRoute();
+        this.forceCollapseOrderImportForStowRoute();
       } else {
-        this.orderImportCollapsePendingForOrdersRoute = true;
+        this.orderImportCollapsePendingForStowRoute = true;
       }
-    } else if (wasOrdersRoute && !this.isOrdersRoute) {
-      if (this.orderImportCollapsedByOrdersRoute) {
+    } else if (wasStowRoute && !isStowRoute) {
+      if (this.orderImportCollapsedByStowRoute) {
         this.orderImportTrackerCollapsed = false;
       }
-      this.orderImportCollapsedByOrdersRoute = false;
-      this.orderImportCollapsePendingForOrdersRoute = false;
+      this.orderImportCollapsedByStowRoute = false;
+      this.orderImportCollapsePendingForStowRoute = false;
     }
+  }
+
+  private isOrderImportStowRoute(): boolean {
+    return this.isOrdersRoute || this.isPromotionsRoute;
   }
 
   refreshSessionStatus() {
@@ -235,6 +255,18 @@ export class AppComponent implements OnInit, OnDestroy {
         this.loginMessage = 'Backend-Verbindung konnte nicht geprüft werden.';
       }
     });
+  }
+
+  private refreshRecipePromotionFlag() {
+    this.api.getRecipes().subscribe({
+      next: recipes => this.hasRecipePromotions = recipes.some(recipe => this.recipeHasPromotion(recipe)),
+      error: () => this.hasRecipePromotions = false
+    });
+  }
+
+  private recipeHasPromotion(recipe: RecipeDto): boolean {
+    return recipe.items.some(item =>
+      item.promotionPrice != null && (item.price == null || item.promotionPrice < item.price));
   }
 
   private applySessionStatus(status: MigrosSessionStatus) {
@@ -288,20 +320,20 @@ export class AppComponent implements OnInit, OnDestroy {
 
   collapseOrderImportTracker() {
     this.orderImportTrackerCollapsed = true;
-    this.orderImportCollapsedByOrdersRoute = false;
-    this.orderImportCollapsePendingForOrdersRoute = false;
+    this.orderImportCollapsedByStowRoute = false;
+    this.orderImportCollapsePendingForStowRoute = false;
   }
 
   expandOrderImportTracker() {
     this.orderImportTrackerCollapsed = false;
-    this.orderImportCollapsedByOrdersRoute = false;
-    this.orderImportCollapsePendingForOrdersRoute = false;
+    this.orderImportCollapsedByStowRoute = false;
+    this.orderImportCollapsePendingForStowRoute = false;
   }
 
-  private forceCollapseOrderImportForOrdersRoute() {
+  private forceCollapseOrderImportForStowRoute() {
     this.orderImportTrackerCollapsed = true;
-    this.orderImportCollapsedByOrdersRoute = true;
-    this.orderImportCollapsePendingForOrdersRoute = false;
+    this.orderImportCollapsedByStowRoute = true;
+    this.orderImportCollapsePendingForStowRoute = false;
   }
 
   private snoozeOrderImport() {
@@ -334,9 +366,40 @@ export class AppComponent implements OnInit, OnDestroy {
 
   orderImportProgressPercent(): number {
     const state = this.orderImportState;
-    if (!state.total) return state.active ? 8 : 100;
+    if (!state.active) {
+      this.wasOrderImportActive = false;
+      this.lastOrderImportProgress = 0;
+      return 100;
+    }
 
-    return Math.max(8, Math.round((state.current / state.total) * 100));
+    if (!this.wasOrderImportActive) {
+      this.wasOrderImportActive = true;
+      this.lastOrderImportProgress = 0;
+    }
+
+    const segment = this.orderImportPhaseSegment();
+    if (!segment) return 0;
+
+    const phaseProgress = state.total > 0
+      ? Math.min(Math.max(state.current / state.total, 0), 1)
+      : 0;
+
+    const progress = Math.round(segment.start + (segment.end - segment.start) * phaseProgress);
+    if (this.lastOrderImportProgress > segment.end) {
+      this.lastOrderImportProgress = segment.start;
+    }
+    this.lastOrderImportProgress = Math.max(this.lastOrderImportProgress, progress);
+    return this.lastOrderImportProgress;
+  }
+
+  private orderImportPhaseSegment(): { start: number; end: number } | null {
+    switch (this.orderImportState.phase) {
+      case 'headers': return { start: 0, end: 18 };
+      case 'details': return { start: 18, end: 40 };
+      case 'products': return { start: 40, end: 72 };
+      case 'promotions': return { start: 72, end: 100 };
+      default: return null;
+    }
   }
 
   currentProductSyncProgress() {
@@ -358,7 +421,8 @@ export class AppComponent implements OnInit, OnDestroy {
       case 'headers': return 'Bestellungen suchen';
       case 'details': return 'Details laden';
       case 'products': return 'Produkte verknüpfen';
-      default: return 'Bestellungen importieren';
+      case 'promotions': return 'Aktionen aktualisieren';
+      default: return 'Migros-Sync';
     }
   }
 
@@ -373,8 +437,26 @@ export class AppComponent implements OnInit, OnDestroy {
         return `${state.current} / ${state.total} Bestelldetails geladen`;
       case 'products':
         return `${state.current} / ${state.total} Bestellungen synchronisiert`;
+      case 'promotions':
+        return this.promotionProgressLabel();
       default:
         return `${state.current} / ${state.total}`;
+    }
+  }
+
+  private promotionProgressLabel(): string {
+    const progress = this.orderImportState.promotionProgress;
+    if (!progress) return 'läuft...';
+
+    switch (progress.stage) {
+      case 'search':
+        return `${progress.done} / ${progress.total} Aktionen gefunden`;
+      case 'cards':
+        return `${progress.done} / ${progress.total} Aktionen verarbeitet`;
+      case 'complete':
+        return `${progress.promotionsStored} Aktionen aktualisiert`;
+      default:
+        return 'läuft...';
     }
   }
 

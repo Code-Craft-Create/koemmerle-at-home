@@ -1,0 +1,105 @@
+POST https: //www.migros.ch/product-display/public/web/v3/products/promotion/search
+
+Request: {
+    "storeType": "ONLINE",
+    "period": "CURRENT",
+    "language": "de",
+    "filters": {},
+    "sortFields": [
+        "categoryLevel"
+    ],
+    "sortOrder": "asc",
+    "from": 0,
+    "until": 100,
+    "region": "gmaa",
+    "warehouse": "1",
+    "enabledSponsoredProducts": true
+}
+
+Response: {
+    "items": [
+        {
+            "id": 100024867,
+            "type": "PRODUCT"
+        },
+        {
+            "id": 100024295,
+            "type": "PRODUCT"
+        },
+        ...
+    ],
+    "filters": [
+        {
+            "id": "my_products",
+            "label": "Zuvor gekauft",
+            "count": 47,
+            "type": "SINGLE"
+        },
+        {
+            "id": "new",
+            "label": "Neuheiten",
+            "count": 23,
+            "type": "SINGLE"
+        },
+        {
+            "id": "product_bio",
+            "label": "Bio",
+            "count": 219,
+            "type": "SINGLE"
+        },
+        {
+            "id": "product_of_switzerland",
+            "label": "Schweizer Produkt",
+            "count": 375,
+            "type": "SINGLE"
+        },
+        {
+            "id": "product_special_nutrition",
+            "label": "Spezifische Ernährung",
+            "count": 230,
+            "type": "GROUP_MULTI",
+            "options": [
+                {
+                    "id": "product_special_nutrition",
+                    "label": "Vegan",
+                    "value": "vegan",
+                    "count": 152
+                },
+                ...
+            ]
+        },
+        {
+            "id": "brand",
+            "label": "Marke",
+            "count": 1441,
+            "type": "GROUP_MULTI",
+            "options": [
+                {
+                    "id": "brand",
+                    "label": "Attitude",
+                    "value": "attitude",
+                    "count": 62
+                },
+                ...
+            ]
+        },
+        {
+            "id": "category",
+            "label": "Kategorien",
+            "count": 1501,
+            "type": "GROUP_SINGLE",
+            "options": [
+                {
+                    "id": "category",
+                    "label": "Früchte & Gemüse",
+                    "value": "7494732",
+                    "count": 16
+                },
+                ...
+            ]
+        }
+    ],
+    "numberOfItems": 1481,
+    "startDate": "2026-05-28",
+    "endDate": "2026-06-03"
+}

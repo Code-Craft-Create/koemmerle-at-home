@@ -6,13 +6,30 @@ public interface IScanNotifier
 {
     Task NotifyScanResultAsync(ScanResult result, string? connectionId = null);
     Task NotifyOrderSyncProgressAsync(OrderProductSyncProgress progress);
+    Task NotifyPromotionSyncProgressAsync(PromotionSyncProgress progress);
     Task NotifyQueueUpdatedAsync(List<KoemmerleAtHome.Api.Models.ScanQueueItem> queue);
     Task NotifyMigrosSessionUpdatedAsync(MigrosSessionStatus status);
 }
 
 public record OrderProductSyncProgress(int OrderId, int Done, int Total, string? CurrentProduct, string? LinkedProductUrl = null);
 
-public record ScanChoice(long MigrosUid, string Name, string? ImageUrl, string? WeightText, decimal? Price, int Multiplier = 1);
+public record PromotionSyncProgress(
+    string Stage,
+    int Done,
+    int Total,
+    int ProductCards,
+    int PromotionsStored,
+    string? Message = null);
+
+public record ScanChoice(
+    long MigrosUid,
+    string Name,
+    string? ImageUrl,
+    string? WeightText,
+    decimal? Price,
+    int Multiplier = 1,
+    decimal? PromotionPrice = null,
+    string? PromotionBadgeDescription = null);
 
 public record ScanResult(
     string Barcode,

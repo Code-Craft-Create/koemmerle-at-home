@@ -5,7 +5,8 @@ import { RouterModule } from '@angular/router';
 import Fuse, { type IFuseOptions } from 'fuse.js';
 import { Subject, Subscription } from 'rxjs';
 import { debounceTime } from 'rxjs/operators';
-import { ScanApiService, Product, BasketItem } from '../services/scan-api.service';
+import { BasketItem, Product, ScanApiService } from '../services/scan-api.service';
+import { OrderImportPhase, OrderImportService } from '../services/order-import.service';
 import { CategoryFilterComponent, matchesCategory } from '../shared/category-filter.component';
 
 const FUSE_OPTIONS: IFuseOptions<Product> = {
@@ -17,23 +18,27 @@ const FUSE_OPTIONS: IFuseOptions<Product> = {
 };
 
 @Component({
-  selector: 'app-products',
+  selector: 'app-promotions',
   imports: [CommonModule, FormsModule, RouterModule, CategoryFilterComponent],
-  templateUrl: './products.component.html',
-  styleUrl: './products.component.scss'
+  templateUrl: './promotions.component.html',
+  styleUrl: './promotions.component.scss'
 })
-export class ProductsComponent implements OnInit, OnDestroy {
+export class PromotionsComponent implements OnInit, OnDestroy {
   products: Product[] = [];
   private fuse = new Fuse<Product>([], FUSE_OPTIONS);
-  syncingIds = new Set<number>();
   basketByUid = new Map<string, BasketItem>();
   basketBusyIds = new Set<number>();
+  syncBusy = false;
+  syncAll = false;
+  syncAllPhase: OrderImportPhase = null;
+  syncAllCurrent = 0;
+  syncAllTotal = 0;
   message = '';
 
-  searchRaw = '';        // bound to the input — updates immediately
-  textFilter = '';       // debounced — what Fuse actually runs on
+  searchRaw = '';
+  textFilter = '';
   categoryFilter = '';
-  sortCol: 'name' | 'lastSyncedAt' | 'relevance' | 'lastOrderDate' = 'relevance';
+  sortCol: 'name' | 'relevance' | 'lastOrderDate' = 'relevance';
   sortDir: 1 | -1 = -1;
   pageSize = 100;
   page = 0;
@@ -41,14 +46,50 @@ export class ProductsComponent implements OnInit, OnDestroy {
 
   private searchSubject = new Subject<string>();
   private searchSub!: Subscription;
-
-  // memoization
+  private importSub?: Subscription;
+  private importDoneSub?: Subscription;
   private _filteredKey = '';
   private _filteredCache: Product[] = [];
 
-  setSort(col: 'name' | 'lastSyncedAt' | 'relevance' | 'lastOrderDate') {
+  readonly pieR = 9;
+  readonly pieC = 2 * Math.PI * this.pieR;
+
+  constructor(
+    private api: ScanApiService,
+    private orderImport: OrderImportService
+  ) {}
+
+  ngOnInit() {
+    this.searchSub = this.searchSubject.pipe(debounceTime(150)).subscribe(v => {
+      this.textFilter = v;
+      this.page = 0;
+    });
+    this.load();
+    this.loadBasket();
+    this.importSub = this.orderImport.state$.subscribe(s => {
+      this.syncAll = s.active;
+      this.syncAllPhase = s.phase;
+      this.syncAllCurrent = s.current;
+      this.syncAllTotal = s.total;
+      if (s.message) this.message = s.message;
+    });
+    this.importDoneSub = this.orderImport.completed$.subscribe(count => {
+      if (count > 0) this.load();
+    });
+  }
+
+  ngOnDestroy() {
+    this.searchSub.unsubscribe();
+    this.importSub?.unsubscribe();
+    this.importDoneSub?.unsubscribe();
+  }
+
+  setSort(col: 'name' | 'relevance' | 'lastOrderDate') {
     if (this.sortCol === col) this.sortDir = this.sortDir === 1 ? -1 : 1;
-    else { this.sortCol = col; this.sortDir = col === 'lastSyncedAt' || col === 'lastOrderDate' ? -1 : 1; }
+    else {
+      this.sortCol = col;
+      this.sortDir = col === 'name' ? 1 : -1;
+    }
     this.page = 0;
   }
 
@@ -85,19 +126,9 @@ export class ProductsComponent implements OnInit, OnDestroy {
         .map(r => r.item);
     } else {
       const list = this.products.filter(p => matchesCategory(p.categories, this.categoryFilter));
-      result = list.sort((a, b) => {
-        if (this.sortCol === 'name') return a.name.localeCompare(b.name) * this.sortDir;
-        if (this.sortCol === 'relevance') return this.compareRelevanceDesc(a, b) * -this.sortDir;
-        if (this.sortCol === 'lastOrderDate') {
-          const oa = a.lastOrderDate ? new Date(a.lastOrderDate).getTime() : 0;
-          const ob = b.lastOrderDate ? new Date(b.lastOrderDate).getTime() : 0;
-          return (oa - ob) * this.sortDir || this.compareRelevanceDesc(a, b);
-        }
-        const da = a.lastSyncedAt ? new Date(a.lastSyncedAt).getTime() : 0;
-        const db2 = b.lastSyncedAt ? new Date(b.lastSyncedAt).getTime() : 0;
-        return (da - db2) * this.sortDir;
-      });
+      result = list.sort((a, b) => this.compareBySort(a, b));
     }
+
     this._filteredCache = result;
     return result;
   }
@@ -107,8 +138,52 @@ export class ProductsComponent implements OnInit, OnDestroy {
   get pageStart(): number { return this.filtered.length ? this.page * this.pageSize + 1 : 0; }
   get pageEnd(): number { return Math.min((this.page + 1) * this.pageSize, this.filtered.length); }
 
-  readonly pieR = 9;
-  readonly pieC = 2 * Math.PI * this.pieR;
+  load() {
+    this.api.getPromotions().subscribe({
+      next: p => {
+        this.products = p;
+        this.fuse = new Fuse(p, FUSE_OPTIONS);
+        this._filteredKey = '';
+      },
+      error: () => this.message = 'Aktionen konnten nicht geladen werden'
+    });
+  }
+
+  syncPromotions() {
+    this.syncBusy = true;
+    this.api.syncPromotions().subscribe({
+      next: result => {
+        this.syncBusy = false;
+        this.message = result.alreadyRunning
+          ? 'Aktions-Sync läuft bereits'
+          : `${result.promotionsStored} Aktionen aktualisiert`;
+        this.load();
+      },
+      error: () => {
+        this.syncBusy = false;
+        this.message = 'Aktions-Sync fehlgeschlagen';
+      }
+    });
+  }
+
+  syncAllMigros() {
+    this.orderImport.start();
+  }
+
+  stopSyncAll() {
+    this.orderImport.cancel();
+  }
+
+  formatWeight(p: Product): string {
+    return p.weightText || '–';
+  }
+
+  formatLastOrder(p: Product): string {
+    if (!p.lastOrderDate) return '–';
+    const d = new Date(p.lastOrderDate);
+    if (isNaN(d.getTime())) return '–';
+    return d.toLocaleDateString('de-CH', { year: 'numeric', month: '2-digit', day: '2-digit' });
+  }
 
   relevanceDash(r: number): string {
     const filled = (Math.min(Math.max(r, 0), 10) / 10) * this.pieC;
@@ -121,80 +196,6 @@ export class ProductsComponent implements OnInit, OnDestroy {
     const green = Math.round(115 + (163 - 115) * t);
     const blue  = Math.round(22  + (74  - 22)  * t);
     return `rgb(${red},${green},${blue})`;
-  }
-
-  private compareRelevanceDesc(a: Product, b: Product): number {
-    return b.relevance - a.relevance || b.orderCount - a.orderCount;
-  }
-
-  private directProductMatchRank(product: Product, query: string): number {
-    const q = this.normalizedSearchText(query);
-    if (!q) return 0;
-    return this.normalizedSearchText(`${product.name} ${product.barcodes}`).includes(q) ? 1 : 0;
-  }
-
-  private normalizedSearchText(value: string): string {
-    return value.toLocaleLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
-  }
-
-  constructor(private api: ScanApiService) {}
-
-  ngOnInit() {
-    this.searchSub = this.searchSubject.pipe(debounceTime(150)).subscribe(v => {
-      this.textFilter = v;
-      this.page = 0;
-    });
-    this.load();
-    this.loadBasket();
-  }
-
-  ngOnDestroy() { this.searchSub.unsubscribe(); }
-
-  load() {
-    this.api.getProducts().subscribe(p => {
-      this.products = p;
-      this.fuse = new Fuse(p, FUSE_OPTIONS);
-      this._filteredKey = '';
-    });
-  }
-
-  sync(p: Product) {
-    this.syncingIds.add(p.id);
-    this.api.syncProduct(p.id).subscribe({
-      next: updated => {
-        const idx = this.products.findIndex(x => x.id === p.id);
-        if (idx >= 0) this.products[idx] = { ...this.products[idx], ...updated };
-        this.syncingIds.delete(p.id);
-        this.message = `"${p.name}" aktualisiert`;
-      },
-      error: () => { this.syncingIds.delete(p.id); this.message = 'Sync fehlgeschlagen'; }
-    });
-  }
-
-  delete(p: Product) {
-    if (!confirm(`Produkt "${p.name}" löschen?`)) return;
-    this.api.deleteProduct(p.id).subscribe(() => {
-      this.products = this.products.filter(x => x.id !== p.id);
-    });
-  }
-
-  formatWeight(p: Product): string {
-    if (!p.weightText) return '–';
-    return p.weightText;
-  }
-
-  formatLastOrder(p: Product): string {
-    if (!p.lastOrderDate) return '–';
-    const d = new Date(p.lastOrderDate);
-    if (isNaN(d.getTime())) return '–';
-    return d.toLocaleDateString('de-CH', { year: 'numeric', month: '2-digit', day: '2-digit' });
-  }
-
-  private loadBasket() {
-    this.api.getBasket().subscribe({
-      next: items => { this.basketByUid = new Map(items.map(i => [i.uid, i])); },
-      error: () => { /* not logged in or offline — leave map empty */ }
-    });
   }
 
   basketQuantity(p: Product): number {
@@ -214,6 +215,13 @@ export class ProductsComponent implements OnInit, OnDestroy {
     const current = this.basketQuantity(p);
     if (current <= 0) return;
     this.changeBasket(p, current - 1);
+  }
+
+  private loadBasket() {
+    this.api.getBasket().subscribe({
+      next: items => { this.basketByUid = new Map(items.map(i => [i.uid, i])); },
+      error: () => { /* not logged in or offline */ }
+    });
   }
 
   private changeBasket(p: Product, next: number) {
@@ -255,5 +263,29 @@ export class ProductsComponent implements OnInit, OnDestroy {
         migrosProductUrl: p.migrosUrl
       });
     }
+  }
+
+  private compareBySort(a: Product, b: Product): number {
+    if (this.sortCol === 'name') return a.name.localeCompare(b.name) * this.sortDir;
+    if (this.sortCol === 'lastOrderDate') {
+      const oa = a.lastOrderDate ? new Date(a.lastOrderDate).getTime() : 0;
+      const ob = b.lastOrderDate ? new Date(b.lastOrderDate).getTime() : 0;
+      return (oa - ob) * this.sortDir || this.compareRelevanceDesc(a, b);
+    }
+    return this.compareRelevanceDesc(a, b) * -this.sortDir;
+  }
+
+  private compareRelevanceDesc(a: Product, b: Product): number {
+    return b.relevance - a.relevance || b.orderCount - a.orderCount;
+  }
+
+  private directProductMatchRank(product: Product, query: string): number {
+    const q = this.normalizedSearchText(query);
+    if (!q) return 0;
+    return this.normalizedSearchText(`${product.name} ${product.barcodes}`).includes(q) ? 1 : 0;
+  }
+
+  private normalizedSearchText(value: string): string {
+    return value.toLocaleLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
   }
 }
