@@ -58,6 +58,7 @@
                   type="button"
                   class="suggestion suggestion--primary"
                   [class.selected]="selectedUid[item.index] === primary.migrosUid"
+                  [class.suggestion--unavailable]="primary.available === false"
                   (click)="select(item, primary)"
                 >
                   <span class="choice-dot"></span>
@@ -65,11 +66,29 @@
                     <span class="image-badge-wrap">
                       <img [src]="primary.imageUrl" [alt]="primary.name" />
                       @if (primary.multiplier > 1) { <span class="multiplier-badge">{{ primary.multiplier }}x</span> }
+                      @if (primary.available === false) {
+                        <span class="availability-alert" title="Dieser Artikel ist momentan nicht verfügbar. Wähle bei Migros ein Ersatzprodukt." aria-label="Artikel momentan nicht verfügbar">
+                          <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M12 3 22 20H2L12 3Z"></path>
+                            <path d="M12 8.5v5"></path>
+                            <path d="M12 17h.01"></path>
+                          </svg>
+                        </span>
+                      }
                     </span>
                   } @else {
                     <span class="image-badge-wrap">
                       <span class="image-placeholder"></span>
                       @if (primary.multiplier > 1) { <span class="multiplier-badge">{{ primary.multiplier }}x</span> }
+                      @if (primary.available === false) {
+                        <span class="availability-alert" title="Dieser Artikel ist momentan nicht verfügbar. Wähle bei Migros ein Ersatzprodukt." aria-label="Artikel momentan nicht verfügbar">
+                          <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M12 3 22 20H2L12 3Z"></path>
+                            <path d="M12 8.5v5"></path>
+                            <path d="M12 17h.01"></path>
+                          </svg>
+                        </span>
+                      }
                     </span>
                   }
                   <span class="suggestion-body">
@@ -130,7 +149,7 @@
                           <div class="custom-empty">Sucht...</div>
                         } @else {
                           @for (suggestion of customResults[item.index] ?? []; track suggestion.migrosUid) {
-                            <button type="button" class="product-option" (click)="pickCustomSuggestion(item, suggestion)">
+                            <button type="button" class="product-option" [class.product-option--unavailable]="suggestion.available === false" (click)="pickCustomSuggestion(item, suggestion)">
                               <span class="image-badge-wrap">
                                 @if (suggestion.imageUrl) {
                                   <img [src]="suggestion.imageUrl" class="thumb-xs" [alt]="suggestion.name" />
@@ -138,6 +157,15 @@
                                   <span class="image-placeholder thumb-xs"></span>
                                 }
                                 @if (suggestion.multiplier > 1) { <span class="multiplier-badge">{{ suggestion.multiplier }}x</span> }
+                                @if (suggestion.available === false) {
+                                  <span class="availability-alert" title="Dieser Artikel ist momentan nicht verfügbar. Wähle bei Migros ein Ersatzprodukt." aria-label="Artikel momentan nicht verfügbar">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                                      <path d="M12 3 22 20H2L12 3Z"></path>
+                                      <path d="M12 8.5v5"></path>
+                                      <path d="M12 17h.01"></path>
+                                    </svg>
+                                  </span>
+                                }
                               </span>
                               <span class="product-option-main">
                                 <span class="product-option-name">{{ suggestion.name }}</span>
@@ -182,6 +210,7 @@
                     type="button"
                     class="suggestion suggestion--secondary"
                     [class.selected]="selectedUid[item.index] === suggestion.migrosUid"
+                    [class.suggestion--unavailable]="suggestion.available === false"
                     (click)="select(item, suggestion)"
                   >
                     <span class="choice-dot"></span>
@@ -189,11 +218,29 @@
                       <span class="image-badge-wrap">
                         <img [src]="suggestion.imageUrl" [alt]="suggestion.name" />
                         @if (suggestion.multiplier > 1) { <span class="multiplier-badge">{{ suggestion.multiplier }}x</span> }
+                        @if (suggestion.available === false) {
+                          <span class="availability-alert" title="Dieser Artikel ist momentan nicht verfügbar. Wähle bei Migros ein Ersatzprodukt." aria-label="Artikel momentan nicht verfügbar">
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                              <path d="M12 3 22 20H2L12 3Z"></path>
+                              <path d="M12 8.5v5"></path>
+                              <path d="M12 17h.01"></path>
+                            </svg>
+                          </span>
+                        }
                       </span>
                     } @else {
                       <span class="image-badge-wrap">
                         <span class="image-placeholder"></span>
                         @if (suggestion.multiplier > 1) { <span class="multiplier-badge">{{ suggestion.multiplier }}x</span> }
+                        @if (suggestion.available === false) {
+                          <span class="availability-alert" title="Dieser Artikel ist momentan nicht verfügbar. Wähle bei Migros ein Ersatzprodukt." aria-label="Artikel momentan nicht verfügbar">
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                              <path d="M12 3 22 20H2L12 3Z"></path>
+                              <path d="M12 8.5v5"></path>
+                              <path d="M12 17h.01"></path>
+                            </svg>
+                          </span>
+                        }
                       </span>
                     }
                     <span class="suggestion-body">

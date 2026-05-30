@@ -325,7 +325,10 @@ export class BringComponent implements OnInit {
       const state = JSON.parse(raw) as Partial<BringReviewState>;
       if (!Array.isArray(state.items)) return;
 
-      this.items = state.items;
+      this.items = state.items.map(item => ({
+        ...item,
+        suggestions: this.normaliseSuggestions(item.suggestions)
+      }));
       this.selectedUid = this.cleanNullableNumberRecord(state.selectedUid);
       this.quantities = this.cleanNumberRecord(state.quantities);
       this.customSearchIndex = typeof state.customSearchIndex === 'number' ? state.customSearchIndex : null;
@@ -382,9 +385,33 @@ export class BringComponent implements OnInit {
     const result: Record<number, BringSuggestion[]> = {};
     for (const [key, raw] of Object.entries(value)) {
       const index = Number(key);
-      if (Number.isInteger(index) && Array.isArray(raw)) result[index] = raw as BringSuggestion[];
+      if (Number.isInteger(index) && Array.isArray(raw)) result[index] = this.normaliseSuggestions(raw);
     }
     return result;
+  }
+
+  private normaliseSuggestions(value: unknown): BringSuggestion[] {
+    if (!Array.isArray(value)) return [];
+    return value
+      .filter((suggestion): suggestion is Partial<BringSuggestion> =>
+        !!suggestion
+        && typeof suggestion === 'object'
+        && typeof suggestion.migrosUid === 'number'
+        && typeof suggestion.name === 'string')
+      .map(suggestion => ({
+        migrosUid: suggestion.migrosUid!,
+        name: suggestion.name!,
+        imageUrl: suggestion.imageUrl,
+        weightText: suggestion.weightText,
+        price: suggestion.price,
+        multiplier: suggestion.multiplier ?? 1,
+        relevance: suggestion.relevance ?? 0,
+        orderCount: suggestion.orderCount ?? 0,
+        matchedQuery: suggestion.matchedQuery ?? '',
+        promotionPrice: suggestion.promotionPrice,
+        promotionBadgeDescription: suggestion.promotionBadgeDescription,
+        available: suggestion.available ?? ((suggestion.promotionPrice ?? suggestion.price) != null)
+      }));
   }
 
   private cleanFallbackRecord(value: unknown): Record<number, CustomFallbackNotice | null> {

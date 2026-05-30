@@ -156,7 +156,8 @@ public class BringController(
                         Relevance: relevance,
                         OrderCount: orderCount,
                         PromotionPrice: promotion?.PromotionPrice,
-                        PromotionBadgeDescription: promotion?.BadgeDescription));
+                        PromotionBadgeDescription: promotion?.BadgeDescription,
+                        Available: ParseAvailable(product.AdditionalInfo)));
                 }
 
                 var (cards, _) = await productSync.SyncBySearchAsync(query, limit: searchLimitPerQuery, ct: ct);
@@ -175,8 +176,8 @@ public class BringController(
                         product?.Name ?? card.EffectiveName ?? card.Name ?? "Unbekannt",
                         product?.ImageData ?? product?.ImageUrl ?? card.EffectiveImageUrl,
                         product?.WeightText ?? card.EffectiveWeightText,
-                        product?.Price ?? card.EffectivePrice,
-                        Math.Max(product?.Multiplier ?? card.EffectiveMultiplier, 1),
+                        card.EffectivePrice,
+                        Math.Max(card.EffectiveMultiplier, 1),
                         query,
                         queryIndex,
                         rank,
@@ -185,7 +186,8 @@ public class BringController(
                         Relevance: relevance,
                         OrderCount: orderCount,
                         PromotionPrice: card.EffectivePromotionPrice,
-                        PromotionBadgeDescription: card.EffectivePromotionBadge));
+                        PromotionBadgeDescription: card.EffectivePromotionBadge,
+                        Available: card.HasCurrentOffer));
                 }
 
                 logger.LogInformation("Bring search query '{Query}' found {FoundCount} candidate(s)", query, queryUids.Count);
@@ -195,6 +197,7 @@ public class BringController(
         }
 
         if (candidates.Count == 0) return [];
+        await RefreshCandidatesFromProductCardsAsync(candidates, ct);
 
         return candidates.Values
             .Select(c =>
@@ -239,7 +242,7 @@ public class BringController(
             return;
         }
 
-        if (candidate.SourceRank < existing.SourceRank || candidate.Relevance > existing.Relevance)
+        if (candidate.SourceRank < existing.SourceRank || candidate.Relevance > existing.Relevance || candidate.Available != existing.Available)
             candidates[candidate.MigrosUid] = existing with
             {
                 Name = candidate.Name,
@@ -252,8 +255,35 @@ public class BringController(
                 Relevance = Math.Max(existing.Relevance, candidate.Relevance),
                 OrderCount = Math.Max(existing.OrderCount, candidate.OrderCount),
                 PromotionPrice = candidate.PromotionPrice ?? existing.PromotionPrice,
-                PromotionBadgeDescription = candidate.PromotionBadgeDescription ?? existing.PromotionBadgeDescription
+                PromotionBadgeDescription = candidate.PromotionBadgeDescription ?? existing.PromotionBadgeDescription,
+                Available = candidate.Available
             };
+    }
+
+    private async Task RefreshCandidatesFromProductCardsAsync(Dictionary<long, Candidate> candidates, CancellationToken ct)
+    {
+        foreach (var uidChunk in candidates.Keys.ToArray().Chunk(100))
+        {
+            var cards = await productSync.FetchProductCardsAsync(uidChunk.ToList(), ct);
+            foreach (var card in cards)
+            {
+                if (!card.Uid.HasValue || !candidates.TryGetValue(card.Uid.Value, out var existing))
+                    continue;
+
+                candidates[card.Uid.Value] = existing with
+                {
+                    ImageUrl = existing.ImageUrl ?? card.EffectiveImageUrl,
+                    WeightText = card.EffectiveWeightText ?? existing.WeightText,
+                    Price = card.EffectivePrice,
+                    Multiplier = Math.Max(card.EffectiveMultiplier, 1),
+                    PromotionPrice = card.EffectivePromotionPrice,
+                    PromotionBadgeDescription = card.EffectivePromotionBadge,
+                    Available = card.HasCurrentOffer
+                };
+
+                await productSync.UpsertProductCardAsync(card, ct, isPromotionOnly: false, skipThumbnail: true);
+            }
+        }
     }
 
     private static BringSuggestionDto ToDto(Candidate candidate) => new(
@@ -267,7 +297,19 @@ public class BringController(
         candidate.OrderCount,
         candidate.Query,
         candidate.PromotionPrice,
-        candidate.PromotionBadgeDescription);
+        candidate.PromotionBadgeDescription,
+        candidate.Available);
+
+    private static bool ParseAvailable(string? json)
+    {
+        if (json is null) return true;
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(json);
+            return !doc.RootElement.TryGetProperty("available", out var v) || v.GetBoolean();
+        }
+        catch { return true; }
+    }
 
     private async Task<Dictionary<int, ProductRelevance>> GetProductRelevanceAsync(List<int> productIds, CancellationToken ct)
     {
@@ -412,7 +454,8 @@ public class BringController(
         double Relevance,
         int OrderCount,
         decimal? PromotionPrice,
-        string? PromotionBadgeDescription);
+        string? PromotionBadgeDescription,
+        bool Available);
     private record RankedSuggestion(int DirectRank, int FirstWordRank, int QueryIndex, int Rank, int SourceRank, double Relevance, int OrderCount, BringSuggestionDto Dto);
     private record ProductRelevance(double Relevance, int OrderCount);
 }
@@ -431,7 +474,8 @@ public record BringSuggestionDto(
     int OrderCount,
     string MatchedQuery,
     decimal? PromotionPrice,
-    string? PromotionBadgeDescription);
+    string? PromotionBadgeDescription,
+    bool Available);
 public record BringEnqueueRequest(List<BringEnqueueItem> Items);
 public record BringEnqueueItem(int Index, string Name, string? Specification, long MigrosUid, int Quantity = 1);
 public record BringEnqueueResponse(int Enqueued, int Skipped, List<int> QueueItemIds);

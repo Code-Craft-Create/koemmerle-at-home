@@ -109,6 +109,7 @@
             <div
               class="item-card"
               [class.item-card--active]="activeItemUid === item.uid"
+              [class.item-card--unavailable]="item.available === false"
               (click)="toggleItem(item.uid, $event)"
             >
               <div
@@ -117,13 +118,22 @@
                 (click)="onQuantityControlClick(item.uid, $event)"
               >
                 <button class="qty-btn" [disabled]="activeItemUid !== item.uid" (click)="adjustQuantity(item, -1)">−</button>
-                <span class="item-qty">{{ item.quantity }}</span>
+                <span class="item-qty" [class.item-qty--unavailable]="item.available === false">{{ item.quantity }}</span>
                 <button class="qty-btn" [disabled]="activeItemUid !== item.uid" (click)="adjustQuantity(item, 1)">+</button>
               </div>
               @if (item.imageUrl) {
                 <span class="image-badge-wrap">
                   <img [src]="item.imageUrl" class="item-img" alt="" />
                   @if (item.multiplier > 1) { <span class="multiplier-badge">{{ item.multiplier }}x</span> }
+                  @if (item.available === false) {
+                    <span class="availability-alert" title="Dieser Artikel ist momentan nicht verfügbar. Wähle bei Migros ein Ersatzprodukt." aria-label="Artikel momentan nicht verfügbar">
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M12 3 22 20H2L12 3Z"></path>
+                        <path d="M12 8.5v5"></path>
+                        <path d="M12 17h.01"></path>
+                      </svg>
+                    </span>
+                  }
                   @if (item.migrosProductUrl) {
                     <a
                       class="item-product-link"
@@ -145,6 +155,15 @@
               } @else {
                 <div class="item-img-placeholder">
                   🛍️
+                  @if (item.available === false) {
+                    <span class="availability-alert" title="Dieser Artikel ist momentan nicht verfügbar. Wähle bei Migros ein Ersatzprodukt." aria-label="Artikel momentan nicht verfügbar">
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M12 3 22 20H2L12 3Z"></path>
+                        <path d="M12 8.5v5"></path>
+                        <path d="M12 17h.01"></path>
+                      </svg>
+                    </span>
+                  }
                   @if (item.migrosProductUrl) {
                     <a
                       class="item-product-link"
@@ -205,6 +224,7 @@
             <div
               class="item-card"
               [class.item-card--active]="activeItemUid === item.uid"
+              [class.item-card--unavailable]="item.available === false"
               (click)="toggleItem(item.uid, $event)"
             >
               <div
@@ -213,13 +233,22 @@
                 (click)="onQuantityControlClick(item.uid, $event)"
               >
                 <button class="qty-btn" [disabled]="activeItemUid !== item.uid" (click)="adjustQuantity(item, -1)">−</button>
-                <span class="item-qty">{{ item.quantity }}</span>
+                <span class="item-qty" [class.item-qty--unavailable]="item.available === false">{{ item.quantity }}</span>
                 <button class="qty-btn" [disabled]="activeItemUid !== item.uid" (click)="adjustQuantity(item, 1)">+</button>
               </div>
               @if (item.imageUrl) {
                 <span class="image-badge-wrap">
                   <img [src]="item.imageUrl" class="item-img" alt="" />
                   @if (item.multiplier > 1) { <span class="multiplier-badge">{{ item.multiplier }}x</span> }
+                  @if (item.available === false) {
+                    <span class="availability-alert" title="Dieser Artikel ist momentan nicht verfügbar. Wähle bei Migros ein Ersatzprodukt." aria-label="Artikel momentan nicht verfügbar">
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M12 3 22 20H2L12 3Z"></path>
+                        <path d="M12 8.5v5"></path>
+                        <path d="M12 17h.01"></path>
+                      </svg>
+                    </span>
+                  }
                   @if (item.migrosProductUrl) {
                     <a
                       class="item-product-link"
@@ -241,6 +270,15 @@
               } @else {
                 <div class="item-img-placeholder">
                   🛍️
+                  @if (item.available === false) {
+                    <span class="availability-alert" title="Dieser Artikel ist momentan nicht verfügbar. Wähle bei Migros ein Ersatzprodukt." aria-label="Artikel momentan nicht verfügbar">
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M12 3 22 20H2L12 3Z"></path>
+                        <path d="M12 8.5v5"></path>
+                        <path d="M12 17h.01"></path>
+                      </svg>
+                    </span>
+                  }
                   @if (item.migrosProductUrl) {
                     <a
                       class="item-product-link"

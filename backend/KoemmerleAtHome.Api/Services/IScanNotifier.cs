@@ -7,6 +7,7 @@ public interface IScanNotifier
     Task NotifyScanResultAsync(ScanResult result, string? connectionId = null);
     Task NotifyOrderSyncProgressAsync(OrderProductSyncProgress progress);
     Task NotifyPromotionSyncProgressAsync(PromotionSyncProgress progress);
+    Task NotifyAvailabilitySyncProgressAsync(AvailabilitySyncProgress progress);
     Task NotifyQueueUpdatedAsync(List<KoemmerleAtHome.Api.Models.ScanQueueItem> queue);
     Task NotifyMigrosSessionUpdatedAsync(MigrosSessionStatus status);
 }
@@ -21,6 +22,16 @@ public record PromotionSyncProgress(
     int PromotionsStored,
     string? Message = null);
 
+public record AvailabilitySyncProgress(
+    string Stage,
+    int Done,
+    int Total,
+    int Refreshed,
+    int NowAvailable,
+    int StillUnavailable,
+    int Failed,
+    string? Message = null);
+
 public record ScanChoice(
     long MigrosUid,
     string Name,
@@ -29,7 +40,8 @@ public record ScanChoice(
     decimal? Price,
     int Multiplier = 1,
     decimal? PromotionPrice = null,
-    string? PromotionBadgeDescription = null);
+    string? PromotionBadgeDescription = null,
+    bool Available = true);
 
 public record ScanResult(
     string Barcode,
@@ -42,4 +54,5 @@ public record ScanResult(
     int[]? AllQueueItemIds = null,  // all item IDs so frontend can cancel the group
     ScanChoice[]? Alternatives = null, // if >1 search results, they are listed here for user to choose
     int? TotalAlternatives = null, // the total number of results found by the search api
-    int Multiplier = 1);
+    int Multiplier = 1,
+    bool Available = true);

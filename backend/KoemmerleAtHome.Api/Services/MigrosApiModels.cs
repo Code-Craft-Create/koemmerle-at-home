@@ -23,6 +23,7 @@ public record MgbProductResponse(
 {
     public string EffectiveName => Title ?? (Brand is not null ? $"{Brand} · {Name}" : Name ?? MigrosId ?? "");
     public string? EffectiveImageUrl => MigrosImageUrl.Resolve(ImageTransparent?.Url ?? Images?.FirstOrDefault()?.Url);
+    public bool HasCurrentOffer => Offer?.Price?.Value is not null || Offer?.PromotionPrice?.Value is not null;
 }
 
 public record MgbImage(
@@ -205,6 +206,7 @@ public record ProductCardResponse(
     public string? EffectiveWeightText => Offer?.Quantity;
     public int EffectiveMultiplier => Math.Max(Offer?.Price?.Multiplier ?? 1, 1);
     public long? EffectiveMigrosOnlineId => long.TryParse(MigrosOnlineId, out var id) ? id : null;
+    public bool HasCurrentOffer => EffectivePrice is not null || EffectivePromotionPrice is not null;
 };
 
 // ── Promotions (POST /product-display/public/web/v3/products/promotion/search) ─

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 using KoemmerleAtHome.Api.Data;
 using KoemmerleAtHome.Api.Services;
 
@@ -44,7 +45,8 @@ public class ScanController(
                 first.Quantity,
                 lookup.Items.Count,
                 null,
-                Multiplier: first.Product.Multiplier);
+                Multiplier: first.Product.Multiplier,
+                Available: ParseAvailable(first.Product.AdditionalInfo));
         }
         else
         {
@@ -63,7 +65,8 @@ public class ScanController(
                     1,
                     1,
                     null,
-                    Multiplier: product?.Multiplier ?? card.EffectiveMultiplier);
+                    Multiplier: product?.Multiplier ?? card.EffectiveMultiplier,
+                    Available: card.HasCurrentOffer);
             }
             else if (cards.Count > 1)
             {
@@ -132,8 +135,20 @@ public class ScanController(
             c.EffectivePrice,
             c.EffectiveMultiplier,
             c.EffectivePromotionPrice,
-            c.EffectivePromotionBadge
+            c.EffectivePromotionBadge,
+            c.HasCurrentOffer
         )).ToArray();
+
+    private static bool ParseAvailable(string? json)
+    {
+        if (json is null) return true;
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            return !doc.RootElement.TryGetProperty("available", out var v) || v.GetBoolean();
+        }
+        catch { return true; }
+    }
 }
 
 public record ScanRequest(string Barcode);

@@ -33,6 +33,7 @@ export class PromotionsComponent implements OnInit, OnDestroy {
   syncAllPhase: OrderImportPhase = null;
   syncAllCurrent = 0;
   syncAllTotal = 0;
+  syncAllAvailabilityTotal = 0;
   message = '';
 
   searchRaw = '';
@@ -71,6 +72,8 @@ export class PromotionsComponent implements OnInit, OnDestroy {
       this.syncAllPhase = s.phase;
       this.syncAllCurrent = s.current;
       this.syncAllTotal = s.total;
+      if (s.phase === 'availability' && s.total > 0) this.syncAllAvailabilityTotal = s.total;
+      if (s.phase !== 'availability') this.syncAllAvailabilityTotal = 0;
       if (s.message) this.message = s.message;
     });
     this.importDoneSub = this.orderImport.completed$.subscribe(count => {
@@ -174,6 +177,13 @@ export class PromotionsComponent implements OnInit, OnDestroy {
     this.orderImport.cancel();
   }
 
+  syncAllAvailabilityLabel(): string {
+    const total = this.syncAllTotal > 0 ? this.syncAllTotal : this.syncAllAvailabilityTotal;
+    return total > 0
+      ? `Verfügbarkeit ${this.syncAllCurrent}/${total}`
+      : 'Verfügbarkeit prüfen…';
+  }
+
   formatWeight(p: Product): string {
     return p.weightText || '–';
   }
@@ -259,6 +269,7 @@ export class PromotionsComponent implements OnInit, OnDestroy {
         price: p.price ?? null,
         promotionPrice: p.promotionPrice ?? null,
         promotionBadgeDescription: p.promotionBadgeDescription ?? null,
+        available: p.available ?? true,
         category: p.categories ?? '',
         migrosProductUrl: p.migrosUrl
       });

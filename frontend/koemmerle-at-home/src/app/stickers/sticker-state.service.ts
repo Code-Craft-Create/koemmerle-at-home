@@ -6,7 +6,6 @@ export class StickerStateService {
   selectedKeys: string[] = [];
   searchRaw = '';
   categoryFilter = '';
-  showUnavailable = false;
   hidePrinted = true;
   currentPage = 0;
   pageSize = 30;

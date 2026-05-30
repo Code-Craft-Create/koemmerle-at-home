@@ -1,9 +1,9 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, EMPTY, Subscription, from, of } from 'rxjs';
 import { concatMap, finalize, switchMap, tap, toArray } from 'rxjs/operators';
-import { Order, OrderProductSyncProgress, PromotionSyncProgress, ScanApiService } from './scan-api.service';
+import { AvailabilitySyncProgress, Order, OrderProductSyncProgress, PromotionSyncProgress, ScanApiService, UnavailableProductRefreshResult } from './scan-api.service';
 
-export type OrderImportPhase = 'headers' | 'details' | 'products' | 'promotions' | null;
+export type OrderImportPhase = 'headers' | 'details' | 'products' | 'availability' | 'promotions' | null;
 
 export interface OrderImportState {
   active: boolean;
@@ -13,6 +13,8 @@ export interface OrderImportState {
   message: string;
   progress: { [orderId: number]: OrderProductSyncProgress };
   promotionProgress?: PromotionSyncProgress | null;
+  availabilityProgress?: AvailabilitySyncProgress | null;
+  unavailableRefresh?: UnavailableProductRefreshResult | null;
 }
 
 const initialState: OrderImportState = {
@@ -22,7 +24,9 @@ const initialState: OrderImportState = {
   total: 0,
   message: '',
   progress: {},
-  promotionProgress: null
+  promotionProgress: null,
+  availabilityProgress: null,
+  unavailableRefresh: null
 };
 
 @Injectable({ providedIn: 'root' })
@@ -39,11 +43,13 @@ export class OrderImportService {
   private syncAllSub?: Subscription;
   private progressSub: Subscription;
   private promotionProgressSub: Subscription;
+  private availabilityProgressSub: Subscription;
   private stopRequested = false;
 
   constructor(private api: ScanApiService) {
     this.progressSub = this.api.orderSyncProgress$Obs.subscribe(p => this.applyProductProgress(p));
     this.promotionProgressSub = this.api.promotionSyncProgress$Obs.subscribe(p => this.applyPromotionProgress(p));
+    this.availabilityProgressSub = this.api.availabilitySyncProgress$Obs.subscribe(p => this.applyAvailabilityProgress(p));
   }
 
   get state() {
@@ -70,7 +76,9 @@ export class OrderImportService {
       total: 0,
       message: 'Migros-Sync läuft...',
       progress: {},
-      promotionProgress: null
+      promotionProgress: null,
+      availabilityProgress: null,
+      unavailableRefresh: null
     });
 
     this.syncAllSub = this.api.getOrders().pipe(
@@ -163,6 +171,41 @@ export class OrderImportService {
         if (this.stopRequested) return EMPTY;
 
         this.update({
+          phase: 'availability',
+          current: 0,
+          total: 0,
+          message: 'Nicht verfügbare Produkte werden geprüft.',
+          availabilityProgress: null,
+          unavailableRefresh: null
+        });
+
+        return this.api.syncUnavailableProducts().pipe(
+          tap(result => {
+            if (this.stopRequested) return;
+            this.update({
+              current: result.checked,
+              total: result.checked,
+              unavailableRefresh: result,
+              availabilityProgress: this.state.availabilityProgress ?? {
+                stage: 'complete',
+                done: result.checked,
+                total: result.checked,
+                refreshed: result.refreshed,
+                nowAvailable: result.nowAvailable,
+                stillUnavailable: result.stillUnavailable,
+                failed: result.failed
+              },
+              message: result.checked === 0
+                ? 'Keine nicht verfügbaren Produkte zu prüfen.'
+                : `${result.nowAvailable} von ${result.checked} Produkten sind wieder verfügbar.`
+            });
+          })
+        );
+      }),
+      switchMap(() => {
+        if (this.stopRequested) return EMPTY;
+
+        this.update({
           phase: 'promotions',
           current: 0,
           total: 0,
@@ -212,6 +255,8 @@ export class OrderImportService {
       total: 0,
       progress: {},
       promotionProgress: null,
+      availabilityProgress: null,
+      unavailableRefresh: null,
       message: 'Migros-Sync gestoppt'
     });
     this.loadOrders();
@@ -272,6 +317,24 @@ export class OrderImportService {
       message: this.promotionStageMessage(p),
       promotionProgress: p
     });
+  }
+
+  private applyAvailabilityProgress(p: AvailabilitySyncProgress) {
+    if (!this.state.active || this.state.phase !== 'availability') return;
+
+    this.update({
+      current: p.total > 0 ? p.done : 1,
+      total: p.total > 0 ? p.total : 1,
+      message: p.message ?? this.availabilityStageMessage(p),
+      availabilityProgress: p
+    });
+  }
+
+  private availabilityStageMessage(progress: AvailabilitySyncProgress): string {
+    if (progress.stage === 'complete')
+      return `${progress.nowAvailable} von ${progress.total} Produkten sind wieder verfügbar.`;
+    if (progress.total <= 0) return 'Keine nicht verfügbaren Produkte zu prüfen.';
+    return `${progress.done} von ${progress.total} Produkten geprüft.`;
   }
 
   private promotionStageMessage(progress: PromotionSyncProgress): string {

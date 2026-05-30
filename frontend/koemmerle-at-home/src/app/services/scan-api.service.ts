@@ -155,6 +155,7 @@ export interface BasketItem {
   price: number | null;
   promotionPrice?: number | null;
   promotionBadgeDescription?: string | null;
+  available: boolean;
   category: string;
   migrosProductUrl: string | null;
 }
@@ -174,6 +175,7 @@ export interface ScanChoice {
   multiplier: number;
   promotionPrice?: number;
   promotionBadgeDescription?: string;
+  available: boolean;
 }
 
 export interface ScanResult {
@@ -188,6 +190,7 @@ export interface ScanResult {
   allQueueItemIds?: number[];
   alternatives?: ScanChoice[];
   totalAlternatives?: number;
+  available: boolean;
 }
 
 export interface OrderProductSyncProgress {
@@ -207,7 +210,27 @@ export interface PromotionSyncProgress {
   message?: string;
 }
 
+export interface UnavailableProductRefreshResult {
+  checked: number;
+  refreshed: number;
+  nowAvailable: number;
+  stillUnavailable: number;
+  failed: number;
+}
+
+export interface AvailabilitySyncProgress {
+  stage: string;
+  done: number;
+  total: number;
+  refreshed: number;
+  nowAvailable: number;
+  stillUnavailable: number;
+  failed: number;
+  message?: string;
+}
+
 export interface OrderStat {
+  productKey: string;
   productId?: number;
   productName: string;
   imageUrl?: string;
@@ -239,6 +262,31 @@ export interface MonthlyTotal {
   totalQuantity: number;
 }
 
+export type ProductHistoryPeriod = 'biweekly' | 'month' | 'quarter';
+
+export interface ProductHistoryPoint {
+  periodStart: string;
+  orderCount: number;
+}
+
+export interface ProductPricePoint {
+  orderDate: string;
+  unitPrice: number;
+}
+
+export interface ProductHistory {
+  productKey: string;
+  productId: number | null;
+  productName: string;
+  orderPoints: ProductHistoryPoint[];
+  pricePoints: ProductPricePoint[];
+}
+
+export interface OrderRange {
+  firstOrderDate: string | null;
+  lastOrderDate: string | null;
+}
+
 export interface ProductByBarcodeResult {
   type: 'found' | 'candidates' | 'unknown';
   products?: Product[];
@@ -262,6 +310,7 @@ export interface BringSuggestion {
   matchedQuery: string;
   promotionPrice?: number;
   promotionBadgeDescription?: string;
+  available: boolean;
 }
 
 export interface BringMatch {
@@ -357,6 +406,7 @@ export class ScanApiService {
   private scanResult$ = new Subject<ScanResult>();
   private orderSyncProgress$ = new Subject<OrderProductSyncProgress>();
   private promotionSyncProgress$ = new Subject<PromotionSyncProgress>();
+  private availabilitySyncProgress$ = new Subject<AvailabilitySyncProgress>();
   private queueUpdated$ = new Subject<ScanQueueItem[]>();
   private migrosSessionUpdated$ = new Subject<MigrosSessionStatus>();
 
@@ -369,6 +419,7 @@ export class ScanApiService {
     this.hub.on('ScanResult',              (r) => this.zone.run(() => this.scanResult$.next(r)));
     this.hub.on('OrderProductSyncProgress',(p) => this.zone.run(() => this.orderSyncProgress$.next(p)));
     this.hub.on('PromotionSyncProgress',(p) => this.zone.run(() => this.promotionSyncProgress$.next(p)));
+    this.hub.on('AvailabilitySyncProgress',(p) => this.zone.run(() => this.availabilitySyncProgress$.next(p)));
     this.hub.on('MigrosSessionUpdated', (s: MigrosSessionStatus) =>
       this.zone.run(() => this.migrosSessionUpdated$.next(s)));
     this.hub.on('QueueUpdated', (q: ScanQueueItem[]) => this.zone.run(() => {
@@ -383,6 +434,7 @@ export class ScanApiService {
   get scanResults$(): Observable<ScanResult> { return this.scanResult$.asObservable(); }
   get orderSyncProgress$Obs(): Observable<OrderProductSyncProgress> { return this.orderSyncProgress$.asObservable(); }
   get promotionSyncProgress$Obs(): Observable<PromotionSyncProgress> { return this.promotionSyncProgress$.asObservable(); }
+  get availabilitySyncProgress$Obs(): Observable<AvailabilitySyncProgress> { return this.availabilitySyncProgress$.asObservable(); }
   get queueUpdated$Obs(): Observable<ScanQueueItem[]> { return this.queueUpdated$.asObservable(); }
   get migrosSessionUpdated$Obs(): Observable<MigrosSessionStatus> { return this.migrosSessionUpdated$.asObservable(); }
 
@@ -414,6 +466,9 @@ export class ScanApiService {
   }
   syncProductByUrl(migrosUrl: string): Observable<Product> {
     return this.http.post<Product>(`${this.base}/products/sync-url`, { migrosUrl });
+  }
+  syncUnavailableProducts(): Observable<UnavailableProductRefreshResult> {
+    return this.http.post<UnavailableProductRefreshResult>(`${this.base}/products/sync-unavailable`, {});
   }
   syncThumbnails(): Observable<{ synced: number; failed: number; cancelled: boolean }> {
     return this.http.post<{ synced: number; failed: number; cancelled: boolean }>(`${this.base}/products/sync-thumbnails`, {});
@@ -507,6 +562,19 @@ export class ScanApiService {
     return this.http.get<any>(`${this.base}/statistics/debug`, {
       params: { from, to }
     });
+  }
+
+  getProductHistory(productKeys: string[], from: string, to: string, period: ProductHistoryPeriod): Observable<ProductHistory[]> {
+    return this.http.post<ProductHistory[]>(`${this.base}/statistics/product-history`, {
+      productKeys,
+      from,
+      to,
+      period
+    });
+  }
+
+  getOrderRange(): Observable<OrderRange> {
+    return this.http.get<OrderRange>(`${this.base}/statistics/order-range`);
   }
 
   getForecast(): Observable<ForecastItem[]> {

@@ -7,6 +7,8 @@
           ⏳
           @if (syncAllPhase === 'headers') {
             Bestellungen suchen…
+          } @else if (syncAllPhase === 'availability') {
+            {{ syncAllAvailabilityLabel() }}
           } @else if (syncAllPhase === 'promotions') {
             Aktionen aktualisieren…
           } @else {

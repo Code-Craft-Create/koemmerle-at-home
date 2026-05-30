@@ -133,6 +133,12 @@ public class ProductsController(AppDbContext db, MigrosProductSyncService produc
         return product is null ? StatusCode(502, "Sync failed") : Ok(product);
     }
 
+    [HttpPost("sync-unavailable")]
+    public async Task<ActionResult<UnavailableProductRefreshResult>> SyncUnavailable(CancellationToken ct)
+    {
+        return Ok(await productSync.RefreshUnavailableProductsAsync(ct));
+    }
+
     [HttpPost("sync-thumbnails")]
     public async Task<IActionResult> SyncThumbnails(CancellationToken ct)
     {
@@ -251,7 +257,8 @@ public class ProductsController(AppDbContext db, MigrosProductSyncService produc
             c.EffectivePrice,
             c.EffectiveMultiplier,
             c.EffectivePromotionPrice,
-            c.EffectivePromotionBadge)).ToArray();
+            c.EffectivePromotionBadge,
+            c.HasCurrentOffer)).ToArray();
 
         return Ok(new { type = "candidates", choices });
     }

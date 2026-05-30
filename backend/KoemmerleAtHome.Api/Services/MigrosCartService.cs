@@ -121,6 +121,7 @@ public class MigrosCartService(
                     Price: card?.EffectivePrice,
                     PromotionPrice: card?.EffectivePromotionPrice,
                     PromotionBadgeDescription: card?.EffectivePromotionBadge,
+                    Available: card?.HasCurrentOffer ?? true,
                     Category: TopCategory(card) ?? dbCategory ?? "Sonstige",
                     MigrosProductUrl: ProductUrl(card)
                 );
@@ -372,6 +373,7 @@ public record MigrosBasketItem(
     decimal? Price,
     decimal? PromotionPrice,
     string? PromotionBadgeDescription,
+    bool Available,
     string Category,
     string? MigrosProductUrl
 );

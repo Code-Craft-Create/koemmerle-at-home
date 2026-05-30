@@ -181,6 +181,7 @@ export class ScanComponent implements OnInit, OnDestroy {
       this.confirming.imageUrl = alt.imageUrl;
       this.confirming.productName = alt.name;
       this.confirming.multiplier = alt.multiplier;
+      this.confirming.available = alt.available;
 
       this.api.enqueue(barcodeToEnqueue, 1, alt.migrosUid).subscribe({ error: err => console.error(err) });
 

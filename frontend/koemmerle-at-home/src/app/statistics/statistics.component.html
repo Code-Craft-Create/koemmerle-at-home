@@ -4,171 +4,147 @@
     <span class="subtitle">Bestellte Produkte nach Zeitraum</span>
   </header>
 
-  <div class="filters">
-    <div class="filter-group">
-      <label>Von
-        <input type="date" [(ngModel)]="dateFrom" (change)="load()" />
-      </label>
-      <label>Bis
-        <input type="date" [(ngModel)]="dateTo" (change)="load()" />
-      </label>
-      <button class="btn" (click)="load()" [disabled]="loading">
-        {{ loading ? '⏳' : '↻ Aktualisieren' }}
-      </button>
-    </div>
+  <div class="stats-layout">
+    <section class="product-panel">
+      <div class="product-filter">
+        <app-category-filter [items]="stats" [(value)]="categoryFilter" />
+      </div>
 
-    <div class="filter-group">
-      <app-category-filter [items]="stats" [(value)]="categoryFilter" />
-    </div>
-  </div>
+      @if (!loading && filtered.length) {
+        <div class="summary">
+          <span>{{ filtered.length }} Produkte</span>
+          <span class="dot">·</span>
+          <span>{{ totalItems }} Einheiten total</span>
+          @if (totalWeightGrams != null) {
+            <span class="dot">·</span>
+            <span>{{ formatWeight(totalWeightGrams) }} total</span>
+          }
+        </div>
+        <div class="table-actions">
+          @if (selected.size > 0) {
+            <span>{{ selected.size }} von 5 ausgewählt</span>
+            <button class="btn-link muted" (click)="clearSelection()">Auswahl aufheben</button>
+          } @else {
+            <span>Bis zu 5 Produkte auswählen</span>
+          }
+        </div>
+      }
 
-  <div class="debug-toggle">
-    <button class="btn-link" (click)="toggleDebug()">
-      {{ showDebug ? '▲ Debug ausblenden' : '▼ Debug anzeigen' }}
-    </button>
-    @if (showDebug) {
-      <button class="btn-link" (click)="loadDebug()" [disabled]="debugLoading" style="margin-left:1rem">
-        ↻ Neu laden
-      </button>
-    }
-  </div>
-
-  @if (showDebug) {
-    <div class="debug-panel">
-      @if (debugLoading) {
-        <p class="debug-loading">Lade…</p>
-      } @else if (debugError) {
-        <p class="warn">Fehler: {{ debugError }}</p>
-      } @else if (!debug) {
-        <p class="warn">Keine Daten empfangen.</p>
+      @if (loading) {
+        <div class="empty">Lade…</div>
+      } @else if (!filtered.length) {
+        <div class="empty">Keine Bestelldaten für diesen Zeitraum.</div>
       } @else {
-        <div class="debug-section">
-          <strong>Filter:</strong>
-          {{ debug.filter.from | date:'dd.MM.yyyy' }} – {{ debug.filter.to | date:'dd.MM.yyyy' }}
-        </div>
-
-        <div class="debug-section">
-          <strong>Bestellungen:</strong>
-          {{ debug.orders.total }} total —
-          {{ debug.orders.withDate }} mit Datum —
-          {{ debug.orders.withoutDate }} ohne Datum —
-          <span [class.warn]="debug.orders.inRange === 0">{{ debug.orders.inRange }} im Zeitraum</span>
-        </div>
-
-        @if (debug.orders.withoutDate > 0) {
-          <div class="debug-section warn">
-            ⚠ {{ debug.orders.withoutDate }} Bestellungen ohne OrderDate (noch nicht vollständig synchronisiert):
-            <ul>
-              @for (o of debug.orders.withoutDateDetails; track o.id) {
-                <li>ID {{ o.id }} · {{ o.migrosOrderId }} · Status: {{ o.status }} · DateText: "{{ o.dateText }}"</li>
+        <div class="table-scroll">
+          <table class="stats-table">
+            <thead>
+              <tr>
+                <th class="check-cell"></th>
+                <th>Bild</th>
+                <th>Produkt</th>
+                <th class="qty-col sortable" (click)="setSort('count')">
+                  Menge {{ sortCol === 'count' ? (sortDir === -1 ? '▼' : '▲') : '⇅' }}
+                </th>
+                <th class="qty-col sortable" (click)="setSort('weight')">
+                  Gewicht {{ sortCol === 'weight' ? (sortDir === -1 ? '▼' : '▲') : '⇅' }}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (s of filtered; track s.productKey) {
+                <tr [class.selected]="isSelected(s)">
+                  <td class="check-cell">
+                    <input type="checkbox" [checked]="isSelected(s)" (change)="toggleSelect(s)" />
+                  </td>
+                  <td class="img-cell">
+                    @if (s.imageData || s.imageUrl) {
+                      <span class="image-badge-wrap" (mouseenter)="showProductPreview(s)" (mouseleave)="hideProductPreview()">
+                        <img [src]="s.imageData || s.imageUrl" [alt]="s.productName" class="thumb" />
+                        @if (s.multiplier > 1) { <span class="multiplier-badge">{{ s.multiplier }}x</span> }
+                      </span>
+                    }
+                  </td>
+                  <td>
+                    @if (s.productId) {
+                      <a [routerLink]="['/products', s.productId]" class="product-link">{{ s.productName }}</a>
+                    } @else {
+                      {{ s.productName }}
+                    }
+                  </td>
+                  <td class="qty-col">
+                    <span class="qty-badge">{{ s.totalQuantity }}</span>
+                  </td>
+                  <td class="qty-col weight-col">{{ formatWeight(s.totalWeightGrams) }}</td>
+                </tr>
               }
-            </ul>
-          </div>
-        }
-
-        @if (debug.orders.inRange > 0) {
-          <div class="debug-section">
-            Bestellungen im Zeitraum:
-            <ul>
-              @for (o of debug.orders.inRangeDetails; track o.id) {
-                <li>ID {{ o.id }} · {{ o.migrosOrderId }} · {{ o.orderDate | date:'dd.MM.yyyy' }} · Status: {{ o.status }}</li>
-              }
-            </ul>
-          </div>
-        }
-
-        <div class="debug-section">
-          <strong>Positionen:</strong>
-          {{ debug.items.total }} total —
-          <span [class.warn]="debug.items.inRange === 0">{{ debug.items.inRange }} im Zeitraum</span> —
-          {{ debug.items.withProduct }} mit Produkt —
-          <span [class.warn]="debug.items.noProduct > 0">{{ debug.items.noProduct }} ohne Produkt</span>
+            </tbody>
+          </table>
         </div>
-
-        @if (debug.items.sample?.length) {
-          <div class="debug-section">
-            Beispiel-Positionen:
-            <ul>
-              @for (i of debug.items.sample; track i.id) {
-                <li>
-                  "{{ i.productNameAtOrder }}" · Menge: {{ i.quantity }} ·
-                  ProductId: {{ i.productId ?? '–' }} ·
-                  OrderDate: {{ i.orderDate | date:'dd.MM.yyyy' }}
-                </li>
-              }
-            </ul>
-          </div>
-        }
       }
-    </div>
-  }
+    </section>
 
-  @if (!loading && filtered.length) {
-    <div class="summary">
-      <span>{{ filtered.length }} Produkte</span>
-      <span class="dot">·</span>
-      <span>{{ totalItems }} Einheiten total</span>
-      @if (totalWeightGrams != null) {
-        <span class="dot">·</span>
-        <span>{{ formatWeight(totalWeightGrams) }} total</span>
-      }
-    </div>
-  }
+    <aside class="insights-panel">
+      <section class="controls-section">
+        <div class="date-toolbar">
+          <label>Von
+            <input type="date" [(ngModel)]="dateFrom" (change)="load()" />
+          </label>
+          <label>Bis
+            <input type="date" [(ngModel)]="dateTo" (change)="load()" />
+          </label>
+          <button class="btn secondary range-btn" (click)="showAllOrders()" [disabled]="loading">
+            Alle
+          </button>
+        </div>
+      </section>
 
-  @if (loading) {
-    <div class="empty">Lade…</div>
-  } @else if (!filtered.length) {
-    <div class="empty">Keine Bestelldaten für diesen Zeitraum.</div>
-  } @else {
-    <div class="table-scroll">
-    <table class="stats-table">
-      <thead>
-        <tr>
-          <th>Bild</th>
-          <th>Produkt</th>
-          <th>Kategorien</th>
-          <th class="qty-col sortable" (click)="setSort('count')">
-            Menge {{ sortCol === 'count' ? (sortDir === -1 ? '▼' : '▲') : '⇅' }}
-          </th>
-          <th class="qty-col sortable" (click)="setSort('weight')">
-            Gewicht {{ sortCol === 'weight' ? (sortDir === -1 ? '▼' : '▲') : '⇅' }}
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (s of filtered; track s.productName) {
-          <tr>
-            <td class="img-cell">
-              @if (s.imageData || s.imageUrl) {
-                <span class="image-badge-wrap">
-                  <img [src]="s.imageData || s.imageUrl" [alt]="s.productName" class="thumb" />
-                  @if (s.multiplier > 1) { <span class="multiplier-badge">{{ s.multiplier }}x</span> }
-                </span>
-              }
-            </td>
-            <td>
-              @if (s.productId) {
-                <a [routerLink]="['/products', s.productId]" class="product-link">{{ s.productName }}</a>
-              } @else {
-                {{ s.productName }}
-              }
-            </td>
-            <td>
-              <div class="crumb-row">
-                @for (cat of categoryList(s); track $index) {
-                  <span class="crumb">{{ cat }}</span>
-                  @if (!$last) { <span class="sep">›</span> }
-                }
-              </div>
-            </td>
-            <td class="qty-col">
-              <span class="qty-badge">{{ s.totalQuantity }}</span>
-            </td>
-            <td class="qty-col weight-col">{{ formatWeight(s.totalWeightGrams) }}</td>
-          </tr>
+      <section class="chart-section">
+        <div class="chart-header">
+          <h2>Bestellungen und Preisverlauf</h2>
+          <div class="period-toggle" aria-label="Zeitfenster">
+            <button class="period-btn" [class.active]="historyPeriod === 'biweekly'" (click)="setHistoryPeriod('biweekly')">
+              2 Wochen
+            </button>
+            <button class="period-btn" [class.active]="historyPeriod === 'month'" (click)="setHistoryPeriod('month')">
+              1 Monat
+            </button>
+            <button class="period-btn" [class.active]="historyPeriod === 'quarter'" (click)="setHistoryPeriod('quarter')">
+              3 Monate
+            </button>
+          </div>
+        </div>
+
+        @if (selected.size === 0) {
+          <div class="chart-empty">Produkte links auswählen, um den Verlauf zu sehen.</div>
+        } @else if (historyLoading) {
+          <div class="chart-empty">Lade Verlauf…</div>
+        } @else if (historyError) {
+          <div class="chart-empty warn">Fehler: {{ historyError }}</div>
+        } @else if (!history.length) {
+          <div class="chart-empty">Keine Verlaufsdaten für die Auswahl.</div>
+        } @else {
+          <div class="chart-wrap">
+            <canvas #historyCanvas></canvas>
+          </div>
         }
-      </tbody>
-    </table>
+      </section>
+    </aside>
+  </div>
+
+  @if (hoverStat) {
+    <div class="image-preview-popover">
+      <strong>{{ hoverStat.productName }}</strong>
+      @if (hoverLoading) {
+        <span class="preview-empty">Lade Verlauf…</span>
+      } @else if (hoverError) {
+        <span class="preview-empty warn">Fehler: {{ hoverError }}</span>
+      } @else if (!hoverHistory.length) {
+        <span class="preview-empty">Keine Verlaufsdaten.</span>
+      } @else {
+        <span class="preview-chart">
+          <canvas #hoverCanvas></canvas>
+        </span>
+      }
     </div>
   }
 </div>

@@ -60,6 +60,7 @@ export class AppComponent implements OnInit, OnDestroy {
   private orderImportCollapsedByStowRoute = false;
   private orderImportCollapsePendingForStowRoute = false;
   private lastOrderImportProgress = 0;
+  private lastAvailabilitySyncTotal = 0;
   private wasOrderImportActive = false;
   private readonly orderImportSnoozeMs = 10 * 60 * 1000;
   private readonly orderImportSnoozeUntilKey = 'orderImportSnoozeUntil';
@@ -163,6 +164,9 @@ export class AppComponent implements OnInit, OnDestroy {
       }
       if (s.active && this.isOrderImportStowRoute() && this.orderImportCollapsePendingForStowRoute && !this.orderImportTrackerCollapsed) {
         this.forceCollapseOrderImportForStowRoute();
+      }
+      if (s.phase !== 'availability') {
+        this.lastAvailabilitySyncTotal = 0;
       }
     });
     this.refreshSessionStatus();
@@ -397,7 +401,8 @@ export class AppComponent implements OnInit, OnDestroy {
       case 'headers': return { start: 0, end: 18 };
       case 'details': return { start: 18, end: 40 };
       case 'products': return { start: 40, end: 72 };
-      case 'promotions': return { start: 72, end: 100 };
+      case 'availability': return { start: 72, end: 84 };
+      case 'promotions': return { start: 84, end: 100 };
       default: return null;
     }
   }
@@ -421,6 +426,7 @@ export class AppComponent implements OnInit, OnDestroy {
       case 'headers': return 'Bestellungen suchen';
       case 'details': return 'Details laden';
       case 'products': return 'Produkte verknüpfen';
+      case 'availability': return 'Verfügbarkeit prüfen';
       case 'promotions': return 'Aktionen aktualisieren';
       default: return 'Migros-Sync';
     }
@@ -428,7 +434,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
   orderImportCountLabel(): string {
     const state = this.orderImportState;
-    if (state.total <= 0) return 'läuft...';
+    if (state.total <= 0 && state.phase !== 'availability') return 'läuft...';
 
     switch (state.phase) {
       case 'headers':
@@ -437,6 +443,21 @@ export class AppComponent implements OnInit, OnDestroy {
         return `${state.current} / ${state.total} Bestelldetails geladen`;
       case 'products':
         return `${state.current} / ${state.total} Bestellungen synchronisiert`;
+      case 'availability':
+        if (state.availabilityProgress) {
+          const total = state.availabilityProgress.total;
+          if (total > 0) this.lastAvailabilitySyncTotal = total;
+          if (total <= 0 && this.lastAvailabilitySyncTotal <= 0) return 'Produkte werden geprüft';
+          if (total <= 0) return `0 / ${this.lastAvailabilitySyncTotal} Produkte geprüft`;
+          return `${state.availabilityProgress.done} / ${total} Produkte geprüft`;
+        }
+        if (state.unavailableRefresh) {
+          this.lastAvailabilitySyncTotal = state.unavailableRefresh.checked;
+          return `${state.unavailableRefresh.checked} / ${state.unavailableRefresh.checked} Produkte geprüft`;
+        }
+        return this.lastAvailabilitySyncTotal > 0
+          ? `0 / ${this.lastAvailabilitySyncTotal} Produkte geprüft`
+          : 'Produkte werden geprüft';
       case 'promotions':
         return this.promotionProgressLabel();
       default:

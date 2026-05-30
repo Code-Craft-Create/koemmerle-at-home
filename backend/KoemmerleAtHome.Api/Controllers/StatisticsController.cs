@@ -97,6 +97,7 @@ public class StatisticsController(AppDbContext db, ScanQueueService scanQueueSer
                 }
 
                 return new OrderStatDto(
+                    StatsGroupKey(first),
                     first.ProductId,
                     first.Product?.Name ?? first.ProductNameAtOrder,
                     first.Product?.ImageUrl,
@@ -112,6 +113,94 @@ public class StatisticsController(AppDbContext db, ScanQueueService scanQueueSer
 
         return Ok(stats);
     }
+
+    [HttpPost("product-history")]
+    public async Task<IActionResult> ProductHistory(
+        [FromBody] ProductHistoryRequest body,
+        CancellationToken ct)
+    {
+        var selectedKeys = (body.ProductKeys ?? [])
+            .Where(k => !string.IsNullOrWhiteSpace(k))
+            .ToHashSet(StringComparer.Ordinal);
+
+        if (selectedKeys.Count == 0)
+            return Ok(Array.Empty<ProductHistoryDto>());
+
+        var query = db.OrderItems
+            .Include(oi => oi.Order)
+            .Include(oi => oi.Product)
+            .Where(oi => oi.Order.OrderDate.HasValue);
+
+        if (body.From.HasValue)
+            query = query.Where(oi => oi.Order.OrderDate >= body.From.Value);
+        if (body.To.HasValue)
+            query = query.Where(oi => oi.Order.OrderDate <= body.To.Value.Date.AddDays(1));
+
+        var items = (await query.ToListAsync(ct))
+            .Where(oi => selectedKeys.Contains(StatsGroupKey(oi)))
+            .ToList();
+
+        if (items.Count == 0)
+            return Ok(Array.Empty<ProductHistoryDto>());
+
+        var from = (body.From?.Date ?? items.Min(oi => oi.Order.OrderDate!.Value.Date));
+        var to = (body.To?.Date ?? items.Max(oi => oi.Order.OrderDate!.Value.Date));
+        var period = NormalizeHistoryPeriod(body.Period);
+        var bins = BuildHistoryBins(from, to, period);
+
+        var result = items
+            .GroupBy(StatsGroupKey)
+            .Select(productGroup =>
+            {
+                var first = productGroup.First();
+                var orderCountsByBin = productGroup
+                    .GroupBy(oi => HistoryPeriodStart(oi.Order.OrderDate!.Value.Date, period, from))
+                    .ToDictionary(
+                        g => g.Key,
+                        g => g.Select(oi => oi.OrderId).Distinct().Count());
+
+                var pricePoints = productGroup
+                    .Where(oi => EffectiveUnitPrice(oi).HasValue)
+                    .GroupBy(oi => oi.Order.OrderDate!.Value.Date)
+                    .Select(g => new ProductPricePointDto(
+                        OrderDate: g.Key,
+                        UnitPrice: WeightedUnitPrice(g)!.Value))
+                    .OrderBy(p => p.OrderDate)
+                    .ToList();
+
+                return new ProductHistoryDto(
+                    ProductKey: StatsGroupKey(first),
+                    ProductId: first.ProductId,
+                    ProductName: first.Product?.Name ?? first.ProductNameAtOrder,
+                    OrderPoints: bins.Select(bin =>
+                    {
+                        orderCountsByBin.TryGetValue(bin, out var orderCount);
+                        return new ProductHistoryPointDto(
+                            PeriodStart: bin,
+                            OrderCount: orderCount);
+                    }).ToList(),
+                    PricePoints: pricePoints);
+            })
+            .OrderBy(x => x.ProductName)
+            .ToList();
+
+        return Ok(result);
+    }
+
+    [HttpGet("order-range")]
+    public async Task<IActionResult> OrderRange(CancellationToken ct)
+    {
+        var dates = await db.Orders
+            .Where(o => o.OrderDate.HasValue)
+            .Select(o => o.OrderDate!.Value.Date)
+            .ToListAsync(ct);
+
+        if (dates.Count == 0)
+            return Ok(new OrderRangeDto(null, null));
+
+        return Ok(new OrderRangeDto(dates.Min(), dates.Max()));
+    }
+
     [HttpGet("forecast")]
     public async Task<IActionResult> Forecast(CancellationToken ct)
     {
@@ -240,9 +329,68 @@ public class StatisticsController(AppDbContext db, ScanQueueService scanQueueSer
         ?? (item.MigrosOnlineId.HasValue ? $"mo:{item.MigrosOnlineId.Value}" : null)
         ?? (item.MigrosUid.HasValue ? $"uid:{item.MigrosUid.Value}" : null)
         ?? $"order-item:{item.Id}";
+
+    private static string NormalizeHistoryPeriod(string? period) => period switch
+    {
+        "biweekly" => "biweekly",
+        "quarter" => "quarter",
+        _ => "month"
+    };
+
+    private static List<DateTime> BuildHistoryBins(DateTime from, DateTime to, string period)
+    {
+        var bins = new List<DateTime>();
+        var cursor = HistoryPeriodStart(from, period, from);
+        while (cursor <= to)
+        {
+            bins.Add(cursor);
+            cursor = period switch
+            {
+                "biweekly" => cursor.AddDays(14),
+                "quarter" => cursor.AddMonths(3),
+                _ => cursor.AddMonths(1)
+            };
+        }
+        return bins;
+    }
+
+    private static DateTime HistoryPeriodStart(DateTime date, string period, DateTime rangeStart)
+    {
+        var day = date.Date;
+        return period switch
+        {
+            "biweekly" => rangeStart.Date.AddDays(Math.Floor((day - rangeStart.Date).TotalDays / 14d) * 14),
+            "quarter" => new DateTime(day.Year, ((day.Month - 1) / 3) * 3 + 1, 1),
+            _ => new DateTime(day.Year, day.Month, 1)
+        };
+    }
+
+    private static decimal? EffectiveUnitPrice(KoemmerleAtHome.Api.Models.OrderItem item)
+    {
+        if (item.UnitPrice.HasValue)
+            return item.UnitPrice.Value;
+        if (item.TotalPrice.HasValue && item.Quantity > 0)
+            return item.TotalPrice.Value / item.Quantity;
+        return null;
+    }
+
+    private static decimal? WeightedUnitPrice(IEnumerable<KoemmerleAtHome.Api.Models.OrderItem> items)
+    {
+        var priced = items
+            .Select(item => new { item.Quantity, UnitPrice = EffectiveUnitPrice(item) })
+            .Where(item => item.UnitPrice.HasValue)
+            .ToList();
+
+        var quantity = priced.Sum(item => item.Quantity);
+        if (quantity <= 0)
+            return priced.Count == 0 ? null : priced.Average(item => item.UnitPrice!.Value);
+
+        return priced.Sum(item => item.UnitPrice!.Value * item.Quantity) / quantity;
+    }
 }
 
 public record OrderStatDto(
+    string ProductKey,
     int? ProductId,
     string ProductName,
     string? ImageUrl,
@@ -251,6 +399,31 @@ public record OrderStatDto(
     int Multiplier,
     int TotalQuantity,
     decimal? TotalWeightGrams);
+
+public record ProductHistoryRequest(
+    string[]? ProductKeys,
+    DateTime? From,
+    DateTime? To,
+    string? Period);
+
+public record ProductHistoryDto(
+    string ProductKey,
+    int? ProductId,
+    string ProductName,
+    List<ProductHistoryPointDto> OrderPoints,
+    List<ProductPricePointDto> PricePoints);
+
+public record ProductHistoryPointDto(
+    DateTime PeriodStart,
+    int OrderCount);
+
+public record ProductPricePointDto(
+    DateTime OrderDate,
+    decimal UnitPrice);
+
+public record OrderRangeDto(
+    DateTime? FirstOrderDate,
+    DateTime? LastOrderDate);
 
 public record ForecastItemDto(
     int? ProductId,

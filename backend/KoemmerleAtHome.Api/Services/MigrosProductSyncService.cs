@@ -9,6 +9,7 @@ public class MigrosProductSyncService(
     MigrosHttpSession session,
     IServiceScopeFactory scopeFactory,
     ImageThumbnailService thumbnailService,
+    IScanNotifier notifier,
     ILogger<MigrosProductSyncService> logger)
 {
     private const string MgbBaseUrl = "https://www.migros.ch/product-display/public/v1/products/mgb";
@@ -63,6 +64,118 @@ public class MigrosProductSyncService(
                 migrosId, migrosOnlineId, migrosUid, ex.Message);
             return null;
         }
+    }
+
+    public async Task<UnavailableProductRefreshResult> RefreshUnavailableProductsAsync(CancellationToken ct = default)
+    {
+        using var scope = scopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var unavailableProducts = (await db.Products
+                .AsNoTracking()
+                .Where(p => p.AdditionalInfo != null)
+                .Select(p => new
+                {
+                    p.Id,
+                    p.Name,
+                    p.MigrosId,
+                    p.MigrosOnlineId,
+                    p.MigrosUid,
+                    p.AdditionalInfo
+                })
+                .ToListAsync(ct))
+            .Where(p => !ParseAvailable(p.AdditionalInfo))
+            .ToList();
+
+        await notifier.NotifyAvailabilitySyncProgressAsync(new AvailabilitySyncProgress(
+            Stage: "start",
+            Done: 0,
+            Total: unavailableProducts.Count,
+            Refreshed: 0,
+            NowAvailable: 0,
+            StillUnavailable: 0,
+            Failed: 0,
+            Message: unavailableProducts.Count == 0
+                ? "Keine nicht verfügbaren Produkte zu prüfen."
+                : "Nicht verfügbare Produkte werden geprüft."));
+
+        var byUid = unavailableProducts
+            .Where(p => p.MigrosUid.HasValue)
+            .GroupBy(p => p.MigrosUid!.Value)
+            .ToDictionary(g => g.Key, g => g.First());
+
+        var refreshed = 0;
+        var nowAvailable = 0;
+        var stillUnavailable = 0;
+        var failed = unavailableProducts.Count - byUid.Count;
+        var done = failed;
+
+        foreach (var uidChunk in byUid.Keys.Chunk(100))
+        {
+            ct.ThrowIfCancellationRequested();
+            var chunk = uidChunk.ToList();
+            var cards = await FetchProductCardsAsync(chunk, ct);
+            var cardMap = cards
+                .Where(c => c.Uid.HasValue)
+                .GroupBy(c => c.Uid!.Value)
+                .ToDictionary(g => g.Key, g => g.First());
+
+            foreach (var uid in chunk)
+            {
+                if (!byUid.TryGetValue(uid, out var product))
+                    continue;
+
+                if (!cardMap.TryGetValue(uid, out var card))
+                {
+                    failed++;
+                    done++;
+                    logger.LogWarning("Unavailable batch refresh found no product-card for '{Name}' (id={Id}, uid={Uid})",
+                        product.Name, product.Id, uid);
+                    continue;
+                }
+
+                var updated = await UpsertProductCardAsync(card, ct, isPromotionOnly: false, skipThumbnail: true);
+                if (updated is null)
+                {
+                    failed++;
+                    done++;
+                    logger.LogWarning("Unavailable batch refresh failed to upsert '{Name}' (id={Id}, uid={Uid})",
+                        product.Name, product.Id, uid);
+                    continue;
+                }
+
+                refreshed++;
+                done++;
+                if (card.HasCurrentOffer) nowAvailable++;
+                else stillUnavailable++;
+            }
+
+            await notifier.NotifyAvailabilitySyncProgressAsync(new AvailabilitySyncProgress(
+                Stage: "cards",
+                Done: done,
+                Total: unavailableProducts.Count,
+                Refreshed: refreshed,
+                NowAvailable: nowAvailable,
+                StillUnavailable: stillUnavailable,
+                Failed: failed,
+                Message: $"{done} von {unavailableProducts.Count} Produkten geprüft."));
+        }
+
+        await notifier.NotifyAvailabilitySyncProgressAsync(new AvailabilitySyncProgress(
+            Stage: "complete",
+            Done: unavailableProducts.Count,
+            Total: unavailableProducts.Count,
+            Refreshed: refreshed,
+            NowAvailable: nowAvailable,
+            StillUnavailable: stillUnavailable,
+            Failed: failed,
+            Message: $"{nowAvailable} von {unavailableProducts.Count} Produkten sind wieder verfügbar."));
+
+        return new UnavailableProductRefreshResult(
+            Checked: unavailableProducts.Count,
+            Refreshed: refreshed,
+            NowAvailable: nowAvailable,
+            StillUnavailable: stillUnavailable,
+            Failed: failed);
     }
 
     /// <summary>Compatibility overload for callers that still hold a migros.ch frontend URL.</summary>
@@ -369,7 +482,7 @@ public class MigrosProductSyncService(
             price,
             multiplier,
             categories,
-            available: response.Offer?.Price != null && !(response.Offer.Hints?.Any(h => h.Type == "UNKNOWN_AVAILABILITY") ?? false),
+            available: response.HasCurrentOffer && !(response.Offer?.Hints?.Any(h => h.Type == "UNKNOWN_AVAILABILITY") ?? false),
             ct);
 
         if (response.Offer?.PromotionPrice?.Value is decimal promotionPrice)
@@ -438,7 +551,7 @@ public class MigrosProductSyncService(
             price,
             multiplier,
             categories,
-            available: true,
+            available: card.HasCurrentOffer,
             ct,
             isPromotionOnly: shouldRemainPromotionOnly,
             skipThumbnail: skipThumbnail);
@@ -547,7 +660,7 @@ public class MigrosProductSyncService(
         product.PriceFetchedAt = price.HasValue ? DateTime.UtcNow : product.PriceFetchedAt;
         product.LastSyncedAt = DateTime.UtcNow;
         if (categories is not null) product.Categories = categories;
-        product.AdditionalInfo = JsonSerializer.Serialize(new { available });
+        product.AdditionalInfo = JsonSerializer.Serialize(new { available, hasCurrentOffer = available });
         if (isPromotionOnly.HasValue)
             product.IsPromotionOnly = isPromotionOnly.Value;
 
@@ -618,4 +731,22 @@ public class MigrosProductSyncService(
 
     private static string? FirstNonBlank(params string?[] values) =>
         values.FirstOrDefault(v => !string.IsNullOrWhiteSpace(v));
+
+    private static bool ParseAvailable(string? json)
+    {
+        if (json is null) return true;
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            return !doc.RootElement.TryGetProperty("available", out var v) || v.GetBoolean();
+        }
+        catch { return true; }
+    }
 }
+
+public record UnavailableProductRefreshResult(
+    int Checked,
+    int Refreshed,
+    int NowAvailable,
+    int StillUnavailable,
+    int Failed);

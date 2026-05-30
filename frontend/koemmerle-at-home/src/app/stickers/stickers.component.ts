@@ -67,7 +67,6 @@ export class StickersComponent implements OnInit, OnDestroy {
   searchRaw = '';        // bound to the input — updates immediately
   textFilter = '';       // debounced — what Fuse actually runs on
   categoryFilter = '';
-  showUnavailable = false;
   hidePrinted = true;
 
   showPrintedConfirm = false;
@@ -157,7 +156,6 @@ export class StickersComponent implements OnInit, OnDestroy {
     this.searchRaw = this.state.searchRaw;
     this.textFilter = this.state.searchRaw;
     this.categoryFilter = this.state.categoryFilter;
-    this.showUnavailable = this.state.showUnavailable;
     this.hidePrinted = this.state.hidePrinted;
     this.currentPage = this.state.currentPage;
     this.pageSize = this.state.pageSize;
@@ -168,7 +166,6 @@ export class StickersComponent implements OnInit, OnDestroy {
     this.state.selectedKeys = [...this.selectedKeys];
     this.state.searchRaw = this.searchRaw;
     this.state.categoryFilter = this.categoryFilter;
-    this.state.showUnavailable = this.showUnavailable;
     this.state.hidePrinted = this.hidePrinted;
     this.state.currentPage = this.currentPage;
     this.state.pageSize = this.pageSize;
@@ -226,7 +223,9 @@ export class StickersComponent implements OnInit, OnDestroy {
     this.api.getProductByBarcode(gtin).subscribe({
       next: r => {
         if (r.type === 'found' && r.products?.length) {
-          const item = this.productToStickerItem(r.products[0]);
+          const product = r.products.find(p => p.migrosUid != null);
+          if (!product) return;
+          const item = this.productToStickerItem(product);
           this.upsertStickerItem(item);
           this.addToSelection(item);
           this.generateBarcodeUrls();
@@ -261,6 +260,7 @@ export class StickersComponent implements OnInit, OnDestroy {
       this.api.getRecipes(),
     ]).subscribe(([products, recipes]) => {
       const productItems: StickerItem[] = products
+        .filter(p => p.migrosUid != null)
         .map(p => ({
           key: `p-${p.id}`,
           type: 'product' as const,
@@ -338,7 +338,7 @@ export class StickersComponent implements OnInit, OnDestroy {
   // ── Filtering & Pagination ─────────────────────────────────────────────────
 
   get filteredItems(): StickerItem[] {
-    const key = `${this.textFilter}|${this.categoryFilter}|${this.showUnavailable}|${this.hidePrinted}|${this.migrosItems.map(i => i.key).join(',')}`;
+    const key = `${this.textFilter}|${this.categoryFilter}|${this.hidePrinted}|${this.migrosItems.map(i => i.key).join(',')}`;
     if (key === this._filteredKey) return this._filteredCache;
     this._filteredKey = key;
 
@@ -348,7 +348,6 @@ export class StickersComponent implements OnInit, OnDestroy {
       result = this.fuse.search(text)
         .filter(r => {
           const item = r.item;
-          if (!this.showUnavailable && item.type === 'product' && !item.available) return false;
           if (this.hidePrinted && item.stickerPrintedAt) return false;
           return matchesCategory(item.categories, this.categoryFilter);
         })
@@ -375,7 +374,6 @@ export class StickersComponent implements OnInit, OnDestroy {
         });
     } else {
       result = this.allItems.filter(item => {
-        if (!this.showUnavailable && item.type === 'product' && !item.available) return false;
         if (this.hidePrinted && item.stickerPrintedAt) return false;
         return matchesCategory(item.categories, this.categoryFilter);
       });
@@ -466,7 +464,7 @@ export class StickersComponent implements OnInit, OnDestroy {
       imageUrl: choice.imageUrl,
       barcode: '',
       categories: undefined,
-      available: true,
+      available: choice.available ?? true,
       relevance: 0.9,
       orderCount: 0,
       multiplier: choice.multiplier ?? 1,
@@ -558,7 +556,7 @@ export class StickersComponent implements OnInit, OnDestroy {
     if (idx >= 0) this.allItems[idx] = item;
     else this.allItems.push(item);
     this.allItems = this.allItems
-      .filter(i => i.barcode)
+      .filter(i => i.barcode && (i.type !== 'product' || i.migrosUid != null))
       .sort((a, b) => {
         if (a.type === 'recipe' && b.type !== 'recipe') return -1;
         if (b.type === 'recipe' && a.type !== 'recipe') return 1;

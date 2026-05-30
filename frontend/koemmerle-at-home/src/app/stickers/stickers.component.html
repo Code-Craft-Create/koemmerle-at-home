@@ -194,10 +194,6 @@
                placeholder="Name oder GTIN suchen…" class="filter-text" />
         <app-category-filter [items]="allItems" [(value)]="categoryFilter" (valueChange)="resetPage()" />
         <label class="checkbox-row">
-          <input type="checkbox" [(ngModel)]="showUnavailable" (ngModelChange)="resetPage()" />
-          Nicht lieferbare anzeigen
-        </label>
-        <label class="checkbox-row">
           <input type="checkbox" [(ngModel)]="hidePrinted" (ngModelChange)="resetPage()" />
           Bereits gedruckte ausblenden
         </label>

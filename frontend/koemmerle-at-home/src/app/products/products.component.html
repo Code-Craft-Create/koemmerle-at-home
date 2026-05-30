@@ -43,11 +43,24 @@
         <tr>
           <td>
             @if (p.imageData || p.imageUrl) {
-              <span class="image-badge-wrap" [class.in-basket]="basketQuantity(p) > 0">
+              <span
+                class="image-badge-wrap"
+                [class.in-basket]="basketQuantity(p) > 0"
+                [class.in-basket--unavailable]="basketItemUnavailable(p)"
+              >
                 <img [src]="p.imageData || p.imageUrl" class="thumb" [alt]="p.name" />
                 @if (p.multiplier > 1) { <span class="multiplier-badge">{{ p.multiplier }}x</span> }
                 @if (basketQuantity(p) > 0) {
-                  <span class="basket-qty-badge" title="Im Warenkorb">{{ basketQuantity(p) }}</span>
+                  <span class="basket-qty-badge" [class.basket-qty-badge--unavailable]="basketItemUnavailable(p)" title="Im Warenkorb">{{ basketQuantity(p) }}</span>
+                }
+                @if (basketItemUnavailable(p)) {
+                  <span class="availability-alert" title="Dieser Artikel ist momentan nicht verfügbar. Wähle bei Migros ein Ersatzprodukt." aria-label="Artikel momentan nicht verfügbar">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M12 3 22 20H2L12 3Z"></path>
+                      <path d="M12 8.5v5"></path>
+                      <path d="M12 17h.01"></path>
+                    </svg>
+                  </span>
                 }
               </span>
             }
@@ -82,6 +95,16 @@
                   }
                   <span class="product-price" [class.product-price--regular]="p.promotionPrice == null">
                     {{ (p.promotionPrice ?? p.price) | number:'1.2-2' }}
+                  </span>
+                </div>
+              } @else if (productUnavailable(p)) {
+                <div class="product-price-block">
+                  <span class="availability-alert availability-alert--price" title="Dieser Artikel ist momentan nicht verfügbar. Wähle bei Migros ein Ersatzprodukt." aria-label="Artikel momentan nicht verfügbar">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M12 3 22 20H2L12 3Z"></path>
+                      <path d="M12 8.5v5"></path>
+                      <path d="M12 17h.01"></path>
+                    </svg>
                   </span>
                 </div>
               }

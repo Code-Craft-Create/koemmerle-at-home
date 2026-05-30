@@ -181,6 +181,15 @@ export class ProductsComponent implements OnInit, OnDestroy {
     return this.basketByUid.get(String(p.migrosUid))?.quantity ?? 0;
   }
 
+  basketItemUnavailable(p: Product): boolean {
+    if (p.migrosUid == null || this.basketQuantity(p) <= 0) return false;
+    return this.basketByUid.get(String(p.migrosUid))?.available === false || p.available === false;
+  }
+
+  productUnavailable(p: Product): boolean {
+    return p.available === false;
+  }
+
   canBasket(p: Product): boolean {
     return p.migrosUid != null;
   }
@@ -230,6 +239,7 @@ export class ProductsComponent implements OnInit, OnDestroy {
         price: p.price ?? null,
         promotionPrice: p.promotionPrice ?? null,
         promotionBadgeDescription: p.promotionBadgeDescription ?? null,
+        available: p.available ?? true,
         category: p.categories ?? '',
         migrosProductUrl: p.migrosUrl
       });

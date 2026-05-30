@@ -21,6 +21,7 @@ export class OrdersComponent implements OnInit, OnDestroy {
   syncAllPhase: OrderImportPhase = null;
   syncAllCurrent = 0;
   syncAllTotal = 0;
+  syncAllAvailabilityTotal = 0;
   syncProgress: { [orderId: number]: OrderProductSyncProgress } = {};
   message = '';
   autoUpdateOrders = false;
@@ -40,6 +41,8 @@ export class OrdersComponent implements OnInit, OnDestroy {
       this.syncAllPhase = s.phase;
       this.syncAllCurrent = s.current;
       this.syncAllTotal = s.total;
+      if (s.phase === 'availability' && s.total > 0) this.syncAllAvailabilityTotal = s.total;
+      if (s.phase !== 'availability') this.syncAllAvailabilityTotal = 0;
       if (s.message) this.message = s.message;
     });
     this.importDoneSub = this.orderImport.completed$.subscribe(count => {
@@ -147,6 +150,13 @@ export class OrdersComponent implements OnInit, OnDestroy {
 
   stopSyncAll() {
     this.orderImport.cancel();
+  }
+
+  syncAllAvailabilityLabel(): string {
+    const total = this.syncAllTotal > 0 ? this.syncAllTotal : this.syncAllAvailabilityTotal;
+    return total > 0
+      ? `Verfügbarkeit ${this.syncAllCurrent}/${total}`
+      : 'Verfügbarkeit prüfen…';
   }
 
   private replaceOrder(order: Order) {
