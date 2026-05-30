@@ -12,6 +12,9 @@
         <button class="btn" (click)="sync()" [disabled]="syncing">
           {{ syncing ? '⏳ Syncing…' : '↻ Sync' }}
         </button>
+        <button class="btn danger" (click)="deleteProduct()" [disabled]="deleting">
+          {{ deleting ? 'Löschen…' : 'Löschen' }}
+        </button>
       </div>
     </header>
 

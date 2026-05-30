@@ -204,6 +204,7 @@ header {
   cursor: pointer;
   font-size: 0.9rem;
   &.primary { background: var(--orange); color: white; border-color: var(--orange); }
+  &.danger { background: #dc2626; color: white; border-color: #dc2626; }
   &:hover:not(:disabled) { filter: brightness(0.95); }
   &:disabled { opacity: 0.5; cursor: not-allowed; }
 }

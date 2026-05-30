@@ -15,6 +15,7 @@ export class ProductDetailComponent implements OnInit {
   loading = true;
   saving = false;
   syncing = false;
+  deleting = false;
   message = '';
   messageIsError = false;
 
@@ -85,6 +86,15 @@ export class ProductDetailComponent implements OnInit {
     this.api.syncProduct(this.product.id).subscribe({
       next: p => { this.product = p; this.toDraft(p); this.syncing = false; this.showMsg('Sync abgeschlossen'); },
       error: () => { this.syncing = false; this.showMsg('Sync fehlgeschlagen', true); }
+    });
+  }
+
+  deleteProduct() {
+    if (!this.product || !confirm(`Produkt "${this.product.name}" löschen?`)) return;
+    this.deleting = true;
+    this.api.deleteProduct(this.product.id).subscribe({
+      next: () => { this.router.navigate(['/products']); },
+      error: () => { this.deleting = false; this.showMsg('Löschen fehlgeschlagen', true); }
     });
   }
 

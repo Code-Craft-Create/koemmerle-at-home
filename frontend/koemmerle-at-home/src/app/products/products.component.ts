@@ -25,7 +25,6 @@ const FUSE_OPTIONS: IFuseOptions<Product> = {
 export class ProductsComponent implements OnInit, OnDestroy {
   products: Product[] = [];
   private fuse = new Fuse<Product>([], FUSE_OPTIONS);
-  syncingIds = new Set<number>();
   basketByUid = new Map<string, BasketItem>();
   basketBusyIds = new Set<number>();
   message = '';
@@ -155,26 +154,6 @@ export class ProductsComponent implements OnInit, OnDestroy {
       this.products = p;
       this.fuse = new Fuse(p, FUSE_OPTIONS);
       this._filteredKey = '';
-    });
-  }
-
-  sync(p: Product) {
-    this.syncingIds.add(p.id);
-    this.api.syncProduct(p.id).subscribe({
-      next: updated => {
-        const idx = this.products.findIndex(x => x.id === p.id);
-        if (idx >= 0) this.products[idx] = { ...this.products[idx], ...updated };
-        this.syncingIds.delete(p.id);
-        this.message = `"${p.name}" aktualisiert`;
-      },
-      error: () => { this.syncingIds.delete(p.id); this.message = 'Sync fehlgeschlagen'; }
-    });
-  }
-
-  delete(p: Product) {
-    if (!confirm(`Produkt "${p.name}" löschen?`)) return;
-    this.api.deleteProduct(p.id).subscribe(() => {
-      this.products = this.products.filter(x => x.id !== p.id);
     });
   }
 

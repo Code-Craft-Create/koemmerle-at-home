@@ -11,7 +11,7 @@
     <input
       [ngModel]="searchRaw"
       (ngModelChange)="onTextInput($event)"
-      placeholder="Name oder Barcode suchen…"
+      placeholder="Produkt suchen…"
       class="filter-text"
     />
     <app-category-filter [items]="products" [(value)]="categoryFilter" (valueChange)="onFilterChange()" />
@@ -30,15 +30,12 @@
         <th class="sortable" (click)="setSort('name')">
           Produkt <span class="sort-icon">{{ sortCol === 'name' ? (sortDir === 1 ? '▲' : '▼') : '⇕' }}</span>
         </th>
-        <th>Barcodes</th>
         <th class="sortable" (click)="setSort('relevance')">
           Relevanz <span class="sort-icon">{{ sortCol === 'relevance' ? (sortDir === 1 ? '▲' : '▼') : '⇕' }}</span>
         </th>
         <th class="sortable" (click)="setSort('lastOrderDate')">
           Zuletzt bestellt <span class="sort-icon">{{ sortCol === 'lastOrderDate' ? (sortDir === 1 ? '▲' : '▼') : '⇕' }}</span>
         </th>
-        <th>Rezept</th>
-        <th>Aktionen</th>
       </tr>
     </thead>
     <tbody>
@@ -90,7 +87,6 @@
               }
             </div>
           </td>
-          <td class="mono">{{ p.barcodes || '–' }}</td>
           <td>
             <svg width="24" height="24" viewBox="0 0 24 24" class="relevance-pie">
               <circle cx="12" cy="12" [attr.r]="pieR" fill="none" stroke="#e5e7eb" stroke-width="3"/>
@@ -102,22 +98,9 @@
             </svg>
           </td>
           <td class="small">{{ formatLastOrder(p) }}</td>
-          <td>
-            @if (p.hasMapping) {
-              <span class="badge done">✓</span>
-            } @else {
-              <span class="badge none">–</span>
-            }
-          </td>
-          <td class="actions">
-            <button class="btn-sm" (click)="sync(p)" [disabled]="syncingIds.has(p.id)">
-              {{ syncingIds.has(p.id) ? '⏳' : '↻' }}
-            </button>
-            <button class="btn-sm danger" (click)="delete(p)">✕</button>
-          </td>
         </tr>
       } @empty {
-        <tr><td colspan="8" class="empty">Noch keine Produkte.</td></tr>
+        <tr><td colspan="5" class="empty">Noch keine Produkte.</td></tr>
       }
     </tbody>
   </table>
