@@ -199,7 +199,7 @@ public class BringController(
         if (candidates.Count == 0) return [];
         await RefreshCandidatesFromProductCardsAsync(candidates, ct);
 
-        return candidates.Values
+        var ranked = candidates.Values
             .Select(c =>
                 new RankedSuggestion(
                     DirectMatchRank(c.Name, c.WeightText, item),
@@ -218,9 +218,26 @@ public class BringController(
             .ThenBy(s => s.QueryIndex)
             .ThenBy(s => s.Rank)
             .ThenBy(s => s.Dto.Name)
+            .ToList();
+
+        PromoteFirstAvailable(ranked);
+
+        return ranked
             .Take(suggestionLimit)
             .Select(s => s.Dto)
             .ToList();
+    }
+
+    private static void PromoteFirstAvailable(List<RankedSuggestion> ranked)
+    {
+        if (ranked.Count <= 1 || ranked[0].Dto.Available) return;
+
+        var firstAvailableIndex = ranked.FindIndex(s => s.Dto.Available);
+        if (firstAvailableIndex <= 0) return;
+
+        var firstAvailable = ranked[firstAvailableIndex];
+        ranked.RemoveAt(firstAvailableIndex);
+        ranked.Insert(0, firstAvailable);
     }
 
     private static void AddCandidate(Dictionary<long, Candidate> candidates, Candidate candidate)

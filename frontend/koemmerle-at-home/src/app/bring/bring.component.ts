@@ -78,7 +78,10 @@ export class BringComponent implements OnInit {
     this.error = '';
     this.api.extractBringList().subscribe({
       next: response => {
-        this.items = response.items;
+        this.items = response.items.map(item => ({
+          ...item,
+          suggestions: this.preferFirstAvailable(item.suggestions)
+        }));
         this.selectedUid = {};
         this.quantities = {};
         this.customSearchIndex = null;
@@ -233,8 +236,9 @@ export class BringComponent implements OnInit {
     this.api.searchBringProducts(query, SEARCH_RESULT_LIMIT).subscribe({
       next: response => {
         if ((this.customSearch[item.index] ?? '').trim() !== query) return;
-        this.customResults[item.index] = response.suggestions;
-        this.customFallback[item.index] = this.fallbackNoticeFromResults(query, response.suggestions);
+        const suggestions = this.preferFirstAvailable(response.suggestions);
+        this.customResults[item.index] = suggestions;
+        this.customFallback[item.index] = this.fallbackNoticeFromResults(query, suggestions);
         this.customBusy[item.index] = false;
         this.persistState();
       },
@@ -392,7 +396,7 @@ export class BringComponent implements OnInit {
 
   private normaliseSuggestions(value: unknown): BringSuggestion[] {
     if (!Array.isArray(value)) return [];
-    return value
+    const suggestions = value
       .filter((suggestion): suggestion is Partial<BringSuggestion> =>
         !!suggestion
         && typeof suggestion === 'object'
@@ -412,6 +416,19 @@ export class BringComponent implements OnInit {
         promotionBadgeDescription: suggestion.promotionBadgeDescription,
         available: suggestion.available ?? ((suggestion.promotionPrice ?? suggestion.price) != null)
       }));
+    return this.preferFirstAvailable(suggestions);
+  }
+
+  private preferFirstAvailable(suggestions: BringSuggestion[]): BringSuggestion[] {
+    if (suggestions.length <= 1 || suggestions[0]?.available !== false) return suggestions;
+
+    const firstAvailableIndex = suggestions.findIndex(s => s.available !== false);
+    if (firstAvailableIndex <= 0) return suggestions;
+
+    const result = suggestions.slice();
+    const [firstAvailable] = result.splice(firstAvailableIndex, 1);
+    result.unshift(firstAvailable);
+    return result;
   }
 
   private cleanFallbackRecord(value: unknown): Record<number, CustomFallbackNotice | null> {
