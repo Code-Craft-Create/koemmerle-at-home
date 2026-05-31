@@ -383,6 +383,7 @@
   flex-direction: column;
   align-items: center;
   width: calc(80px * var(--card-size, 1));
+  min-height: calc(130px * var(--card-size, 1));
   background: white;
   border: 1.5px solid var(--border, #e5e7eb);
   border-radius: 8px;
@@ -395,6 +396,18 @@
     box-shadow: 0 3px 10px rgba(0,0,0,0.09);
     border-color: #d1d5db;
   }
+}
+
+.item-card--without-quantity {
+  min-height: calc(115px * var(--card-size, 1));
+}
+
+.item-card--without-price {
+  min-height: calc(108px * var(--card-size, 1));
+}
+
+.item-card--without-quantity.item-card--without-price {
+  min-height: calc(93px * var(--card-size, 1));
 }
 
 .item-img {
@@ -410,6 +423,7 @@
 }
 
 .image-badge-wrap > .multiplier-badge {
+  bottom: calc(0.02rem * var(--card-size, 1));
   min-width: calc(1.3rem * var(--card-size, 1));
   height: calc(0.98rem * var(--card-size, 1));
   padding: 0 calc(0.28rem * var(--card-size, 1));
@@ -431,17 +445,30 @@
 .item-info {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  margin-top: calc(0.36rem * var(--card-size, 1));
+  gap: calc(0.1rem * var(--card-size, 1));
+}
+
+.item-title-row {
+  display: flex;
   align-items: center;
   width: 100%;
-  gap: calc(0.14rem * var(--card-size, 1));
+  height: calc(2.18rem * var(--card-size, 1));
+  min-width: 0;
 }
 
 .item-promo-price-row {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: calc(0.42rem * var(--card-size, 1));
+  align-items: flex-end;
+  justify-content: flex-end;
+  gap: calc(0.24rem * var(--card-size, 1));
   width: 100%;
+  box-sizing: border-box;
+  margin-top: auto;
   padding: 0 calc(0.12rem * var(--card-size, 1));
   min-width: 0;
 
@@ -450,18 +477,33 @@
   }
 }
 
+.item-title-row + .item-promo-price-row,
+.quantity-tag + .item-promo-price-row,
+.item-cat-label + .item-promo-price-row {
+  padding-top: calc(0.28rem * var(--card-size, 1));
+}
+
 .item-name {
   font-size: calc(0.58rem * var(--card-size, 1));
   font-weight: 600;
   font-family: sans-serif;
   color: var(--text, #333);
-  text-align: center;
+  text-align: left;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  line-height: 1.25;
+  line-height: calc(0.725rem * var(--card-size, 1));
   width: 100%;
+  max-height: calc(2.18rem * var(--card-size, 1));
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  hyphens: auto;
+}
+
+.item-title-row .item-name {
+  width: 100%;
+  min-width: 0;
 }
 
 .item-cat-label {
@@ -489,12 +531,14 @@
 
 .price-stack {
   display: inline-flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: calc(0.06rem * var(--card-size, 1));
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: calc(0.12rem * var(--card-size, 1));
   min-width: 0;
-  flex-shrink: 0;
+  flex: 1 1 auto;
   margin-left: auto;
+  white-space: nowrap;
 }
 
 .old-price {
@@ -504,27 +548,35 @@
   background: transparent;
   text-decoration: line-through;
   font-weight: 800;
+  font-size: calc(0.46rem * var(--card-size, 1));
+  line-height: 1;
 }
 
 .promo-tag {
-  align-self: center;
-  min-width: calc(1.75rem * var(--card-size, 1));
+  vertical-align: 0.08em;
+  min-width: calc(1.48rem * var(--card-size, 1));
+  min-height: calc(0.74rem * var(--card-size, 1));
+  padding: 0 calc(0.18rem * var(--card-size, 1));
+  margin-right: calc(0.16rem * var(--card-size, 1));
   flex-shrink: 0;
   border-radius: 0;
   background: var(--orange, #f97316);
   color: #ffffff;
-  font-size: calc(0.58rem * var(--card-size, 1));
+  font-size: calc(0.52rem * var(--card-size, 1));
+  line-height: 1;
 }
 
 .quantity-tag {
   background: #f3f4f6;
   color: #9ca3af;
+  align-self: flex-start;
 }
 
 .price-tag {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: calc(0.08rem * var(--card-size, 1));
   min-width: 0;
   min-height: auto;
   padding: 0;
@@ -532,10 +584,15 @@
   background: transparent;
   border-radius: 0;
   font-family: sans-serif;
-  font-size: calc(0.72rem * var(--card-size, 1));
+  font-size: calc(0.62rem * var(--card-size, 1));
   font-weight: 900;
   line-height: 1;
   white-space: nowrap;
+}
+
+.price-currency {
+  font-size: 0.72em;
+  font-weight: 800;
 }
 
 .price-tag--regular {

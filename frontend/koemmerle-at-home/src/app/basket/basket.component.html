@@ -110,6 +110,8 @@
               class="item-card"
               [class.item-card--active]="activeItemUid === item.uid"
               [class.item-card--unavailable]="item.available === false"
+              [class.item-card--without-quantity]="!showQuantity || !item.weightText"
+              [class.item-card--without-price]="!showPrices || (item.promotionPrice == null && item.price == null)"
               (click)="toggleItem(item.uid, $event)"
             >
               <div
@@ -184,26 +186,31 @@
                 </div>
               }
               <div class="item-info">
-                @if (item.promotionBadgeDescription || (showPrices && (item.promotionPrice != null || item.price != null))) {
-                  <div class="item-promo-price-row" [class.has-price]="showPrices && (item.promotionPrice != null || item.price != null)">
+                <div class="item-title-row">
+                  <span class="item-name">
                     @if (item.promotionBadgeDescription) {
                       <span class="promo-tag">{{ item.promotionBadgeDescription }}</span>
                     }
+                    {{ item.productName }}
+                  </span>
+                </div>
+                @if (showQuantity && item.weightText) {
+                  <span class="quantity-tag">{{ item.weightText }}</span>
+                }
+                @if (showPrices && (item.promotionPrice != null || item.price != null)) {
+                  <div class="item-promo-price-row" [class.has-price]="showPrices && (item.promotionPrice != null || item.price != null)">
                     @if (showPrices && (item.promotionPrice != null || item.price != null)) {
                       <span class="price-stack">
-                        @if (item.price != null && item.promotionPrice != null && item.price !== item.promotionPrice) {
-                          <span class="old-price">{{ item.price | number:'1.2-2' }}</span>
-                        }
                         <span class="price-tag" [class.price-tag--regular]="item.promotionPrice == null">
-                          {{ (item.promotionPrice ?? item.price) | number:'1.2-2' }}
+                          <span class="price-currency">CHF</span>
+                          <span>{{ (item.promotionPrice ?? item.price) | number:'1.2-2' }}</span>
                         </span>
+                        @if (item.price != null && item.promotionPrice != null && item.price !== item.promotionPrice) {
+                          <span class="old-price">({{ item.price | number:'1.2-2' }})</span>
+                        }
                       </span>
                     }
                   </div>
-                }
-                <span class="item-name">{{ item.productName }}</span>
-                @if (showQuantity && item.weightText) {
-                  <span class="quantity-tag">{{ item.weightText }}</span>
                 }
               </div>
             </div>
@@ -225,6 +232,8 @@
               class="item-card"
               [class.item-card--active]="activeItemUid === item.uid"
               [class.item-card--unavailable]="item.available === false"
+              [class.item-card--without-quantity]="!showQuantity || !item.weightText"
+              [class.item-card--without-price]="!showPrices || (item.promotionPrice == null && item.price == null)"
               (click)="toggleItem(item.uid, $event)"
             >
               <div
@@ -299,28 +308,33 @@
                 </div>
               }
               <div class="item-info">
-                @if (item.promotionBadgeDescription || (showPrices && (item.promotionPrice != null || item.price != null))) {
-                  <div class="item-promo-price-row" [class.has-price]="showPrices && (item.promotionPrice != null || item.price != null)">
+                <div class="item-title-row">
+                  <span class="item-name">
                     @if (item.promotionBadgeDescription) {
                       <span class="promo-tag">{{ item.promotionBadgeDescription }}</span>
                     }
-                    @if (showPrices && (item.promotionPrice != null || item.price != null)) {
-                      <span class="price-stack">
-                        @if (item.price != null && item.promotionPrice != null && item.price !== item.promotionPrice) {
-                          <span class="old-price">{{ item.price | number:'1.2-2' }}</span>
-                        }
-                        <span class="price-tag" [class.price-tag--regular]="item.promotionPrice == null">
-                          {{ (item.promotionPrice ?? item.price) | number:'1.2-2' }}
-                        </span>
-                      </span>
-                    }
-                  </div>
-                }
-                <span class="item-name">{{ item.productName }}</span>
+                    {{ item.productName }}
+                  </span>
+                </div>
                 @if (showQuantity && item.weightText) {
                   <span class="quantity-tag">{{ item.weightText }}</span>
                 }
                 <span class="item-cat-label">{{ item.category }}</span>
+                @if (showPrices && (item.promotionPrice != null || item.price != null)) {
+                  <div class="item-promo-price-row" [class.has-price]="showPrices && (item.promotionPrice != null || item.price != null)">
+                    @if (showPrices && (item.promotionPrice != null || item.price != null)) {
+                      <span class="price-stack">
+                        <span class="price-tag" [class.price-tag--regular]="item.promotionPrice == null">
+                          <span class="price-currency">CHF</span>
+                          <span>{{ (item.promotionPrice ?? item.price) | number:'1.2-2' }}</span>
+                        </span>
+                        @if (item.price != null && item.promotionPrice != null && item.price !== item.promotionPrice) {
+                          <span class="old-price">({{ item.price | number:'1.2-2' }})</span>
+                        }
+                      </span>
+                    }
+                  </div>
+                }
               </div>
             </div>
           }
