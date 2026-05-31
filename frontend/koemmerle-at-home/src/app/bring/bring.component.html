@@ -8,9 +8,6 @@
       <button class="secondary-btn" type="button" (click)="startSync()" [disabled]="startBusy">
         {{ startBusy ? 'Öffnet...' : 'Starte Bring Web-App' }}
       </button>
-      <button class="primary-btn" type="button" (click)="extract()" [disabled]="extractBusy">
-        {{ extractBusy ? 'Liest aus...' : 'Liste auslesen' }}
-      </button>
     </div>
   </header>
 
@@ -19,6 +16,47 @@
   }
   @if (error) {
     <div class="msg-banner error">{{ error }}</div>
+  }
+
+  @if (bringLists.length > 0) {
+    <section class="list-picker" aria-label="Bring-Liste auswählen">
+      <div class="list-picker-head">
+        <div>
+          <h2>Verfügbare Bring-Listen</h2>
+          <span>{{ bringLists.length }} Liste{{ bringLists.length === 1 ? '' : 'n' }} gefunden</span>
+        </div>
+        <button type="button" class="clear-results-btn" (click)="refreshBringLists()" [disabled]="listsBusy">
+          {{ listsBusy ? 'Aktualisiert...' : 'Aktualisieren' }}
+        </button>
+      </div>
+
+      <div class="bring-list-grid">
+        @for (list of bringLists; track list.name) {
+          <button
+            type="button"
+            class="bring-list-option"
+            [class.selected]="selectedListName === list.name"
+            [disabled]="extractBusy"
+            (click)="loadBringList(list)"
+          >
+            <span class="bring-list-marker" aria-hidden="true"></span>
+            <span class="bring-list-copy">
+              <span class="bring-list-name">{{ list.name }}</span>
+              <span class="bring-list-meta">
+                @if (list.itemCount != null) {
+                  {{ list.itemCount }} offene Artikel
+                } @else {
+                  Anzahl unbekannt
+                }
+              </span>
+            </span>
+            <span class="bring-list-state">
+              {{ extractBusy && selectedListName === list.name ? 'Lädt...' : (selectedListName === list.name ? 'Ausgewählt' : 'Laden') }}
+            </span>
+          </button>
+        }
+      </div>
+    </section>
   }
 
   @if (items.length > 0) {
@@ -273,7 +311,7 @@
     </footer>
   } @else {
     <div class="empty-state">
-      <p>Starte die Bring Web-App, öffne dort deine Einkaufsliste und lies sie danach hier aus.</p>
+      <p>Starte die Bring Web-App, melde dich dort an und wähle danach hier aus, welche Liste geladen wird.</p>
     </div>
   }
 </div>

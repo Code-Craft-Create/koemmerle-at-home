@@ -24,16 +24,23 @@ public class BringController(
     public async Task<IActionResult> Start()
     {
         await playwright.StartBringListSyncAsync();
-        return Ok(new { message = "Browser navigated to Bring. Log in and open the shopping list you want to sync." });
+        return Ok(new { message = "Browser navigated to Bring. Log in there if needed; available lists will show up here." });
+    }
+
+    [HttpGet("lists")]
+    public async Task<ActionResult<BringListsResponse>> Lists(CancellationToken ct)
+    {
+        var lists = await playwright.GetBringListsAsync(ct);
+        return Ok(new BringListsResponse(lists.Select(l => new BringListDto(l.Name, l.ItemCount, l.Selected, l.Index)).ToList()));
     }
 
     [HttpPost("extract")]
-    public async Task<ActionResult<BringExtractResponse>> Extract(CancellationToken ct)
+    public async Task<ActionResult<BringExtractResponse>> Extract([FromBody] BringExtractRequest? request, CancellationToken ct)
     {
         IReadOnlyList<BringListItem> items;
         try
         {
-            items = await playwright.ExtractBringListItemsAsync(ct);
+            items = await playwright.ExtractBringListItemsAsync(request?.ListName, ct);
         }
         catch (Exception ex)
         {
@@ -477,6 +484,9 @@ public class BringController(
     private record ProductRelevance(double Relevance, int OrderCount);
 }
 
+public record BringListsResponse(List<BringListDto> Lists);
+public record BringListDto(string Name, int? ItemCount, bool Selected, int Index);
+public record BringExtractRequest(string? ListName);
 public record BringExtractResponse(List<BringMatchDto> Items);
 public record BringSearchResponse(List<BringSuggestionDto> Suggestions);
 public record BringMatchDto(int Index, string Name, string? Specification, List<BringSuggestionDto> Suggestions);

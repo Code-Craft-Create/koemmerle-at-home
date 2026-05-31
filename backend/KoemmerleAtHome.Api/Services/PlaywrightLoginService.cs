@@ -22,6 +22,7 @@ public class PlaywrightLoginService(
     private const int BrowserViewportHeight = 982;
     private IBrowserContext? _context;
     private bool _isLoggedIn;
+    private IReadOnlyList<BringAvailableList> _bringLists = [];
     private readonly SemaphoreSlim _browserLock = new(1, 1);
 
     public bool IsLoggedIn => _isLoggedIn;
@@ -131,6 +132,7 @@ public class PlaywrightLoginService(
         {
             try
             {
+                _bringLists = [];
                 await EnsureBrowserAsync();
                 if (_context is null) return;
 
@@ -143,6 +145,7 @@ public class PlaywrightLoginService(
                 await page.GotoAsync(BringListsUrl, new() { WaitUntil = WaitUntilState.DOMContentLoaded });
                 await InjectBringBannerAsync(page);
                 await page.BringToFrontAsync();
+                _ = WatchBringListsAsync(page);
                 logger.LogInformation("Bring list browser navigation finished");
             }
             catch (Exception ex)
@@ -154,7 +157,31 @@ public class PlaywrightLoginService(
         return Task.CompletedTask;
     }
 
-    public async Task<IReadOnlyList<BringListItem>> ExtractBringListItemsAsync(CancellationToken ct = default)
+    public async Task<IReadOnlyList<BringAvailableList>> GetBringListsAsync(CancellationToken ct = default)
+    {
+        if (_context is null)
+            return _bringLists;
+
+        var page = FindBringPage();
+        if (page is null)
+            return _bringLists;
+
+        try
+        {
+            await page.WaitForLoadStateAsync(LoadState.DOMContentLoaded);
+            var lists = await ReadBringListsAsync(page);
+            if (lists.Count > 0)
+                _bringLists = lists;
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Bring list selector read failed");
+        }
+
+        return _bringLists;
+    }
+
+    public async Task<IReadOnlyList<BringListItem>> ExtractBringListItemsAsync(string? listName = null, CancellationToken ct = default)
     {
         logger.LogInformation("Starting Bring list extraction");
         await EnsureBrowserAsync();
@@ -168,8 +195,14 @@ public class PlaywrightLoginService(
             _context.Pages.Count,
             string.Join(" | ", _context.Pages.Select(p => string.IsNullOrWhiteSpace(p.Url) ? "(blank)" : p.Url)));
 
-        var page = _context.Pages.LastOrDefault(p =>
-            p.Url?.Contains("getbring.com", StringComparison.OrdinalIgnoreCase) == true);
+        var page = FindBringPage();
+        if (page is null && !string.IsNullOrWhiteSpace(listName))
+        {
+            page = await _context.NewPageAsync();
+            await PrepareInteractivePageAsync(page);
+            await page.GotoAsync(BringListsUrl, new() { WaitUntil = WaitUntilState.DOMContentLoaded });
+        }
+
         if (page is null)
         {
             logger.LogWarning("Bring extraction aborted: no open getbring.com page found");
@@ -180,9 +213,11 @@ public class PlaywrightLoginService(
 
         try
         {
-            await page.BringToFrontAsync();
             await page.WaitForLoadStateAsync(LoadState.DOMContentLoaded);
             logger.LogInformation("Bring page load state reached DOMContentLoaded; current URL: {Url}", page.Url);
+
+            if (!string.IsNullOrWhiteSpace(listName))
+                await SelectBringListAsync(page, listName, ct);
 
             var containerCount = await page.Locator(".bring-list-item-container.bring-list-item-container-to-purchase").CountAsync();
             var textContainerCount = await page.Locator(".bring-list-item-container.bring-list-item-container-to-purchase .bring-list-item-text-container").CountAsync();
@@ -238,6 +273,106 @@ public class PlaywrightLoginService(
             throw;
         }
     }
+
+    private IPage? FindBringPage() => _context?.Pages.LastOrDefault(p =>
+        p.Url?.Contains("getbring.com", StringComparison.OrdinalIgnoreCase) == true);
+
+    private async Task WatchBringListsAsync(IPage page)
+    {
+        var deadline = DateTime.UtcNow.AddMinutes(5);
+        while (DateTime.UtcNow < deadline)
+        {
+            try
+            {
+                if (page.IsClosed)
+                    return;
+
+                if (!page.Url.Contains("getbring.com", StringComparison.OrdinalIgnoreCase))
+                    return;
+
+                await InjectBringBannerAsync(page);
+                var lists = await ReadBringListsAsync(page);
+                if (lists.Count > 0)
+                {
+                    _bringLists = lists;
+                    logger.LogInformation("Bring list selector found {ListCount} list(s): {Lists}",
+                        lists.Count,
+                        string.Join(" | ", lists.Select(l => $"{l.Name} ({l.ItemCount?.ToString() ?? "?"})")));
+
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogDebug(ex, "Waiting for Bring list selector failed");
+            }
+
+            await Task.Delay(1000);
+        }
+    }
+
+    private static async Task<IReadOnlyList<BringAvailableList>> ReadBringListsAsync(IPage page)
+    {
+        var listsJson = await page.EvaluateAsync<string>("""
+            (() => {
+              const clean = (value) => (value || '').replace(/\s+/g, ' ').trim();
+              const entries = Array.from(document.querySelectorAll('.bring-list-selector-entry'));
+              const lists = entries
+                .map((entry, index) => {
+                  const nameElement = entry.querySelector('.bring-list-selector-list-name');
+                  const countElement = entry.querySelector('.bring-list-selector-list-item-count');
+                  const name = clean(nameElement?.textContent);
+                  const countText = clean(countElement?.textContent);
+                  const count = Number.parseInt(countText, 10);
+                  const selected = entry.classList.contains('selected')
+                    || !!entry.querySelector('.selected');
+                  return name ? {
+                    name,
+                    itemCount: Number.isFinite(count) ? count : null,
+                    selected,
+                    index
+                  } : null;
+                })
+                .filter(Boolean);
+
+              return JSON.stringify(lists);
+            })()
+            """);
+
+        if (string.IsNullOrWhiteSpace(listsJson))
+            return [];
+
+        return JsonSerializer.Deserialize<List<BringAvailableList>>(listsJson, new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        }) ?? [];
+    }
+
+    private static async Task SelectBringListAsync(IPage page, string listName, CancellationToken ct)
+    {
+        var requested = NormalizeBringListName(listName);
+        var selector = page.Locator(".bring-list-selector-entry");
+        await selector.First.WaitForAsync(new() { Timeout = 30000 });
+
+        var count = await selector.CountAsync();
+        for (var i = 0; i < count; i++)
+        {
+            ct.ThrowIfCancellationRequested();
+            var entry = selector.Nth(i);
+            var name = await entry.Locator(".bring-list-selector-list-name").InnerTextAsync();
+            if (NormalizeBringListName(name) != requested)
+                continue;
+
+            await entry.ClickAsync();
+            await page.WaitForTimeoutAsync(500);
+            return;
+        }
+
+        throw new InvalidOperationException($"Bring list '{listName}' was not found.");
+    }
+
+    private static string NormalizeBringListName(string value) =>
+        string.Join(" ", value.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)).Trim();
 
     private async Task EnsureBrowserAsync()
     {
@@ -449,7 +584,7 @@ public class PlaywrightLoginService(
 
                   const banner = document.createElement('div');
                   banner.id = id;
-                  banner.textContent = 'Wähle in Bring die Einkaufsliste aus. Danach zurück zu KÖMMERLE At Home wechseln und die Liste auslesen.';
+                  banner.textContent = 'Bitte bei Bring anmelden. Sobald deine Listen sichtbar sind, erscheinen sie in KÖMMERLE At Home.';
                   banner.style.position = 'fixed';
                   banner.style.top = '0';
                   banner.style.left = '0';
@@ -504,4 +639,5 @@ public class PlaywrightLoginService(
 }
 
 public record BringListItem(string Name, string? Specification);
+public record BringAvailableList(string Name, int? ItemCount, bool Selected, int Index);
 internal record BringListItemPayload(string Name, string? Specification);

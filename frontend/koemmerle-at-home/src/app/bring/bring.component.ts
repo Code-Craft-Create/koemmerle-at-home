@@ -1,7 +1,7 @@
-import { Component, HostListener, OnInit } from '@angular/core';
+import { Component, HostListener, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { BringMatch, BringSuggestion, ScanApiService } from '../services/scan-api.service';
+import { BringListChoice, BringMatch, BringSuggestion, ScanApiService } from '../services/scan-api.service';
 import { ConfirmationService } from '../shared/confirmation.service';
 
 const SEARCH_RESULT_LIMIT = 50;
@@ -12,21 +12,25 @@ const SEARCH_RESULT_LIMIT = 50;
   templateUrl: './bring.component.html',
   styleUrl: './bring.component.scss'
 })
-export class BringComponent implements OnInit {
+export class BringComponent implements OnInit, OnDestroy {
   items: BringMatch[] = [];
+  bringLists: BringListChoice[] = [];
   selectedUid: Record<number, number | null> = {};
   quantities: Record<number, number> = {};
   startBusy = false;
+  listsBusy = false;
   extractBusy = false;
   enqueueBusy = false;
   message = '';
   error = '';
+  selectedListName: string | null = null;
   customSearchIndex: number | null = null;
   customSearch: Record<number, string> = {};
   customResults: Record<number, BringSuggestion[]> = {};
   customBusy: Record<number, boolean> = {};
   customFallback: Record<number, CustomFallbackNotice | null> = {};
   private customSearchTimer: any = null;
+  private listPollTimer: any = null;
   private readonly storageKey = 'bring-sync-review-state-v1';
   readonly pieR = 9;
   readonly pieC = 2 * Math.PI * this.pieR;
@@ -54,6 +58,11 @@ export class BringComponent implements OnInit {
 
   ngOnInit() {
     this.restoreState();
+    this.refreshBringLists(false);
+  }
+
+  ngOnDestroy() {
+    this.stopListPolling();
   }
 
   startSync() {
@@ -63,7 +72,8 @@ export class BringComponent implements OnInit {
     this.api.startBringSync().subscribe({
       next: () => {
         this.startBusy = false;
-        this.message = 'Bring ist im Browser geöffnet. Wähle dort die richtige Liste aus.';
+        this.message = 'Bring ist im Browser geöffnet. Melde dich dort an; die verfügbaren Listen erscheinen danach hier.';
+        this.startListPolling();
       },
       error: () => {
         this.startBusy = false;
@@ -72,11 +82,39 @@ export class BringComponent implements OnInit {
     });
   }
 
-  extract() {
+  refreshBringLists(showBusy = true) {
+    if (showBusy) this.listsBusy = true;
+    this.api.getBringLists().subscribe({
+      next: response => {
+        this.bringLists = response.lists ?? [];
+        if (this.bringLists.length > 0) {
+          const selected = this.bringLists.find(list => list.selected) ?? this.bringLists[0];
+          if (!this.selectedListName || !this.bringLists.some(list => list.name === this.selectedListName)) {
+            this.selectedListName = selected.name;
+          }
+          if (this.items.length === 0) {
+            this.message = 'Wähle aus, welche Bring-Liste du laden möchtest.';
+          }
+          this.stopListPolling();
+        }
+        this.listsBusy = false;
+      },
+      error: () => {
+        this.listsBusy = false;
+      }
+    });
+  }
+
+  loadBringList(list: BringListChoice) {
+    this.selectedListName = list.name;
+    this.extract(list.name);
+  }
+
+  extract(listName = this.selectedListName ?? undefined) {
     this.extractBusy = true;
     this.message = '';
     this.error = '';
-    this.api.extractBringList().subscribe({
+    this.api.extractBringList(listName).subscribe({
       next: response => {
         this.items = response.items.map(item => ({
           ...item,
@@ -102,6 +140,18 @@ export class BringComponent implements OnInit {
         this.error = err?.error?.message ?? 'Bring-Liste konnte nicht ausgelesen werden.';
       }
     });
+  }
+
+  private startListPolling() {
+    this.stopListPolling();
+    this.refreshBringLists(false);
+    this.listPollTimer = setInterval(() => this.refreshBringLists(false), 1500);
+  }
+
+  private stopListPolling() {
+    if (!this.listPollTimer) return;
+    clearInterval(this.listPollTimer);
+    this.listPollTimer = null;
   }
 
   select(item: BringMatch, suggestion: BringSuggestion) {

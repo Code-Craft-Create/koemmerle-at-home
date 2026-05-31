@@ -320,6 +320,17 @@ export interface BringMatch {
   suggestions: BringSuggestion[];
 }
 
+export interface BringListChoice {
+  name: string;
+  itemCount?: number | null;
+  selected: boolean;
+  index: number;
+}
+
+export interface BringListsResponse {
+  lists: BringListChoice[];
+}
+
 export interface BringExtractResponse {
   items: BringMatch[];
 }
@@ -641,8 +652,11 @@ export class ScanApiService {
   startBringSync(): Observable<{ message: string }> {
     return this.http.post<{ message: string }>(`${this.base}/bring/start`, {});
   }
-  extractBringList(): Observable<BringExtractResponse> {
-    return this.http.post<BringExtractResponse>(`${this.base}/bring/extract`, {});
+  getBringLists(): Observable<BringListsResponse> {
+    return this.http.get<BringListsResponse>(`${this.base}/bring/lists`);
+  }
+  extractBringList(listName?: string): Observable<BringExtractResponse> {
+    return this.http.post<BringExtractResponse>(`${this.base}/bring/extract`, { listName });
   }
   searchBringProducts(query: string, limit = 50): Observable<BringSearchResponse> {
     return this.http.get<BringSearchResponse>(`${this.base}/bring/search`, { params: { query, limit } });
